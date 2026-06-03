@@ -22,7 +22,7 @@ body {
 #app {
   width: 440px;
   height: 100vh;
-  padding: 8px 12px 30px;
+  padding: 8px 12px 6px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -595,20 +595,16 @@ body {
 
 /* Status bar */
 .status-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: 100%;
   font-size: 11px;
   color: #b2bec3;
-  padding: 5px 12px;
+  padding: 4px 0 0;
   border-top: 1px solid #e0e6f0;
-  background: #f8faff;
-  z-index: 10;
+  flex-shrink: 0;
 }
 
 .streak { color: #FF8C42; font-weight: 600; }
