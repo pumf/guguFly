@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>咕咕机长</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="title-bar">
+        <img id="titleLogo" class="title-logo" src="/logo.png" />
+        <span class="title-text">咕咕机长</span>
+      </div>
+
+      <!-- Task list -->
+      <div id="taskList" class="task-list"></div>
+
+      <!-- Add button -->
+      <button id="addTaskBtn" class="add-task-btn">+ 新建任务</button>
+
+      <!-- Edit modal -->
+      <div id="taskModal" class="modal hidden">
+        <div class="modal-overlay" id="modalOverlay"></div>
+        <div class="modal-content" id="modalContent">
+          <div class="modal-header">
+            <span id="modalTitle">新建任务</span>
+            <button id="modalCloseBtn" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <label>任务类型</label>
+              <div class="type-toggle">
+                <button class="type-btn active" data-type="alarm">🔔 闹钟</button>
+                <button class="type-btn" data-type="countdown">⏱ 倒计时</button>
+                <button class="type-btn" data-type="holiday">🎉 节日</button>
+                <button class="type-btn" data-type="anniversary">💝 纪念</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>名称</label>
+              <input type="text" id="editLabel" class="edit-input" placeholder="给任务起个名字" maxlength="20" />
+            </div>
+            <div id="alarmFields" class="form-group">
+              <div class="form-row">
+                <label>时间</label>
+                <input type="number" id="editHour" class="time-input" min="0" max="23" value="12" placeholder="时" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editMinute" class="time-input" min="0" max="59" value="0" placeholder="分" />
+              </div>
+              <div class="form-row">
+                <label>重复</label>
+                <div class="repeat-days">
+                  <button class="day-btn" data-day="1">一</button>
+                  <button class="day-btn" data-day="2">二</button>
+                  <button class="day-btn" data-day="3">三</button>
+                  <button class="day-btn" data-day="4">四</button>
+                  <button class="day-btn" data-day="5">五</button>
+                  <button class="day-btn" data-day="6">六</button>
+                  <button class="day-btn" data-day="0">日</button>
+                </div>
+              </div>
+            </div>
+            <div id="countdownFields" class="form-group hidden">
+              <div class="form-row">
+                <label>时长</label>
+                <input type="number" id="editMinutes" class="time-input" min="0" max="999" value="25" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editSeconds" class="time-input" min="0" max="59" value="0" />
+              </div>
+            </div>
+            <div id="holidayFields" class="form-group hidden">
+              <div class="form-row">
+                <label>节日</label>
+                <select id="editHoliday" class="edit-input">
+                  <option value="new_year">元旦 (1月1日)</option>
+                  <option value="valentine">情人节 (2月14日)</option>
+                  <option value="women_day">妇女节 (3月8日)</option>
+                  <option value="qingming">清明节 (4月4日)</option>
+                  <option value="labour_day">劳动节 (5月1日)</option>
+                  <option value="youth_day">青年节 (5月4日)</option>
+                  <option value="children_day">儿童节 (6月1日)</option>
+                  <option value="party_day">建党节 (7月1日)</option>
+                  <option value="army_day">建军节 (8月1日)</option>
+                  <option value="teacher_day">教师节 (9月10日)</option>
+                  <option value="national_day">国庆节 (10月1日)</option>
+                  <option value="christmas">圣诞节 (12月25日)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>年份</label>
+                <input type="number" id="editHolidayYear" class="time-input" min="2000" max="2100" value="2026" />
+                <label style="min-width:24px">时间</label>
+                <input type="number" id="editHolidayHour" class="time-input" min="0" max="23" value="9" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editHolidayMinute" class="time-input" min="0" max="59" value="0" />
+              </div>
+            </div>
+            <div id="anniversaryFields" class="form-group hidden">
+              <div class="form-row">
+                <label>日期</label>
+                <input type="number" id="editAnniYear" class="time-input" min="1900" max="2100" value="2026" placeholder="年" />
+                <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" placeholder="月" />
+                <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" placeholder="日" />
+              </div>
+              <div class="form-row">
+                <label>时间</label>
+                <input type="number" id="editAnniHour" class="time-input" min="0" max="23" value="9" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editAnniMinute" class="time-input" min="0" max="59" value="0" />
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-row">
+                <label>飞行</label>
+                <select id="editFlightMode" class="edit-input">
+                  <option value="once">一次性</option>
+                  <option value="loop_times">连续循环</option>
+                  <option value="loop_interval">间隔循环</option>
+                </select>
+              </div>
+              <div id="loopTimesField" class="form-row hidden">
+                <label>次数</label>
+                <input type="number" id="editLoopCount" class="time-input" min="1" max="99" value="3" style="width:80px" />
+                <span style="font-size:12px;color:#b2bec3">次（往返）</span>
+              </div>
+              <div id="loopIntervalField" class="form-row hidden">
+                <label>间隔</label>
+                <input type="number" id="editLoopInterval" class="time-input" min="1" max="999" value="5" style="width:80px" />
+                <span style="font-size:12px;color:#b2bec3">分钟</span>
+                <label style="font-size:12px;color:#b2bec3;margin-left:4px">共</label>
+                <input type="number" id="editIntervalCount" class="time-input" min="1" max="999" value="10" style="width:60px" />
+                <span style="font-size:12px;color:#b2bec3">次</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>文案</label>
+              <input type="text" id="editMsg" class="edit-input" placeholder="飞行文案（留空随机）" maxlength="30" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="deleteTaskBtn" class="del-btn hidden">删除此任务</button>
+            <button id="saveTaskBtn" class="save-btn">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings modal -->
+      <div id="settingsModal" class="modal hidden">
+        <div class="modal-overlay" id="settingsOverlay"></div>
+        <div class="modal-content" style="max-height:460px">
+          <div class="modal-header">
+            <span>设置</span>
+            <button id="settingsCloseBtn" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="font-size:13px;line-height:1.6;color:#636e72">
+              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">🛩 咕咕机长 v0.1.0</p>
+              <p>桌面定时提醒小工具。设置任务（闹钟、倒计时、节日、纪念日），时间到后飞机飞过屏幕提醒你。</p>
+              <p style="margin-top:6px;font-size:11px;color:#b2bec3">macOS · 轻量 · 免费</p>
+            </div>
+            <div class="form-row" style="margin-top:14px">
+              <label style="min-width:80px">开机自启</label>
+              <label class="img-toggle">
+                <input type="checkbox" id="autostartToggle" />
+                <span>开机后自动启动</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flight config (collapsible) -->
+      <div class="bottom-section">
+        <div class="bottom-toggle" id="configToggle">
+          <span>✈ 飞行设置</span>
+          <span class="toggle-arrow" id="configArrow">▴</span>
+        </div>
+        <div id="configPanel" class="config-panel">
+          <div class="config-row">
+            <label>速度</label>
+            <select id="speedSelect">
+              <option value="vslow">超慢</option>
+              <option value="slow">慢速</option>
+              <option value="normal" selected>正常</option>
+              <option value="fast">快速</option>
+            </select>
+            <label>高度</label>
+            <select id="heightSelect">
+              <option value="top">上方</option>
+              <option value="center" selected>居中</option>
+              <option value="bottom">下方</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>飞机</label>
+            <select id="planeSelect">
+              <option value="classic">经典</option>
+              <option value="rocket">火箭</option>
+              <option value="butterfly">蝴蝶</option>
+              <option value="jet">喷射</option>
+            </select>
+            <button id="imageBtn" class="cfg-btn">📷 图片</button>
+            <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
+            <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
+            <img id="imagePreview" class="img-preview hidden" />
+            <label class="img-toggle">
+              <input type="checkbox" id="useImageCheckbox" />
+              <span>图片</span>
+            </label>
+          </div>
+          <div class="config-row">
+            <label>尾焰</label>
+            <select id="particleSelect">
+              <option value="classic">飘带</option>
+              <option value="rocket">火焰</option>
+              <option value="butterfly">星点</option>
+              <option value="jet">尾迹</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>文案框</label>
+            <select id="bubbleSelect">
+              <option value="classic">圆角</option>
+              <option value="rocket">锐角</option>
+              <option value="butterfly">柔圆</option>
+              <option value="jet">简约条</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>提示音</label>
+            <select id="soundSelect">
+              <option value="whoosh">咻</option>
+              <option value="dingdong">叮咚</option>
+              <option value="ring">铃声</option>
+              <option value="soft">柔和</option>
+            </select>
+            <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
+            <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
+            <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
+            <select id="soundModeSelect">
+              <option value="once">一次</option>
+              <option value="loop">循环</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span>今日起飞 <strong id="todayCount">0</strong> 次</span>
+        <span class="streak" id="streakDisplay"></span>
+        <button id="emergencyBtn" class="icon-btn" title="紧急降落">🛑</button>
+        <button id="settingsBtn" class="icon-btn" title="设置">⚙</button>
+        <button id="muteBtn" class="icon-btn" title="声音开关">🔊</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flight</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: transparent;
+        overflow: hidden;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+      }
+      canvas {
+        display: block;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="flightCanvas"></canvas>
+    <img id="gifPlane" style="position:absolute;left:-9999px;top:-9999px">
+    <script type="module" src="/src/flight.js"></script>
+  </body>
+</html>
