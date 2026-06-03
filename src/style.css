@@ -4,6 +4,12 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: linear-gradient(145deg, #f0f4ff 0%, #e6edfa 100%);
@@ -15,7 +21,7 @@ body {
 
 #app {
   width: 440px;
-  height: 700px;
+  height: 100vh;
   padding: 8px 12px 30px;
   display: flex;
   flex-direction: column;
@@ -489,7 +495,6 @@ body {
 .bottom-section {
   flex-shrink: 0;
   width: 100%;
-  margin-top: auto;
 }
 
 .bottom-toggle {
