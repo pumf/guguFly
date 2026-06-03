@@ -265,7 +265,11 @@ function renderTasks() {
 
     const icon = document.createElement('span');
     icon.className = 'task-icon';
-    icon.textContent = task.type === 'alarm' ? '🔔' : task.type === 'countdown' ? '⏱' : task.type === 'holiday' ? '🎉' : '💝';
+    const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+    const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
+    const svgCal = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    const svgHeart = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+    icon.innerHTML = task.type === 'alarm' ? svgClock : task.type === 'countdown' ? svgTimer : task.type === 'holiday' ? svgCal : svgHeart;
 
     const body = document.createElement('div');
     body.className = 'task-body';
@@ -315,10 +319,10 @@ function renderTasks() {
       playBtn.className = 'task-play-btn';
       if (task._status === 'running') {
         playBtn.classList.add('active');
-        playBtn.textContent = '⏹';
+        playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
         playBtn.title = '停止';
       } else {
-        playBtn.textContent = '▶';
+        playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
         playBtn.title = '开始';
       }
       playBtn.addEventListener('click', (e) => {
@@ -335,7 +339,7 @@ function renderTasks() {
     // Takeoff button
     const takeoffBtn = document.createElement('button');
     takeoffBtn.className = 'task-takeoff-btn';
-    takeoffBtn.textContent = '🚀';
+    takeoffBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>';
     takeoffBtn.title = '马上起飞';
     takeoffBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -908,7 +912,9 @@ async function init() {
   const cfg = await loadSettings();
 
   isMuted = cfg.muted;
-  muteBtn.textContent = isMuted ? '🔇' : '🔊';
+  muteBtn.innerHTML = isMuted
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
   todayCountEl.textContent = cfg.todayCount;
   if (cfg.speed) speedSelect.value = cfg.speed;
   if (cfg.height) heightSelect.value = cfg.height;
@@ -1026,7 +1032,9 @@ configToggle.addEventListener('click', () => {
 // Mute
 muteBtn.addEventListener('click', async () => {
   isMuted = !isMuted;
-  muteBtn.textContent = isMuted ? '🔇' : '🔊';
+  muteBtn.innerHTML = isMuted
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
   await set('muted', isMuted);
 });
 
