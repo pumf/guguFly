@@ -9,10 +9,11 @@ import { enable as enableAutostart, disable as disableAutostart, isEnabled as is
 const appWindow = getCurrentWebviewWindow();
 
 const HOLIDAY_PRESETS = {
+  // Solar holidays
   new_year: { label: '元旦', month: 1, day: 1 },
   valentine: { label: '情人节', month: 2, day: 14 },
   women_day: { label: '妇女节', month: 3, day: 8 },
-  qingming: { label: '清明节', month: 4, day: 4 },
+  qingming: { label: '清明节', month: 4, day: 5 },
   labour_day: { label: '劳动节', month: 5, day: 1 },
   youth_day: { label: '青年节', month: 5, day: 4 },
   children_day: { label: '儿童节', month: 6, day: 1 },
@@ -21,6 +22,31 @@ const HOLIDAY_PRESETS = {
   teacher_day: { label: '教师节', month: 9, day: 10 },
   national_day: { label: '国庆节', month: 10, day: 1 },
   christmas: { label: '圣诞节', month: 12, day: 25 },
+  // 24 Solar terms
+  lichun: { label: '立春', month: 2, day: 4 },
+  yushui: { label: '雨水', month: 2, day: 19 },
+  jingzhe: { label: '惊蛰', month: 3, day: 6 },
+  chunfen: { label: '春分', month: 3, day: 21 },
+  qingming_jieqi: { label: '清明', month: 4, day: 5 },
+  guyu: { label: '谷雨', month: 4, day: 20 },
+  lixia: { label: '立夏', month: 5, day: 6 },
+  xiaoman: { label: '小满', month: 5, day: 21 },
+  mangzhong: { label: '芒种', month: 6, day: 6 },
+  xiazhi: { label: '夏至', month: 6, day: 21 },
+  xiaoshu: { label: '小暑', month: 7, day: 7 },
+  dashu: { label: '大暑', month: 7, day: 23 },
+  liqiu: { label: '立秋', month: 8, day: 7 },
+  chushu: { label: '处暑', month: 8, day: 23 },
+  bailu: { label: '白露', month: 9, day: 8 },
+  qiufen: { label: '秋分', month: 9, day: 23 },
+  hanlu: { label: '寒露', month: 10, day: 8 },
+  shuangjiang: { label: '霜降', month: 10, day: 23 },
+  lidong: { label: '立冬', month: 11, day: 7 },
+  xiaoxue: { label: '小雪', month: 11, day: 22 },
+  daxue: { label: '大雪', month: 12, day: 7 },
+  dongzhi: { label: '冬至', month: 12, day: 22 },
+  xiaohan: { label: '小寒', month: 1, day: 6 },
+  dahan: { label: '大寒', month: 1, day: 20 },
 };
 
 // DOM refs
@@ -40,11 +66,9 @@ const editHour = document.getElementById('editHour');
 const editMinute = document.getElementById('editMinute');
 const editMinutes = document.getElementById('editMinutes');
 const editSeconds = document.getElementById('editSeconds');
-const editHoliday = document.getElementById('editHoliday');
-const editHolidayYear = document.getElementById('editHolidayYear');
 const editHolidayHour = document.getElementById('editHolidayHour');
 const editHolidayMinute = document.getElementById('editHolidayMinute');
-const editAnniYear = document.getElementById('editAnniYear');
+const holidayChecklist = document.getElementById('holidayChecklist');
 const editAnniMonth = document.getElementById('editAnniMonth');
 const editAnniDay = document.getElementById('editAnniDay');
 const editAnniHour = document.getElementById('editAnniHour');
@@ -157,7 +181,6 @@ function createHolidayTask() {
     loopInterval: 5,
     intervalCount: 10,
     holidayKey: 'new_year',
-    year: new Date().getFullYear(),
     month: 1,
     day: 1,
     hour: 9,
@@ -178,7 +201,6 @@ function createAnniversaryTask() {
     loopCount: 3,
     loopInterval: 5,
     intervalCount: 10,
-    year: d.getFullYear(),
     month: d.getMonth() + 1,
     day: d.getDate(),
     hour: 9,
@@ -291,9 +313,9 @@ function renderTasks() {
       }
     } else if (task.type === 'holiday') {
       const preset = HOLIDAY_PRESETS[task.holidayKey];
-      info.textContent = `${preset ? preset.label : '节日'} ${task.year}年${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
+      info.textContent = `${preset ? preset.label : '节日'} ${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
     } else if (task.type === 'anniversary') {
-      info.textContent = `${task.year}年${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
+      info.textContent = `${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
     }
     const modeLabel = { once: '', loop_times: ' 🔁循环', loop_interval: ' ⏰间隔' };
     if (task.flightMode !== 'once') info.textContent += modeLabel[task.flightMode];
@@ -696,13 +718,13 @@ function openEditModal(task) {
     editSeconds.value = task.duration % 60;
   } else if (task.type === 'holiday') {
     holidayFields.classList.remove('hidden');
-    editHoliday.value = task.holidayKey || 'new_year';
-    editHolidayYear.value = task.year || new Date().getFullYear();
+    holidayChecklist.querySelectorAll('input').forEach(cb => {
+      cb.checked = cb.value === task.holidayKey;
+    });
     editHolidayHour.value = task.hour;
     editHolidayMinute.value = task.minute;
   } else if (task.type === 'anniversary') {
     anniversaryFields.classList.remove('hidden');
-    editAnniYear.value = task.year || new Date().getFullYear();
     editAnniMonth.value = task.month;
     editAnniDay.value = task.day;
     editAnniHour.value = task.hour;
@@ -740,11 +762,8 @@ function openNewModal() {
   editSeconds.value = '0';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
 
-  editHoliday.value = 'new_year';
-  editHolidayYear.value = new Date().getFullYear();
   editHolidayHour.value = '9';
   editHolidayMinute.value = '0';
-  editAnniYear.value = new Date().getFullYear();
   editAnniMonth.value = '1';
   editAnniDay.value = '1';
   editAnniHour.value = '9';
@@ -795,10 +814,12 @@ function saveModal() {
       if (task.duration <= 0) task.duration = 60;
       task._remaining = task.duration;
     } else if (type === 'holiday') {
-      const key = editHoliday.value;
-      const preset = HOLIDAY_PRESETS[key];
-      task.holidayKey = key;
-      task.year = parseInt(editHolidayYear.value) || new Date().getFullYear();
+      // Edit: single holiday
+      const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
+      if (checkedBoxes.length === 0) return;
+      const useKey = checkedBoxes[0].value;
+      const preset = HOLIDAY_PRESETS[useKey];
+      task.holidayKey = useKey;
       task.month = preset ? preset.month : 1;
       task.day = preset ? preset.day : 1;
       task.hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
@@ -806,7 +827,6 @@ function saveModal() {
       task.label = task.label || (preset ? preset.label : '节日');
       task._lastTriggeredDate = null;
     } else if (type === 'anniversary') {
-      task.year = parseInt(editAnniYear.value) || new Date().getFullYear();
       task.month = Math.min(12, Math.max(1, parseInt(editAnniMonth.value) || 1));
       task.day = Math.min(31, Math.max(1, parseInt(editAnniDay.value) || 1));
       task.hour = Math.min(23, Math.max(0, parseInt(editAnniHour.value) || 0));
@@ -835,21 +855,34 @@ function saveModal() {
       if (task.duration <= 0) task.duration = 60;
       task._remaining = task.duration;
     } else if (type === 'holiday') {
-      task = createHolidayTask();
-      const key = editHoliday.value;
-      const preset = HOLIDAY_PRESETS[key];
-      task.holidayKey = key;
-      task.label = editLabel.value.trim() || (preset ? preset.label : '节日');
-      task.msg = editMsg.value.trim();
-      task.flightMode = flightMode;
-      task.loopCount = loopCount;
-      task.loopInterval = loopInterval;
-      task.intervalCount = intervalCount;
-      task.year = parseInt(editHolidayYear.value) || new Date().getFullYear();
-      task.month = preset ? preset.month : 1;
-      task.day = preset ? preset.day : 1;
-      task.hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
-      task.minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
+      const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
+      if (checkedBoxes.length === 0) return;
+      const hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
+      const minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
+      const msg = editMsg.value.trim();
+      let firstTask = null;
+      checkedBoxes.forEach(cb => {
+        const key = cb.value;
+        const preset = HOLIDAY_PRESETS[key];
+        const t = createHolidayTask();
+        t.holidayKey = key;
+        t.label = preset ? preset.label : '节日';
+        t.msg = msg;
+        t.flightMode = flightMode;
+        t.loopCount = loopCount;
+        t.loopInterval = loopInterval;
+        t.intervalCount = intervalCount;
+        t.month = preset ? preset.month : 1;
+        t.day = preset ? preset.day : 1;
+        t.hour = hour;
+        t.minute = minute;
+        tasks.push(t);
+        if (!firstTask) firstTask = t;
+      });
+      closeModal();
+      saveTasks(getCleanTasks());
+      renderTasks();
+      return;
     } else if (type === 'anniversary') {
       task = createAnniversaryTask();
       task.label = editLabel.value.trim() || '纪念日';
@@ -858,7 +891,6 @@ function saveModal() {
       task.loopCount = loopCount;
       task.loopInterval = loopInterval;
       task.intervalCount = intervalCount;
-      task.year = parseInt(editAnniYear.value) || new Date().getFullYear();
       task.month = Math.min(12, Math.max(1, parseInt(editAnniMonth.value) || 1));
       task.day = Math.min(31, Math.max(1, parseInt(editAnniDay.value) || 1));
       task.hour = Math.min(23, Math.max(0, parseInt(editAnniHour.value) || 0));
@@ -885,8 +917,8 @@ function getCleanTasks() {
     const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10 };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'countdown') return { ...base, duration: t.duration };
-    if (t.type === 'holiday') return { ...base, holidayKey: t.holidayKey, year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
-    if (t.type === 'anniversary') return { ...base, year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
+    if (t.type === 'holiday') return { ...base, holidayKey: t.holidayKey, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
+    if (t.type === 'anniversary') return { ...base, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
     return base;
   });
 }
@@ -950,10 +982,25 @@ async function init() {
 
   renderTasks();
   startAlarmChecker();
+  initHolidayChecklist();
 
   // Apply config panel state
   configPanel.classList.toggle('hidden', !isConfigOpen);
   configArrow.classList.toggle('collapsed', !isConfigOpen);
+}
+
+function initHolidayChecklist() {
+  holidayChecklist.innerHTML = '';
+  for (const [key, preset] of Object.entries(HOLIDAY_PRESETS)) {
+    const label = document.createElement('label');
+    label.className = 'holiday-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = key;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`${preset.label} (${preset.month}月${preset.day}日)`));
+    holidayChecklist.appendChild(label);
+  }
 }
 
 async function loadSettings() {
@@ -998,6 +1045,10 @@ document.querySelectorAll('.type-btn').forEach(btn => {
     countdownFields.classList.toggle('hidden', type !== 'countdown');
     holidayFields.classList.toggle('hidden', type !== 'holiday');
     anniversaryFields.classList.toggle('hidden', type !== 'anniversary');
+    if (type === 'holiday' && !editingId) {
+      const firstCb = holidayChecklist.querySelector('input');
+      if (firstCb) firstCb.checked = true;
+    }
   });
 });
 
@@ -1006,13 +1057,6 @@ editFlightMode.addEventListener('change', () => {
   const v = editFlightMode.value;
   loopTimesField.classList.toggle('hidden', v !== 'loop_times');
   loopIntervalField.classList.toggle('hidden', v !== 'loop_interval');
-});
-
-// Holiday select change -> auto-fill label
-editHoliday.addEventListener('change', () => {
-  const key = editHoliday.value;
-  const preset = HOLIDAY_PRESETS[key];
-  if (preset) editLabel.value = preset.label;
 });
 
 // Day buttons
