@@ -90,7 +90,7 @@ let tasks = [];
 let nextId = 1;
 let editingId = null;
 let isMuted = false;
-let isConfigOpen = true;
+let isConfigOpen = false;
 let activeCountdown = null;
 let customImageData = '';
 let customAudioData = '';
@@ -944,6 +944,10 @@ async function init() {
 
   renderTasks();
   startAlarmChecker();
+
+  // Apply config panel state
+  configPanel.classList.toggle('hidden', !isConfigOpen);
+  configArrow.classList.toggle('collapsed', !isConfigOpen);
 }
 
 async function loadSettings() {

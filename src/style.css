@@ -16,12 +16,12 @@ body {
 #app {
   width: 440px;
   height: 640px;
-  padding: 14px 15px 10px;
+  padding: 10px 15px 8px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   position: relative;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* Title */
@@ -30,7 +30,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
@@ -514,7 +514,7 @@ body {
 }
 
 .config-panel {
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 .config-panel.hidden { display: none; }
@@ -522,8 +522,8 @@ body {
 .config-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 4px;
+  margin-bottom: 3px;
 }
 
 .config-row:last-child { margin-bottom: 0; }
