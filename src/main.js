@@ -115,7 +115,6 @@ let nextId = 1;
 let editingId = null;
 let isMuted = false;
 let isConfigOpen = false;
-let activeCountdown = null;
 let customImageData = '';
 let customAudioData = '';
 let loopAudio = null;
@@ -403,9 +402,6 @@ function formatDuration(s) {
 // --- Countdown ---
 
 function startCountdown(task) {
-  if (activeCountdown && activeCountdown._status === 'running') {
-    stopCountdown(activeCountdown);
-  }
   if (!task.enabled) {
     task.enabled = true;
   }
@@ -414,7 +410,6 @@ function startCountdown(task) {
 
   task._status = 'running';
   task._remaining = task.duration;
-  activeCountdown = task;
 
   task._timer = new AccurateTimer(
     duration,
@@ -436,13 +431,11 @@ function stopCountdown(task) {
   }
   task._status = 'idle';
   task._remaining = task.duration;
-  if (activeCountdown === task) activeCountdown = null;
   renderTasks();
 }
 
 async function onCountdownComplete(task) {
   task._status = 'completed';
-  if (activeCountdown === task) activeCountdown = null;
   renderTasks();
 
   await triggerFlightWithMode(task);
@@ -1090,9 +1083,11 @@ emergencyBtn.addEventListener('click', async () => {
     if (loopState.timeoutId) clearTimeout(loopState.timeoutId);
     loopState = null;
   }
-  if (activeCountdown && activeCountdown._status === 'running') {
-    stopCountdown(activeCountdown);
-  }
+  tasks.forEach(t => {
+    if (t.type === 'countdown' && t._status === 'running') {
+      stopCountdown(t);
+    }
+  });
   try {
     const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
     const all = await WebviewWindow.getAll();
@@ -1167,14 +1162,19 @@ clearSoundBtn.addEventListener('click', () => {
 
 // Shortcuts
 listen('timer-start', () => {
-  const idle = tasks.find(t => t.type === 'countdown' && t.enabled && t._status === 'idle');
-  if (idle) startCountdown(idle);
+  tasks.forEach(t => {
+    if (t.type === 'countdown' && t.enabled && t._status === 'idle') {
+      startCountdown(t);
+    }
+  });
 });
 listen('timer-pause', () => {
   stopLoopSound();
-  if (activeCountdown && activeCountdown._status === 'running') {
-    stopCountdown(activeCountdown);
-  }
+  tasks.forEach(t => {
+    if (t.type === 'countdown' && t._status === 'running') {
+      stopCountdown(t);
+    }
+  });
 });
 listen('timer-stop', () => {
   stopLoopSound();
@@ -1183,9 +1183,11 @@ listen('timer-stop', () => {
     if (loopState.timeoutId) clearTimeout(loopState.timeoutId);
     loopState = null;
   }
-  if (activeCountdown && activeCountdown._status === 'running') {
-    stopCountdown(activeCountdown);
-  }
+  tasks.forEach(t => {
+    if (t.type === 'countdown' && t._status === 'running') {
+      stopCountdown(t);
+    }
+  });
 });
 listen('toggle-mute', () => muteBtn.click());
 
