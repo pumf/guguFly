@@ -104,12 +104,16 @@ const settingsCloseBtn = document.getElementById('settingsCloseBtn');
 const autostartToggle = document.getElementById('autostartToggle');
 const speedSelect = document.getElementById('speedSelect');
 const heightSelect = document.getElementById('heightSelect');
+const effectSelect = document.getElementById('effectSelect');
+const previewFlightBtn = document.getElementById('previewFlightBtn');
+const resetFlightBtn = document.getElementById('resetFlightBtn');
 const configToggle = document.getElementById('configToggle');
 const configPanel = document.getElementById('configPanel');
 const configArrow = document.getElementById('configArrow');
 const planeSelect = document.getElementById('planeSelect');
 const particleSelect = document.getElementById('particleSelect');
 const bubbleSelect = document.getElementById('bubbleSelect');
+const bubblePositionSelect = document.getElementById('bubblePositionSelect');
 const imageBtn = document.getElementById('imageBtn');
 const imageInput = document.getElementById('imageInput');
 const clearImageBtn = document.getElementById('clearImageBtn');
@@ -120,6 +124,10 @@ const soundModeSelect = document.getElementById('soundModeSelect');
 const soundBtn = document.getElementById('soundBtn');
 const soundInput = document.getElementById('soundInput');
 const clearSoundBtn = document.getElementById('clearSoundBtn');
+const useSoundCheckbox = document.getElementById('useSoundCheckbox');
+const soundMeta = document.getElementById('soundMeta');
+const soundNameEl = document.getElementById('soundName');
+const previewSoundBtn = document.getElementById('previewSoundBtn');
 const validationFields = [editAnniMonth, editAnniDay, imageInput, soundInput];
 
 // State
@@ -131,15 +139,36 @@ let isMuted = false;
 let isConfigOpen = false;
 let customImageData = '';
 let customAudioData = '';
+let customAudioName = '';
 let loopAudio = null;
 let loopOscInterval = null;
 let sharedAudioCtx = null;
+let audioUnlocked = false;
+let customAudioProbe = null;
+let customAudioObjectUrl = '';
+let previewAudioHandle = null;
 let toastTimer = null;
+let activeFlightJob = null;
+const flightQueue = [];
 const flightSequences = new Map();
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
-const MAX_AUDIO_SIZE = 3 * 1024 * 1024;
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 const VALID_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif']);
 const VALID_AUDIO_TYPES = new Set(['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg']);
+const VALID_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif']);
+const VALID_AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'mpeg']);
+const DEFAULT_FLIGHT_SETTINGS = {
+  speed: 'normal',
+  height: 'center',
+  effect: 'steady',
+  plane: 'classic',
+  particle: 'classic',
+  bubble: 'classic',
+  bubblePosition: 'top',
+  sound: 'whoosh',
+  soundMode: 'once',
+  useSound: false,
+};
 
 function createSequenceId(taskId) {
   return `seq-${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -166,12 +195,51 @@ function clearAllSequences() {
   }
 }
 
+function clearFlightQueue() {
+  flightQueue.length = 0;
+  activeFlightJob = null;
+}
+
 function hasActiveSequences() {
   return flightSequences.size > 0;
 }
 
+async function processFlightQueue() {
+  if (activeFlightJob || !flightQueue.length) return;
+  const nextJob = flightQueue.shift();
+  activeFlightJob = nextJob;
+  if (nextJob.playSound && !isMuted) playSound();
+  await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId);
+}
+
+function queueFlight(job) {
+  flightQueue.push(job);
+  void processFlightQueue();
+}
+
+function releaseFlightQueue() {
+  activeFlightJob = null;
+  void processFlightQueue();
+}
+
 async function persistSetting(key, value) {
   await set(key, value);
+}
+
+async function persistFlightSettings() {
+  await Promise.all([
+    persistSetting('speed', speedSelect.value),
+    persistSetting('height', heightSelect.value),
+    persistSetting('effect', effectSelect.value),
+    persistSetting('plane', planeSelect.value),
+    persistSetting('particle', particleSelect.value),
+    persistSetting('bubble', bubbleSelect.value),
+    persistSetting('bubblePosition', bubblePositionSelect.value),
+    persistSetting('sound', soundSelect.value),
+    persistSetting('soundMode', soundModeSelect.value),
+    persistSetting('useSound', useSoundCheckbox.checked),
+    persistSetting('useImage', useImageCheckbox.checked),
+  ]);
 }
 
 function getDateKey(date = new Date()) {
@@ -213,14 +281,21 @@ function validateAnniversaryValues({ month, day }) {
 
 function validateUpload(file, validTypes, maxSize, kindLabel) {
   if (!file) return false;
-  if (!validTypes.has(file.type)) {
+  const fileName = file.name || '';
+  const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+  const validExtensions = kindLabel === '图片' ? VALID_IMAGE_EXTENSIONS : VALID_AUDIO_EXTENSIONS;
+  const typeOk = !!file.type && validTypes.has(file.type);
+  const extOk = !!ext && validExtensions.has(ext);
+  if (!typeOk && !extOk) {
     markFieldError([kindLabel === '图片' ? imageBtn : soundBtn]);
     showModalError(`${kindLabel}格式不支持，请选择应用允许的文件类型。`);
+    showToast(`${kindLabel}格式不支持`);
     return false;
   }
   if (file.size > maxSize) {
     markFieldError([kindLabel === '图片' ? imageBtn : soundBtn]);
     showModalError(`${kindLabel}过大，请控制在 ${Math.round(maxSize / 1024 / 1024)}MB 以内。`);
+    showToast(`${kindLabel}过大，请控制在 ${Math.round(maxSize / 1024 / 1024)}MB 以内`);
     return false;
   }
   return true;
@@ -245,6 +320,159 @@ async function getAudioContext() {
     } catch (e) {}
   }
   return sharedAudioCtx;
+}
+
+async function unlockAudioIfNeeded() {
+  if (audioUnlocked) return true;
+  try {
+    const audioCtx = await getAudioContext();
+    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+    audioUnlocked = true;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function dataUrlToArrayBuffer(dataUrl) {
+  const base64 = dataUrl.split(',')[1] || '';
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+function revokeCustomAudioObjectUrl() {
+  if (!customAudioObjectUrl) return;
+  URL.revokeObjectURL(customAudioObjectUrl);
+  customAudioObjectUrl = '';
+}
+
+function updateSoundMeta() {
+  const hasAudio = !!customAudioData;
+  if (soundNameEl) {
+    soundNameEl.textContent = hasAudio ? (customAudioName || '已选择自定义音频') : '未选择音频';
+    soundNameEl.title = customAudioName || '';
+  }
+  if (previewSoundBtn) {
+    previewSoundBtn.disabled = !hasAudio;
+    previewSoundBtn.textContent = hasAudio ? (previewAudioHandle ? '结束试听' : '试听') : '未选择';
+  }
+}
+
+function buildCustomAudioObjectUrl() {
+  revokeCustomAudioObjectUrl();
+  if (!customAudioData) return '';
+  const mimeMatch = customAudioData.match(/^data:([^;]+);base64,/);
+  const mimeType = mimeMatch?.[1] || 'audio/mpeg';
+  const bytes = new Uint8Array(dataUrlToArrayBuffer(customAudioData));
+  const blob = new Blob([bytes], { type: mimeType });
+  customAudioObjectUrl = URL.createObjectURL(blob);
+  return customAudioObjectUrl;
+}
+
+async function playCustomAudio(loopMode) {
+  const objectUrl = customAudioObjectUrl || buildCustomAudioObjectUrl();
+  const audio = new Audio(objectUrl || customAudioData);
+  audio.loop = loopMode;
+  audio.volume = 0.58;
+  audio.preload = 'auto';
+  audio.currentTime = 0;
+
+  try {
+    await audio.play();
+    if (loopMode) {
+      loopAudio = audio;
+    } else {
+      audio.addEventListener('ended', () => {
+        audio.src = '';
+      }, { once: true });
+    }
+    return audio;
+  } catch (htmlAudioError) {
+    const audioCtx = await getAudioContext();
+    const decoded = await audioCtx.decodeAudioData(dataUrlToArrayBuffer(customAudioData));
+    const source = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    source.buffer = decoded;
+    source.loop = loopMode;
+    gain.gain.setValueAtTime(0.52, audioCtx.currentTime);
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+    if (loopMode) {
+      loopAudio = {
+        pause() {
+          try {
+            source.stop();
+          } catch (e) {}
+        },
+      };
+    }
+    return {
+      pause() {
+        try {
+          source.stop();
+        } catch (e) {}
+      },
+    };
+  }
+}
+
+function stopPreviewAudio() {
+  if (!previewAudioHandle) return;
+  try {
+    previewAudioHandle.pause();
+  } catch (e) {}
+  previewAudioHandle = null;
+  updateSoundMeta();
+}
+
+async function validateCustomAudioPreview() {
+  if (!customAudioData) return true;
+  try {
+    if (customAudioProbe) {
+      customAudioProbe.pause();
+      customAudioProbe.src = '';
+      customAudioProbe = null;
+    }
+    const objectUrl = customAudioObjectUrl || buildCustomAudioObjectUrl();
+    const probe = new Audio(objectUrl || customAudioData);
+    probe.preload = 'auto';
+    customAudioProbe = probe;
+    await new Promise((resolve, reject) => {
+      const cleanup = () => {
+        probe.removeEventListener('canplaythrough', onReady);
+        probe.removeEventListener('error', onError);
+      };
+      const onReady = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error('audio_load_failed'));
+      };
+      probe.addEventListener('canplaythrough', onReady, { once: true });
+      probe.addEventListener('error', onError, { once: true });
+      probe.load();
+      setTimeout(() => {
+        cleanup();
+        resolve();
+      }, 1200);
+    });
+    return true;
+  } catch (e) {
+    showToast('这段自定义音频当前无法播放，请换一个 mp3 或 wav 文件试试');
+    return false;
+  }
 }
 
 async function registerFlightTrigger() {
@@ -998,16 +1226,18 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '') {
   }
   const speed = speedSelect.value;
   const height = heightSelect.value;
+  const effect = effectSelect.value;
   const plane = planeSelect.value;
   const particle = particleSelect.value;
   const bubble = bubbleSelect.value;
+  const bubblePosition = bubblePositionSelect.value;
 
   localStorage.setItem('_flightImage', customImageData || '');
   localStorage.setItem('_flightUseImage', useImageCheckbox.checked ? '1' : '0');
 
   try {
     const { width: sw, height: sh } = screen;
-    const params = new URLSearchParams({ w: sw, h: sh, speed, height, plane, particle, bubble, msg, dir: direction, seq: sequenceId });
+    const params = new URLSearchParams({ w: sw, h: sh, speed, height, effect, plane, particle, bubble, bubblePosition, msg, dir: direction, seq: sequenceId });
     const flightWin = new WebviewWindow(`flight-${Date.now()}`, {
       url: `/flight.html?${params}`,
       width: sw, height: sh, x: 0, y: 0,
@@ -1022,17 +1252,84 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '') {
   await new Promise(r => setTimeout(r, 200));
 }
 
+async function previewFlight() {
+  if (!isTauriRuntime) {
+    showToast('预览仅在桌面应用内可用');
+    return;
+  }
+  await unlockAudioIfNeeded();
+  if (useSoundCheckbox.checked && !(await validateCustomAudioPreview())) {
+    return;
+  }
+  await persistFlightSettings();
+  queueFlight({ msg: '预览当前飞行效果', direction: 'ltr', sequenceId: '', playSound: true });
+}
+
+async function previewCustomSound() {
+  if (!customAudioData) {
+    showToast('请先选择一段自定义音频');
+    return;
+  }
+  if (previewAudioHandle) {
+    stopPreviewAudio();
+    showToast('已结束试听');
+    return;
+  }
+  stopLoopSound();
+  await unlockAudioIfNeeded();
+  try {
+    previewAudioHandle = await playCustomAudio(false);
+    if (previewAudioHandle && 'addEventListener' in previewAudioHandle) {
+      previewAudioHandle.addEventListener('ended', () => {
+        previewAudioHandle = null;
+        updateSoundMeta();
+      }, { once: true });
+    }
+    updateSoundMeta();
+    showToast('正在试听自定义音频');
+  } catch (e) {
+    previewAudioHandle = null;
+    updateSoundMeta();
+    showToast('这段自定义音频试听失败，请换一个 mp3 或 wav 文件试试');
+  }
+}
+
+async function resetFlightSettings() {
+  speedSelect.value = DEFAULT_FLIGHT_SETTINGS.speed;
+  heightSelect.value = DEFAULT_FLIGHT_SETTINGS.height;
+  effectSelect.value = DEFAULT_FLIGHT_SETTINGS.effect;
+  planeSelect.value = DEFAULT_FLIGHT_SETTINGS.plane;
+  particleSelect.value = DEFAULT_FLIGHT_SETTINGS.particle;
+  bubbleSelect.value = DEFAULT_FLIGHT_SETTINGS.bubble;
+  bubblePositionSelect.value = DEFAULT_FLIGHT_SETTINGS.bubblePosition;
+  soundSelect.value = DEFAULT_FLIGHT_SETTINGS.sound;
+  soundModeSelect.value = DEFAULT_FLIGHT_SETTINGS.soundMode;
+  useSoundCheckbox.checked = DEFAULT_FLIGHT_SETTINGS.useSound;
+  customImageData = '';
+  customAudioName = '';
+  useImageCheckbox.checked = false;
+  imagePreview.src = '';
+  imagePreview.classList.add('hidden');
+  clearImageBtn.classList.add('hidden');
+  useImageCheckbox.closest('.img-toggle').classList.add('hidden');
+  imageInput.value = '';
+  updateTitleLogo();
+  await persistSetting('customImage', '');
+  await persistFlightSettings();
+  await persistSetting('customAudioName', '');
+  updateSoundMeta();
+  showToast('已恢复推荐飞行设置');
+}
+
 async function triggerFlightWithMode(task) {
   const msg = task.msg || getRandomQuote();
 
   await registerFlightTrigger();
 
-  if (!isMuted) playSound();
-
   const mode = task.flightMode || 'once';
 
   if (mode === 'once') {
-    await createFlightWindow(msg, 'ltr');
+    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true });
     return;
   }
 
@@ -1057,7 +1354,7 @@ async function triggerFlightWithMode(task) {
         }
       }, totalLoopMs),
     });
-    await createFlightWindow(msg, 'ltr', sequenceId);
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true });
     return;
   }
 
@@ -1083,7 +1380,7 @@ async function triggerFlightWithMode(task) {
         }
       }, totalIntervalMs),
     });
-    await createFlightWindow(msg, 'ltr', sequenceId);
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true });
     return;
   }
 }
@@ -1098,13 +1395,16 @@ function playSound() {
 
   const sound = soundSelect.value;
   const loopMode = soundModeSelect.value === 'loop';
+  const useCustomSound = useSoundCheckbox.checked && customAudioData;
 
-  if (loopMode && customAudioData) {
-    const a = new Audio(customAudioData);
-    a.loop = true;
-    a.volume = 0.5;
-    a.play().catch(() => {});
-    loopAudio = a;
+  if (useCustomSound) {
+    void playCustomAudio(loopMode).catch(() => {
+      showToast('自定义音频播放失败，已回退到内置提示音');
+      void playOscillator(sound);
+      if (loopMode) {
+        loopOscInterval = setInterval(() => { void playOscillator(sound); }, 800);
+      }
+    });
     return;
   }
 
@@ -1187,6 +1487,35 @@ async function playOscillator(sound) {
       gain.connect(audioCtx.destination);
       osc.start(audioCtx.currentTime);
       osc.stop(audioCtx.currentTime + 0.6);
+    } else if (sound === 'chime') {
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc1.type = 'triangle';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(1046, audioCtx.currentTime);
+      osc2.frequency.setValueAtTime(1318, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.9);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc1.start(audioCtx.currentTime);
+      osc1.stop(audioCtx.currentTime + 0.38);
+      osc2.start(audioCtx.currentTime + 0.12);
+      osc2.stop(audioCtx.currentTime + 0.62);
+    } else if (sound === 'pulse') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(620, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime + 0.08);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.45);
     }
   } catch (e) {}
 }
@@ -1483,15 +1812,25 @@ async function init() {
   todayCountEl.textContent = cfg.todayCount;
   if (cfg.speed) speedSelect.value = cfg.speed;
   if (cfg.height) heightSelect.value = cfg.height;
+  if (cfg.effect) effectSelect.value = cfg.effect;
   if (cfg.plane) planeSelect.value = cfg.plane;
   if (cfg.particle) particleSelect.value = cfg.particle;
   if (cfg.bubble) bubbleSelect.value = cfg.bubble;
+  if (cfg.bubblePosition) bubblePositionSelect.value = cfg.bubblePosition;
   if (cfg.sound) soundSelect.value = cfg.sound;
   if (cfg.soundMode) soundModeSelect.value = cfg.soundMode;
+  useSoundCheckbox.checked = !!cfg.useSound && !!cfg.customAudio;
   customImageData = cfg.customImage || '';
   customAudioData = cfg.customAudio || '';
+  customAudioName = cfg.customAudioName || '';
+  if (customAudioData) {
+    buildCustomAudioObjectUrl();
+  } else {
+    revokeCustomAudioObjectUrl();
+  }
   clearImageBtn.classList.toggle('hidden', !customImageData);
   clearSoundBtn.classList.toggle('hidden', !customAudioData);
+  updateSoundMeta();
   useImageCheckbox.checked = cfg.useImage === undefined ? !!customImageData : cfg.useImage;
   if (customImageData) {
     imagePreview.src = customImageData;
@@ -1556,13 +1895,17 @@ async function loadSettings() {
     lastDate: await get('lastDate'),
     speed: await get('speed'),
     height: await get('height'),
+    effect: await get('effect'),
     plane: await get('plane'),
     particle: await get('particle'),
     bubble: await get('bubble'),
+    bubblePosition: await get('bubblePosition'),
     sound: await get('sound'),
     soundMode: await get('soundMode'),
+    useSound: await get('useSound'),
     customImage: await get('customImage'),
     customAudio: await get('customAudio'),
+    customAudioName: await get('customAudioName'),
     useImage: await get('useImage'),
   };
 }
@@ -1632,18 +1975,24 @@ configToggle.addEventListener('click', () => {
 
 // Mute
 muteBtn.addEventListener('click', async () => {
+  await unlockAudioIfNeeded();
   isMuted = !isMuted;
   muteBtn.innerHTML = isMuted
     ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
     : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
-  if (isMuted) stopLoopSound();
+  if (isMuted) {
+    stopLoopSound();
+    stopPreviewAudio();
+  }
   await set('muted', isMuted);
 });
 
 // Emergency
 emergencyBtn.addEventListener('click', async () => {
   stopLoopSound();
+  stopPreviewAudio();
   clearAllSequences();
+  clearFlightQueue();
   await clearFlightStreak();
   tasks.forEach(t => {
     if (t.type === 'countdown' && (t._status === 'running' || t._status === 'paused')) {
@@ -1682,12 +2031,24 @@ autostartToggle.addEventListener('change', async () => {
 
 speedSelect.addEventListener('change', () => persistSetting('speed', speedSelect.value));
 heightSelect.addEventListener('change', () => persistSetting('height', heightSelect.value));
+effectSelect.addEventListener('change', () => persistSetting('effect', effectSelect.value));
 planeSelect.addEventListener('change', () => persistSetting('plane', planeSelect.value));
 particleSelect.addEventListener('change', () => persistSetting('particle', particleSelect.value));
 bubbleSelect.addEventListener('change', () => persistSetting('bubble', bubbleSelect.value));
+bubblePositionSelect.addEventListener('change', () => persistSetting('bubblePosition', bubblePositionSelect.value));
 soundSelect.addEventListener('change', () => persistSetting('sound', soundSelect.value));
 soundModeSelect.addEventListener('change', () => persistSetting('soundMode', soundModeSelect.value));
+useSoundCheckbox.addEventListener('change', () => persistSetting('useSound', useSoundCheckbox.checked));
 useImageCheckbox.addEventListener('change', () => persistSetting('useImage', useImageCheckbox.checked));
+previewSoundBtn?.addEventListener('click', () => {
+  void previewCustomSound();
+});
+previewFlightBtn?.addEventListener('click', () => {
+  void previewFlight();
+});
+resetFlightBtn?.addEventListener('click', () => {
+  resetFlightSettings();
+});
 
 // Image upload
 imageBtn.addEventListener('click', () => imageInput.click());
@@ -1737,16 +2098,37 @@ soundInput.addEventListener('change', () => {
   const reader = new FileReader();
   reader.onload = (e) => {
     customAudioData = e.target.result;
+    customAudioName = file.name || '';
+    buildCustomAudioObjectUrl();
     clearSoundBtn.classList.remove('hidden');
+    useSoundCheckbox.checked = true;
+    updateSoundMeta();
     persistSetting('customAudio', customAudioData);
+    persistSetting('customAudioName', customAudioName);
+    persistSetting('useSound', true);
+    showToast(`已添加音频：${customAudioName}`);
+    void unlockAudioIfNeeded();
+    void validateCustomAudioPreview();
   };
   reader.readAsDataURL(file);
 });
 clearSoundBtn.addEventListener('click', () => {
+  stopPreviewAudio();
+  if (customAudioProbe) {
+    customAudioProbe.pause();
+    customAudioProbe.src = '';
+    customAudioProbe = null;
+  }
+  revokeCustomAudioObjectUrl();
   customAudioData = '';
+  customAudioName = '';
   clearSoundBtn.classList.add('hidden');
+  useSoundCheckbox.checked = false;
   soundInput.value = '';
+  updateSoundMeta();
   persistSetting('customAudio', '');
+  persistSetting('customAudioName', '');
+  persistSetting('useSound', false);
 });
 
 // Shortcuts
@@ -1769,6 +2151,7 @@ if (isTauriRuntime) {
   listen('timer-stop', () => {
     stopLoopSound();
     clearAllSequences();
+    clearFlightQueue();
     clearFlightStreak();
     tasks.forEach(t => {
       if (t.type === 'countdown' && (t._status === 'running' || t._status === 'paused')) {
@@ -1784,6 +2167,7 @@ if (isTauriRuntime) {
     const sequenceId = event.payload?.sequenceId || '';
     const loopState = getSequence(sequenceId);
     const inLoop = !!(loopState && loopState.active);
+    let continued = false;
 
     if (!inLoop) stopLoopSound();
 
@@ -1791,11 +2175,12 @@ if (isTauriRuntime) {
       loopState.remaining--;
       if (loopState.remaining > 0) {
         loopState.direction = loopState.direction === 'ltr' ? 'rtl' : 'ltr';
-        createFlightWindow(loopState.taskMsg, loopState.direction, sequenceId);
-        return;
+        continued = true;
+        queueFlight({ msg: loopState.taskMsg, direction: loopState.direction, sequenceId, playSound: false });
+      } else {
+        clearSequence(sequenceId);
+        if (!hasActiveSequences()) stopLoopSound();
       }
-      clearSequence(sequenceId);
-      if (!hasActiveSequences()) stopLoopSound();
     } else if (inLoop && loopState.mode === 'loop_interval') {
       loopState.remaining--;
       if (loopState.remaining > 0) {
@@ -1807,16 +2192,17 @@ if (isTauriRuntime) {
           const state = getSequence(sequenceId);
           if (state && state.active) {
             state.lastStart = Date.now();
-            if (!isMuted) playSound();
-            createFlightWindow(state.taskMsg, 'ltr', sequenceId);
+            queueFlight({ msg: state.taskMsg, direction: 'ltr', sequenceId, playSound: true });
           }
         }, waitMs);
-        return;
+      } else {
+        clearSequence(sequenceId);
+        if (!hasActiveSequences()) stopLoopSound();
       }
-      clearSequence(sequenceId);
-      if (!hasActiveSequences()) stopLoopSound();
     }
 
+    releaseFlightQueue();
+    if (continued) return;
   });
 
   // Close to tray
@@ -1831,13 +2217,17 @@ window.addEventListener('beforeunload', async () => {
   await saveTasks(getCleanTasks());
   await set('speed', speedSelect.value);
   await set('height', heightSelect.value);
+  await set('effect', effectSelect.value);
   await set('plane', planeSelect.value);
   await set('particle', particleSelect.value);
   await set('bubble', bubbleSelect.value);
+  await set('bubblePosition', bubblePositionSelect.value);
   await set('sound', soundSelect.value);
   await set('soundMode', soundModeSelect.value);
+  await set('useSound', useSoundCheckbox.checked);
   await set('customImage', customImageData);
   await set('customAudio', customAudioData);
+  await set('customAudioName', customAudioName);
   await set('useImage', useImageCheckbox.checked);
 });
 

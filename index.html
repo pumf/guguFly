@@ -13,7 +13,10 @@
           <div class="title-bar">
             <img id="titleLogo" class="title-logo" src="/logo.png" />
             <div class="title-copy">
-              <span class="title-text">咕咕机长</span>
+              <div class="title-mainline">
+                <span class="title-text">咕咕机长</span>
+                <span class="hero-title">轻巧提醒，把每条任务都安排清楚。</span>
+              </div>
               <span class="title-mini">轻量桌面提醒</span>
             </div>
           </div>
@@ -30,9 +33,6 @@
               </button>
             </div>
           </div>
-        </div>
-        <div class="hero-copy">
-          <h1 class="hero-title">轻巧提醒，把每条任务都安排清楚。</h1>
         </div>
         <div class="hero-metrics">
           <div class="metric-card">
@@ -67,11 +67,15 @@
         </div>
         <div id="configPanel" class="config-panel">
           <p class="config-lead">统一调整飞行节奏、视觉样式和提示音，让提醒更自然地融入你的桌面。</p>
+          <div class="config-actions">
+            <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
+            <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
+          </div>
           <div class="config-stack">
             <section class="config-card">
               <div class="config-card-head">
                 <strong>飞行节奏</strong>
-                <span>控制出现速度和飞行高度</span>
+                <span>控制速度、高度和飞过屏幕的整体感觉</span>
               </div>
               <div class="config-grid config-grid--basic">
                 <div class="config-row">
@@ -91,6 +95,16 @@
                     <option value="bottom">下方</option>
                   </select>
                 </div>
+                <div class="config-row">
+                  <label>效果</label>
+                  <select id="effectSelect">
+                    <option value="linear">经典直穿</option>
+                    <option value="steady" selected>自然滑过</option>
+                    <option value="ceremony">仪式感</option>
+                    <option value="swift">利落提醒</option>
+                    <option value="playful">活泼一点</option>
+                  </select>
+                </div>
               </div>
             </section>
 
@@ -107,6 +121,8 @@
                     <option value="rocket">火箭</option>
                     <option value="butterfly">蝴蝶</option>
                     <option value="jet">喷射</option>
+                    <option value="paper">纸飞机</option>
+                    <option value="ufo">飞碟</option>
                   </select>
                   <button id="imageBtn" class="cfg-btn">📷 图片</button>
                   <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
@@ -124,6 +140,8 @@
                     <option value="rocket">火焰</option>
                     <option value="butterfly">星点</option>
                     <option value="jet">尾迹</option>
+                    <option value="spark">闪光</option>
+                    <option value="cloud">云团</option>
                   </select>
                 </div>
                 <div class="config-row">
@@ -133,6 +151,13 @@
                     <option value="rocket">锐角</option>
                     <option value="butterfly">柔圆</option>
                     <option value="jet">简约条</option>
+                    <option value="glass">玻璃感</option>
+                    <option value="stamp">贴纸感</option>
+                  </select>
+                  <select id="bubblePositionSelect">
+                    <option value="top" selected>上方</option>
+                    <option value="center">居中</option>
+                    <option value="bottom">下方</option>
                   </select>
                 </div>
               </div>
@@ -150,6 +175,8 @@
                   <option value="dingdong">叮咚</option>
                   <option value="ring">铃声</option>
                   <option value="soft">柔和</option>
+                  <option value="chime">风铃</option>
+                  <option value="pulse">脉冲</option>
                 </select>
                 <select id="soundModeSelect">
                   <option value="once">一次</option>
@@ -158,6 +185,14 @@
                 <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
                 <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
                 <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
+                <label class="img-toggle sound-toggle">
+                  <input type="checkbox" id="useSoundCheckbox" />
+                  <span>自定义音频</span>
+                </label>
+                <div id="soundMeta" class="sound-meta">
+                  <span id="soundName" class="sound-name">未选择音频</span>
+                  <button id="previewSoundBtn" class="cfg-btn sound-preview-btn" type="button">试听</button>
+                </div>
               </div>
             </section>
           </div>

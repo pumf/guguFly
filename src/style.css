@@ -40,10 +40,10 @@ body {
 #app {
   width: 100%;
   height: 100vh;
-  padding: 12px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   position: relative;
   overflow: visible;
 }
@@ -60,7 +60,7 @@ body {
 
 .hero-card {
   border-radius: 24px;
-  padding: 10px 14px 12px;
+  padding: 6px 14px 8px;
   position: relative;
   overflow: hidden;
 }
@@ -69,37 +69,47 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 1px;
 }
 
 .title-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.title-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 8px 16px rgba(45, 127, 249, 0.18);
 }
 
 .title-copy {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 
-.title-logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  object-fit: cover;
-  box-shadow: 0 8px 16px rgba(45, 127, 249, 0.18);
+.title-mainline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .title-text {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .title-mini {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--soft-muted);
   letter-spacing: 0.04em;
 }
@@ -120,18 +130,15 @@ body {
   border: 1px solid rgba(129, 149, 182, 0.12);
 }
 
-.hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-bottom: 6px;
-}
-
 .hero-title {
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1.2;
-  font-weight: 800;
-  max-width: 460px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(44vw, 360px);
 }
 
 .hero-metrics {
@@ -173,7 +180,7 @@ body {
   flex: 1;
   min-height: 0;
   border-radius: 24px;
-  padding: 12px 14px 14px;
+  padding: 16px 14px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -631,16 +638,21 @@ body {
 }
 
 .bottom-section {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
   flex-shrink: 0;
   border-radius: 22px;
   overflow: hidden;
+  z-index: 30;
 }
 
 .bottom-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 11px 14px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -658,11 +670,42 @@ body {
 }
 
 .config-panel {
-  padding: 0 14px 14px;
+  padding: 0 14px 12px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.24s ease, opacity 0.18s ease, padding-top 0.18s ease;
 }
 
 .config-panel.hidden {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.config-panel:not(.hidden) {
+  max-height: 540px;
+  opacity: 1;
+  padding-top: 6px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 -12px 28px rgba(33, 48, 71, 0.12);
+}
+
+.config-panel:not(.hidden)::-webkit-scrollbar {
+  width: 8px;
+}
+
+.config-panel:not(.hidden)::-webkit-scrollbar-thumb {
+  background: rgba(110, 131, 166, 0.34);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.config-panel:not(.hidden)::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .config-lead {
@@ -672,13 +715,44 @@ body {
   margin: 2px 0 10px;
 }
 
+.config-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.config-action-btn {
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2d7ff9, #57a7ff);
+  color: #fff;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  box-shadow: 0 10px 20px rgba(45, 127, 249, 0.18);
+}
+
+.config-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.config-action-btn--ghost {
+  border: 1px solid rgba(129, 149, 182, 0.18);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  box-shadow: none;
+}
+
 .config-stack {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .config-card {
-  padding: 12px;
+  padding: 10px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.52);
   border: 1px solid rgba(129, 149, 182, 0.12);
@@ -688,8 +762,8 @@ body {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .config-card-head strong {
@@ -705,22 +779,22 @@ body {
 
 .config-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .config-grid--basic {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .config-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 0;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(129, 149, 182, 0.14);
   border-radius: 16px;
@@ -740,7 +814,7 @@ body {
 
 .config-card > .config-row + .config-row,
 .config-card > .config-grid + .config-row {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .config-row select,
@@ -801,6 +875,35 @@ body {
   align-items: center;
   gap: 6px;
   min-height: 40px;
+}
+
+.sound-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 4px 0 2px;
+  min-width: 0;
+}
+
+.sound-name {
+  max-width: 138px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sound-preview-btn {
+  padding: 8px 10px;
+}
+
+.sound-preview-btn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+  transform: none;
+  color: var(--soft-muted);
 }
 
 .cfg-btn.field-error {
@@ -1166,7 +1269,7 @@ body {
   justify-content: flex-start;
   width: 100%;
   min-height: 0;
-  padding: 2px 2px 0;
+  padding: 2px 2px 44px;
   flex-shrink: 0;
 }
 
@@ -1275,6 +1378,11 @@ body {
 
   .config-grid {
     grid-template-columns: 1fr;
+  }
+
+  .config-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .config-card-head {

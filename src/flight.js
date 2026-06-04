@@ -23,13 +23,23 @@ const H = parseInt(params.get('h')) || 1080;
 
 const speedMap = { vslow: 0.1, slow: 0.2, normal: 0.35, fast: 0.6 };
 const heightMap = { top: 0.25, center: 0.5, bottom: 0.75 };
+const effectMap = {
+  linear: { durationBase: 2500, enterProgress: 0.18, exitProgress: 0.82, floatDivisor: 100, floatAmount: 5, linear: true, travelMid: 0.16, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1 },
+  steady: { durationBase: 3400, enterProgress: 0.24, exitProgress: 0.82, floatDivisor: 165, floatAmount: 3, travelMid: 0.12, fadeIn: 0.2, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 0.85 },
+  ceremony: { durationBase: 4600, enterProgress: 0.3, exitProgress: 0.74, floatDivisor: 220, floatAmount: 2, travelMid: 0.08, fadeIn: 0.24, fadeOutStart: 0.86, fadeOutSpan: 0.14, particleBoost: 0.7 },
+  swift: { durationBase: 2200, enterProgress: 0.12, exitProgress: 0.9, floatDivisor: 115, floatAmount: 2.5, travelMid: 0.26, fadeIn: 0.1, fadeOutStart: 0.94, fadeOutSpan: 0.06, particleBoost: 1.2 },
+  playful: { durationBase: 3100, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 78, floatAmount: 8, travelMid: 0.18, fadeIn: 0.14, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 1.35 },
+};
 
 const speedFactor = speedMap[params.get('speed')] || 0.35;
 const heightPos = heightMap[params.get('height')] || 0.5;
+const effectStyle = params.get('effect') || 'steady';
+const effectConfig = effectMap[effectStyle] || effectMap.steady;
 const customMsg = params.get('msg') || '';
 const planeStyle = params.get('plane') || 'classic';
 const particleStyle = params.get('particle') || 'classic';
 const bubbleStyle = params.get('bubble') || 'classic';
+const bubblePosition = params.get('bubblePosition') || 'top';
 const imageData = localStorage.getItem('_flightImage') || '';
 const useImage = localStorage.getItem('_flightUseImage') === '1';
 const direction = params.get('dir') || 'ltr';
@@ -45,11 +55,13 @@ const SCALE = 2.5;
 const t0 = performance.now();
 
 const totalDist = W + 240 * SCALE;
+const enterProgress = effectConfig.enterProgress;
+const exitProgress = effectConfig.exitProgress;
 
 const plane = {
   x: isRtl ? W + 120 * SCALE : -120 * SCALE,
   y: H * heightPos + (Math.random() - 0.5) * 80,
-  duration: 2500 / speedFactor,
+  duration: effectConfig.durationBase / speedFactor,
   startTime: performance.now(),
 };
 
@@ -61,6 +73,13 @@ const gifImg = document.getElementById('gifPlane');
 if (useImage && imageData) {
   gifImg.src = imageData;
   customImg = gifImg;
+  gifImg.style.position = 'absolute';
+  gifImg.style.left = '0';
+  gifImg.style.top = '0';
+  gifImg.style.pointerEvents = 'none';
+  gifImg.style.transformOrigin = 'center center';
+  gifImg.style.display = 'block';
+  gifImg.style.willChange = 'transform, opacity';
 }
 
 // =================== Plane styles ===================
@@ -168,6 +187,44 @@ const planeDrawers = {
     ctx.arc(-18, 0, 3 + Math.random() * 2, 0, Math.PI * 2);
     ctx.fill();
   },
+  paper(x, y, t) {
+    const sway = Math.sin(t / 120) * 3;
+    ctx.fillStyle = '#f5f7fb';
+    ctx.beginPath();
+    ctx.moveTo(28, sway);
+    ctx.lineTo(-18, -14 + sway);
+    ctx.lineTo(-6, sway);
+    ctx.lineTo(-18, 14 + sway);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#9fb3c8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(28, sway);
+    ctx.lineTo(-18, -14 + sway);
+    ctx.lineTo(-6, sway);
+    ctx.lineTo(-18, 14 + sway);
+    ctx.closePath();
+    ctx.stroke();
+  },
+  ufo(x, y, t) {
+    const pulse = 1 + Math.sin(t / 160) * 0.05;
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = '#c7d2e8';
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 26, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8ec5ff';
+    ctx.beginPath();
+    ctx.ellipse(0, -4, 14, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffe082';
+    [-16, -6, 6, 16].forEach(xPos => {
+      ctx.beginPath();
+      ctx.arc(xPos, 5, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  },
 };
 
 // =================== Particle styles ===================
@@ -235,7 +292,39 @@ function jetParticle(x, y) {
   }
 }
 
-const particleAdders = { classic: classicParticle, rocket: rocketParticle, butterfly: butterflyParticle, jet: jetParticle };
+function sparkParticle(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 4;
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      size: 2 + Math.random() * 2,
+      color: ['#fff3b0', '#ffd166', '#ff9f1c', '#ffffff'][i % 4],
+      decay: 0.02 + Math.random() * 0.01,
+    });
+  }
+}
+
+function cloudParticle(x, y) {
+  for (let i = 0; i < 5; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 18,
+      y: y + (Math.random() - 0.5) * 10,
+      vx: flightDirection * -(0.6 + Math.random() * 1.4),
+      vy: (Math.random() - 0.5) * 0.4,
+      life: 0.85,
+      size: 8 + Math.random() * 8,
+      color: ['rgba(255,255,255,0.65)', 'rgba(214,230,255,0.55)', 'rgba(235,243,255,0.6)'][i % 3],
+      decay: 0.006 + Math.random() * 0.004,
+    });
+  }
+}
+
+const particleAdders = { classic: classicParticle, rocket: rocketParticle, butterfly: butterflyParticle, jet: jetParticle, spark: sparkParticle, cloud: cloudParticle };
 
 // =================== Bubble styles ===================
 
@@ -289,11 +378,39 @@ function drawMinimalBubble(bx, by, text, textWidth, textHeight) {
   ctx.fillText(text, bx, by);
 }
 
+function drawGlassBubble(bx, by, text, textWidth, textHeight) {
+  ctx.fillStyle = 'rgba(255,255,255,0.34)';
+  ctx.beginPath();
+  ctx.roundRect(bx - textWidth / 2, by - textHeight / 2, textWidth, textHeight, 18 * SCALE);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.62)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#203247';
+  ctx.fillText(text, bx, by);
+}
+
+function drawStampBubble(bx, by, text, textWidth, textHeight) {
+  ctx.fillStyle = '#fff7da';
+  ctx.beginPath();
+  ctx.roundRect(bx - textWidth / 2, by - textHeight / 2, textWidth, textHeight, 10 * SCALE);
+  ctx.fill();
+  ctx.strokeStyle = '#ffb703';
+  ctx.setLineDash([6 * SCALE, 4 * SCALE]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx - textWidth / 2 + 4, by - textHeight / 2 + 4, textWidth - 8, textHeight - 8);
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#6a4c00';
+  ctx.fillText(text, bx, by);
+}
+
 const bubbleDrawers = {
   classic: drawClassicBubble,
   rocket: drawAngularBubble,
   butterfly: drawSoftBubble,
   jet: drawMinimalBubble,
+  glass: drawGlassBubble,
+  stamp: drawStampBubble,
 };
 
 const selectedPlane = planeDrawers[planeStyle] || planeDrawers.classic;
@@ -304,15 +421,17 @@ const selectedBubble = bubbleDrawers[bubbleStyle] || bubbleDrawers.classic;
 
 function drawPlane(x, y, t) {
   if (useImage && customImg && customImg.complete && customImg.naturalWidth > 0) {
-    ctx.save();
-    ctx.translate(x, y);
-    if (isRtl) ctx.scale(-1, 1);
     const aspect = customImg.naturalWidth / customImg.naturalHeight;
     const iw = 60 * SCALE;
     const ih = iw / aspect;
-    ctx.drawImage(customImg, -iw / 2, -ih / 2, iw, ih);
-    ctx.restore();
+    gifImg.style.width = `${iw}px`;
+    gifImg.style.height = `${ih}px`;
+    gifImg.style.opacity = '1';
+    gifImg.style.transform = `translate(${x - iw / 2}px, ${y - ih / 2}px) scaleX(${isRtl ? -1 : 1})`;
     return;
+  }
+  if (gifImg) {
+    gifImg.style.opacity = '0';
   }
   ctx.save();
   ctx.translate(x, y);
@@ -323,7 +442,10 @@ function drawPlane(x, y, t) {
 }
 
 function addParticle(x, y) {
-  selectedParticle(x, y);
+  const bursts = Math.max(1, Math.round(effectConfig.particleBoost || 1));
+  for (let i = 0; i < bursts; i++) {
+    selectedParticle(x, y);
+  }
 }
 
 function drawQuote(x, y) {
@@ -336,20 +458,50 @@ function drawQuote(x, y) {
   const textWidth = ctx.measureText(text).width + padding * 2;
   const textHeight = 44 * SCALE;
   const bx = x;
-  const by = y - 40 * SCALE - textHeight / 2;
+  const offsetMap = {
+    top: -40 * SCALE - textHeight / 2,
+    center: 0,
+    bottom: 40 * SCALE + textHeight / 2,
+  };
+  const by = y + (offsetMap[bubblePosition] ?? offsetMap.top);
   selectedBubble(bx, by, text, textWidth, textHeight);
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInCubic(t) {
+  return t * t * t;
+}
+
+function getFlightProgress(progress) {
+  if (effectConfig.linear) {
+    return progress;
+  }
+  if (progress <= enterProgress) {
+    const local = progress / enterProgress;
+    return easeOutCubic(local) * 0.44;
+  }
+  if (progress <= exitProgress) {
+    const local = (progress - enterProgress) / (exitProgress - enterProgress);
+    return 0.44 + local * effectConfig.travelMid;
+  }
+  const local = (progress - exitProgress) / (1 - exitProgress);
+  return (0.44 + effectConfig.travelMid) + easeInCubic(local) * (1 - (0.44 + effectConfig.travelMid));
 }
 
 function animate() {
   const elapsed = performance.now() - plane.startTime;
   const progress = Math.min(elapsed / plane.duration, 1);
+  const easedProgress = getFlightProgress(progress);
   const t = performance.now() - t0;
   if (isRtl) {
-    plane.x = W + 120 * SCALE - totalDist * progress;
+    plane.x = W + 120 * SCALE - totalDist * easedProgress;
   } else {
-    plane.x = -120 * SCALE + totalDist * progress;
+    plane.x = -120 * SCALE + totalDist * easedProgress;
   }
-  const floatY = Math.sin(t / 100) * 5;
+  const floatY = Math.sin(t / effectConfig.floatDivisor) * effectConfig.floatAmount;
   const currentY = plane.y + floatY;
   ctx.clearRect(0, 0, W, H);
   const particleOffX = isRtl ? 30 * SCALE : -30 * SCALE;
@@ -370,8 +522,18 @@ function animate() {
   }
   ctx.globalAlpha = 1;
   if (plane.x > -120 * SCALE && plane.x < W + 120 * SCALE) {
+    if (effectConfig.linear) {
+      ctx.globalAlpha = 1;
+    } else {
+      const fadeIn = Math.min(1, progress / effectConfig.fadeIn);
+      const fadeOut = progress > effectConfig.fadeOutStart
+        ? Math.max(0, (1 - progress) / effectConfig.fadeOutSpan)
+        : 1;
+      ctx.globalAlpha = fadeIn * fadeOut;
+    }
     drawPlane(plane.x, currentY, t);
     drawQuote(plane.x, currentY);
+    ctx.globalAlpha = 1;
   }
   if (progress < 1) {
     requestAnimationFrame(animate);
@@ -379,6 +541,7 @@ function animate() {
     requestAnimationFrame(animate);
   } else {
     setTimeout(async () => {
+      if (gifImg) gifImg.style.opacity = '0';
       await emit('flight-ended', { sequenceId });
       if (appWindow) {
         await appWindow.close();
