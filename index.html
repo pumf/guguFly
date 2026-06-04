@@ -8,89 +8,158 @@
   </head>
   <body>
     <div id="app">
-      <div class="title-bar">
-        <img id="titleLogo" class="title-logo" src="/logo.png" />
-        <span class="title-text">咕咕机长</span>
+      <div class="hero-card">
+        <div class="hero-topline">
+          <div class="title-bar">
+            <img id="titleLogo" class="title-logo" src="/logo.png" />
+            <div class="title-copy">
+              <span class="title-text">咕咕机长</span>
+              <span class="title-mini">轻量桌面提醒</span>
+            </div>
+          </div>
+          <div class="hero-head-actions">
+            <div class="hero-toolbar">
+              <button id="emergencyBtn" class="icon-btn icon-btn--warn" type="button" title="紧急降落">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e17055" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </button>
+              <button id="settingsBtn" class="icon-btn" type="button" title="设置">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              </button>
+              <button id="muteBtn" class="icon-btn" type="button" title="声音开关">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <h1 class="hero-title">轻巧提醒，把每条任务都安排清楚。</h1>
+        </div>
+        <div class="hero-metrics">
+          <div class="metric-card">
+            <span class="metric-label">今日起飞</span>
+            <strong class="metric-value" id="todayCount">0</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">当前状态</span>
+            <strong class="metric-value metric-text" id="heroStatus">等待下一次起飞</strong>
+          </div>
+        </div>
       </div>
 
-      <!-- Task list -->
-      <div id="taskList" class="task-list"></div>
+      <div class="task-section">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">你的提醒列表</h2>
+            <p class="section-tip">所有提醒都会按状态集中展示在这里。</p>
+          </div>
+          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+        </div>
 
-      <!-- Add button -->
-      <button id="addTaskBtn" class="add-task-btn">+ 新建任务</button>
+        <!-- Task list -->
+        <div id="taskList" class="task-list"></div>
+      </div>
 
       <!-- Flight config (collapsible) -->
       <div class="bottom-section">
         <div class="bottom-toggle" id="configToggle">
-          <span>✈ 飞行设置</span>
+          <span>✈ 飞行外观与声音</span>
           <span class="toggle-arrow" id="configArrow">▴</span>
         </div>
         <div id="configPanel" class="config-panel">
-          <div class="config-row">
-            <label>速度</label>
-            <select id="speedSelect">
-              <option value="vslow">超慢</option>
-              <option value="slow">慢速</option>
-              <option value="normal" selected>正常</option>
-              <option value="fast">快速</option>
-            </select>
-            <label>高度</label>
-            <select id="heightSelect">
-              <option value="top">上方</option>
-              <option value="center" selected>居中</option>
-              <option value="bottom">下方</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>飞机</label>
-            <select id="planeSelect">
-              <option value="classic">经典</option>
-              <option value="rocket">火箭</option>
-              <option value="butterfly">蝴蝶</option>
-              <option value="jet">喷射</option>
-            </select>
-            <button id="imageBtn" class="cfg-btn">📷 图片</button>
-            <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
-            <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
-            <img id="imagePreview" class="img-preview hidden" />
-            <label class="img-toggle">
-              <input type="checkbox" id="useImageCheckbox" />
-              <span>图片</span>
-            </label>
-          </div>
-          <div class="config-row">
-            <label>尾焰</label>
-            <select id="particleSelect">
-              <option value="classic">飘带</option>
-              <option value="rocket">火焰</option>
-              <option value="butterfly">星点</option>
-              <option value="jet">尾迹</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>文案框</label>
-            <select id="bubbleSelect">
-              <option value="classic">圆角</option>
-              <option value="rocket">锐角</option>
-              <option value="butterfly">柔圆</option>
-              <option value="jet">简约条</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>提示音</label>
-            <select id="soundSelect">
-              <option value="whoosh">咻</option>
-              <option value="dingdong">叮咚</option>
-              <option value="ring">铃声</option>
-              <option value="soft">柔和</option>
-            </select>
-            <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
-            <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
-            <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
-            <select id="soundModeSelect">
-              <option value="once">一次</option>
-              <option value="loop">循环</option>
-            </select>
+          <p class="config-lead">统一调整飞行节奏、视觉样式和提示音，让提醒更自然地融入你的桌面。</p>
+          <div class="config-stack">
+            <section class="config-card">
+              <div class="config-card-head">
+                <strong>飞行节奏</strong>
+                <span>控制出现速度和飞行高度</span>
+              </div>
+              <div class="config-grid config-grid--basic">
+                <div class="config-row">
+                  <label>速度</label>
+                  <select id="speedSelect">
+                    <option value="vslow">超慢</option>
+                    <option value="slow">慢速</option>
+                    <option value="normal" selected>正常</option>
+                    <option value="fast">快速</option>
+                  </select>
+                </div>
+                <div class="config-row">
+                  <label>高度</label>
+                  <select id="heightSelect">
+                    <option value="top">上方</option>
+                    <option value="center" selected>居中</option>
+                    <option value="bottom">下方</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="config-card">
+              <div class="config-card-head">
+                <strong>外观样式</strong>
+                <span>调整飞机、尾焰和文案框</span>
+              </div>
+              <div class="config-grid">
+                <div class="config-row">
+                  <label>飞机</label>
+                  <select id="planeSelect">
+                    <option value="classic">经典</option>
+                    <option value="rocket">火箭</option>
+                    <option value="butterfly">蝴蝶</option>
+                    <option value="jet">喷射</option>
+                  </select>
+                  <button id="imageBtn" class="cfg-btn">📷 图片</button>
+                  <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
+                  <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
+                  <img id="imagePreview" class="img-preview hidden" />
+                  <label class="img-toggle">
+                    <input type="checkbox" id="useImageCheckbox" />
+                    <span>图片</span>
+                  </label>
+                </div>
+                <div class="config-row">
+                  <label>尾焰</label>
+                  <select id="particleSelect">
+                    <option value="classic">飘带</option>
+                    <option value="rocket">火焰</option>
+                    <option value="butterfly">星点</option>
+                    <option value="jet">尾迹</option>
+                  </select>
+                </div>
+                <div class="config-row">
+                  <label>文案框</label>
+                  <select id="bubbleSelect">
+                    <option value="classic">圆角</option>
+                    <option value="rocket">锐角</option>
+                    <option value="butterfly">柔圆</option>
+                    <option value="jet">简约条</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="config-card">
+              <div class="config-card-head">
+                <strong>提示音</strong>
+                <span>设置音色、循环方式和自定义音频</span>
+              </div>
+              <div class="config-row">
+                <label>音色</label>
+                <select id="soundSelect">
+                  <option value="whoosh">咻</option>
+                  <option value="dingdong">叮咚</option>
+                  <option value="ring">铃声</option>
+                  <option value="soft">柔和</option>
+                </select>
+                <select id="soundModeSelect">
+                  <option value="once">一次</option>
+                  <option value="loop">循环</option>
+                </select>
+                <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
+                <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
+                <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
+              </div>
+            </section>
           </div>
         </div>
       </div>
@@ -100,12 +169,19 @@
         <div class="modal-overlay" id="modalOverlay"></div>
         <div class="modal-content" id="modalContent">
           <div class="modal-header">
-            <span id="modalTitle">新建任务</span>
+            <div>
+              <span id="modalTitle">新建任务</span>
+              <p class="modal-subtitle">先选任务类型，再填写时间与提醒方式。</p>
+            </div>
             <button id="modalCloseBtn" class="modal-close-btn">✕</button>
           </div>
           <div class="modal-body">
-            <div class="form-row">
-              <label>任务类型</label>
+            <div id="modalError" class="modal-error hidden" role="alert"></div>
+            <div class="form-block">
+              <div class="block-head">
+                <label>任务类型</label>
+                <span class="field-hint">决定这次提醒是定时、倒计时还是特殊日期。</span>
+              </div>
               <div class="type-toggle">
                 <button class="type-btn active" data-type="alarm">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -125,10 +201,15 @@
                 </button>
               </div>
             </div>
-            <div class="form-row">
-              <label>名称</label>
+
+            <div class="form-block">
+              <div class="block-head">
+                <label>名称</label>
+                <span class="field-hint">给这条提醒航线起个好认的名字，留空也可以。</span>
+              </div>
               <input type="text" id="editLabel" class="edit-input" placeholder="给任务起个名字" maxlength="20" />
             </div>
+
             <div id="alarmFields" class="form-group">
               <div class="form-row">
                 <label>时间</label>
@@ -157,34 +238,37 @@
                 <input type="number" id="editSeconds" class="time-input" min="0" max="59" value="0" />
               </div>
             </div>
-<div id="holidayFields" class="form-group hidden">
-            <div class="form-row" style="align-items:flex-start">
-              <label style="margin-top:4px">节假日</label>
-              <div id="holidayChecklist" class="holiday-checklist"></div>
+            <div id="holidayFields" class="form-group hidden">
+              <div class="form-row" style="align-items:flex-start">
+                <label style="margin-top:4px">节假日</label>
+                <div id="holidayChecklist" class="holiday-checklist"></div>
+              </div>
+              <div class="form-row">
+                <label>提醒时间</label>
+                <input type="number" id="editHolidayHour" class="time-input" min="0" max="23" value="9" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editHolidayMinute" class="time-input" min="0" max="59" value="0" />
+              </div>
+            </div>
+            <div id="anniversaryFields" class="form-group hidden">
+              <div class="form-row">
+                <label>日期</label>
+                <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" placeholder="月" />
+                <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" placeholder="日" />
+              </div>
+              <div class="form-row">
+                <label>提醒时间</label>
+                <input type="number" id="editAnniHour" class="time-input" min="0" max="23" value="9" />
+                <span class="input-sep">:</span>
+                <input type="number" id="editAnniMinute" class="time-input" min="0" max="59" value="0" />
+              </div>
+            </div>
+          <div class="form-block">
+            <div class="block-head">
+              <label>飞行方式</label>
+              <span class="field-hint">一次提醒、连续往返，或按固定间隔多次出现。</span>
             </div>
             <div class="form-row">
-              <label>提醒时间</label>
-              <input type="number" id="editHolidayHour" class="time-input" min="0" max="23" value="9" />
-              <span class="input-sep">:</span>
-              <input type="number" id="editHolidayMinute" class="time-input" min="0" max="59" value="0" />
-            </div>
-          </div>
-<div id="anniversaryFields" class="form-group hidden">
-            <div class="form-row">
-              <label>日期</label>
-              <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" placeholder="月" />
-              <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" placeholder="日" />
-            </div>
-            <div class="form-row">
-              <label>提醒时间</label>
-              <input type="number" id="editAnniHour" class="time-input" min="0" max="23" value="9" />
-              <span class="input-sep">:</span>
-              <input type="number" id="editAnniMinute" class="time-input" min="0" max="59" value="0" />
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="form-row">
-              <label>飞行</label>
                 <select id="editFlightMode" class="edit-input">
                   <option value="once">一次性</option>
                   <option value="loop_times">连续循环</option>
@@ -204,17 +288,18 @@
                 <input type="number" id="editIntervalCount" class="time-input" min="1" max="999" value="10" style="width:60px" />
                 <span style="font-size:12px;color:#b2bec3">次</span>
               </div>
-            </div>
-            <div class="form-row">
+            <div class="block-head compact">
               <label>文案</label>
-              <input type="text" id="editMsg" class="edit-input" placeholder="飞行文案（留空随机）" maxlength="30" />
+              <span class="field-hint">留空则使用随机短句。</span>
             </div>
+            <input type="text" id="editMsg" class="edit-input" placeholder="飞行文案（留空随机）" maxlength="30" />
           </div>
           <div class="modal-footer">
             <button id="deleteTaskBtn" class="del-btn hidden">删除此任务</button>
             <button id="saveTaskBtn" class="save-btn">保存</button>
           </div>
         </div>
+      </div>
       </div>
 
       <!-- Settings modal -->
@@ -227,16 +312,30 @@
           </div>
           <div class="modal-body">
             <div style="font-size:13px;line-height:1.6;color:#636e72">
-              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">🛩 咕咕机长 v0.1.0</p>
-              <p>桌面定时提醒小工具。设置任务（闹钟、倒计时、节日、纪念日），时间到后飞机飞过屏幕提醒你。</p>
+              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">咕咕机长 v0.1.0</p>
+              <p>一款桌面提醒工具，可以统一管理闹钟、倒计时、节日和纪念日任务。</p>
+              <p style="margin-top:6px">提醒触发时会出现飞机飞行动画，并带上你的自定义文案，但不会再抢走当前输入焦点。</p>
               <p style="margin-top:6px;font-size:11px;color:#b2bec3">macOS · 轻量 · 免费</p>
             </div>
-            <div class="form-row" style="margin-top:14px">
-              <label style="min-width:80px">开机自启</label>
-              <label class="img-toggle">
-                <input type="checkbox" id="autostartToggle" />
-                <span>开机后自动启动</span>
-              </label>
+            <div class="settings-panel">
+              <div class="settings-block">
+                <div class="settings-block-title">启动选项</div>
+                <div class="form-row" style="margin-top:10px">
+                  <label style="min-width:80px">开机自启</label>
+                  <label class="img-toggle">
+                    <input type="checkbox" id="autostartToggle" />
+                    <span>开机后自动启动</span>
+                  </label>
+                </div>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">软件说明</div>
+                <div class="settings-list">
+                  <div class="settings-item">`开始 / 暂停 / 停止` 可以直接控制倒计时。</div>
+                  <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
+                  <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -244,18 +343,9 @@
 
       <!-- Status bar -->
       <div class="status-bar">
-        <span>今日起飞 <strong id="todayCount">0</strong> 次</span>
         <span class="streak" id="streakDisplay"></span>
-        <button id="emergencyBtn" class="icon-btn" title="紧急降落">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e17055" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        </button>
-        <button id="settingsBtn" class="icon-btn" title="设置">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        </button>
-        <button id="muteBtn" class="icon-btn" title="声音开关">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
-        </button>
       </div>
+      <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
     </div>
 
     <script type="module" src="/src/main.js"></script>

@@ -15,9 +15,12 @@
       {
         "title": "咕咕机长",
         "label": "main",
-        "width": 440,
-        "height": 700,
-        "resizable": false,
+        "width": 640,
+        "height": 760,
+        "minWidth": 640,
+        "maxWidth": 640,
+        "minHeight": 700,
+        "resizable": true,
         "fullscreen": false,
         "decorations": true,
         "center": true

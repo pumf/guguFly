@@ -1,8 +1,18 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { emit } from '@tauri-apps/api/event';
 
-const appWindow = getCurrentWebviewWindow();
-appWindow.setIgnoreCursorEvents(true);
+function safeGetCurrentWebviewWindow() {
+  try {
+    return getCurrentWebviewWindow();
+  } catch (e) {
+    return null;
+  }
+}
+
+const appWindow = safeGetCurrentWebviewWindow();
+if (appWindow) {
+  appWindow.setIgnoreCursorEvents(true);
+}
 
 const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');
@@ -23,6 +33,7 @@ const bubbleStyle = params.get('bubble') || 'classic';
 const imageData = localStorage.getItem('_flightImage') || '';
 const useImage = localStorage.getItem('_flightUseImage') === '1';
 const direction = params.get('dir') || 'ltr';
+const sequenceId = params.get('seq') || '';
 
 const isRtl = direction === 'rtl';
 let flightDirection = isRtl ? -1 : 1;
@@ -368,8 +379,10 @@ function animate() {
     requestAnimationFrame(animate);
   } else {
     setTimeout(async () => {
-      await emit('flight-ended', {});
-      await appWindow.close();
+      await emit('flight-ended', { sequenceId });
+      if (appWindow) {
+        await appWindow.close();
+      }
     }, 300);
   }
 }
