@@ -1211,6 +1211,7 @@ listen('flight-ended', async () => {
   } else if (inLoop && loopState.mode === 'loop_interval') {
     loopState.remaining--;
     if (loopState.remaining > 0) {
+      stopLoopSound();
       const task = tasks.find(t => t.id === loopState.taskId);
       const intervalMs = (task ? task.loopInterval : 5) * 60 * 1000;
       loopState.intervalId = setTimeout(() => {
