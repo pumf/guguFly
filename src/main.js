@@ -563,8 +563,9 @@ async function triggerFlightWithMode(task) {
       taskId: task.id,
       taskMsg: msg,
       remaining: (task.intervalCount || 10),
-      direction: 'ltr',
       mode: 'loop_interval',
+      intervalMs: (task.loopInterval || 5) * 60 * 1000,
+      lastStart: Date.now(),
       intervalId: null,
       timeoutId: setTimeout(() => { if (loopState) { loopState.active = false; loopState = null; stopLoopSound(); } }, totalIntervalMs),
     };
@@ -1214,14 +1215,16 @@ listen('flight-ended', async () => {
     loopState.remaining--;
     if (loopState.remaining > 0) {
       stopLoopSound();
-      const task = tasks.find(t => t.id === loopState.taskId);
-      const intervalMs = (task ? task.loopInterval : 5) * 60 * 1000;
+      const elapsed = Date.now() - loopState.lastStart;
+      let waitMs = loopState.intervalMs - elapsed;
+      if (waitMs < 0) waitMs = 0;
       loopState.intervalId = setTimeout(() => {
         if (loopState && loopState.active) {
+          loopState.lastStart = Date.now();
           if (!isMuted) playSound();
           createFlightWindow(loopState.taskMsg, 'ltr');
         }
-      }, intervalMs);
+      }, waitMs);
       return;
     }
     if (loopState.timeoutId) clearTimeout(loopState.timeoutId);
