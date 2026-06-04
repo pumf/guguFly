@@ -20,10 +20,80 @@
       <button id="addTaskBtn" class="add-task-btn">+ 新建任务</button>
 
       <!-- Flight config (collapsible) -->
-      <div id="taskList" class="task-list"></div>
-
-      <!-- Add button -->
-      <button id="addTaskBtn" class="add-task-btn">+ 新建任务</button>
+      <div class="bottom-section">
+        <div class="bottom-toggle" id="configToggle">
+          <span>✈ 飞行设置</span>
+          <span class="toggle-arrow" id="configArrow">▴</span>
+        </div>
+        <div id="configPanel" class="config-panel">
+          <div class="config-row">
+            <label>速度</label>
+            <select id="speedSelect">
+              <option value="vslow">超慢</option>
+              <option value="slow">慢速</option>
+              <option value="normal" selected>正常</option>
+              <option value="fast">快速</option>
+            </select>
+            <label>高度</label>
+            <select id="heightSelect">
+              <option value="top">上方</option>
+              <option value="center" selected>居中</option>
+              <option value="bottom">下方</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>飞机</label>
+            <select id="planeSelect">
+              <option value="classic">经典</option>
+              <option value="rocket">火箭</option>
+              <option value="butterfly">蝴蝶</option>
+              <option value="jet">喷射</option>
+            </select>
+            <button id="imageBtn" class="cfg-btn">📷 图片</button>
+            <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
+            <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
+            <img id="imagePreview" class="img-preview hidden" />
+            <label class="img-toggle">
+              <input type="checkbox" id="useImageCheckbox" />
+              <span>图片</span>
+            </label>
+          </div>
+          <div class="config-row">
+            <label>尾焰</label>
+            <select id="particleSelect">
+              <option value="classic">飘带</option>
+              <option value="rocket">火焰</option>
+              <option value="butterfly">星点</option>
+              <option value="jet">尾迹</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>文案框</label>
+            <select id="bubbleSelect">
+              <option value="classic">圆角</option>
+              <option value="rocket">锐角</option>
+              <option value="butterfly">柔圆</option>
+              <option value="jet">简约条</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <label>提示音</label>
+            <select id="soundSelect">
+              <option value="whoosh">咻</option>
+              <option value="dingdong">叮咚</option>
+              <option value="ring">铃声</option>
+              <option value="soft">柔和</option>
+            </select>
+            <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
+            <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
+            <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
+            <select id="soundModeSelect">
+              <option value="once">一次</option>
+              <option value="loop">循环</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       <!-- Edit modal -->
       <div id="taskModal" class="modal hidden">
@@ -168,82 +238,6 @@
                 <span>开机后自动启动</span>
               </label>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Flight config (collapsible) -->
-      <div class="bottom-section">
-        <div class="bottom-toggle" id="configToggle">
-          <span>✈ 飞行设置</span>
-          <span class="toggle-arrow" id="configArrow">▴</span>
-        </div>
-        <div id="configPanel" class="config-panel">
-          <div class="config-row">
-            <label>速度</label>
-            <select id="speedSelect">
-              <option value="vslow">超慢</option>
-              <option value="slow">慢速</option>
-              <option value="normal" selected>正常</option>
-              <option value="fast">快速</option>
-            </select>
-            <label>高度</label>
-            <select id="heightSelect">
-              <option value="top">上方</option>
-              <option value="center" selected>居中</option>
-              <option value="bottom">下方</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>飞机</label>
-            <select id="planeSelect">
-              <option value="classic">经典</option>
-              <option value="rocket">火箭</option>
-              <option value="butterfly">蝴蝶</option>
-              <option value="jet">喷射</option>
-            </select>
-            <button id="imageBtn" class="cfg-btn">📷 图片</button>
-            <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
-            <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
-            <img id="imagePreview" class="img-preview hidden" />
-            <label class="img-toggle">
-              <input type="checkbox" id="useImageCheckbox" />
-              <span>图片</span>
-            </label>
-          </div>
-          <div class="config-row">
-            <label>尾焰</label>
-            <select id="particleSelect">
-              <option value="classic">飘带</option>
-              <option value="rocket">火焰</option>
-              <option value="butterfly">星点</option>
-              <option value="jet">尾迹</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>文案框</label>
-            <select id="bubbleSelect">
-              <option value="classic">圆角</option>
-              <option value="rocket">锐角</option>
-              <option value="butterfly">柔圆</option>
-              <option value="jet">简约条</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <label>提示音</label>
-            <select id="soundSelect">
-              <option value="whoosh">咻</option>
-              <option value="dingdong">叮咚</option>
-              <option value="ring">铃声</option>
-              <option value="soft">柔和</option>
-            </select>
-            <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
-            <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
-            <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
-            <select id="soundModeSelect">
-              <option value="once">一次</option>
-              <option value="loop">循环</option>
-            </select>
           </div>
         </div>
       </div>
