@@ -541,6 +541,7 @@ async function triggerFlightWithMode(task) {
   }
 
   if (mode === 'loop_times') {
+    const totalLoopMs = task.loopCount * 10000 + 60000;
     loopState = {
       active: true,
       taskId: task.id,
@@ -549,13 +550,14 @@ async function triggerFlightWithMode(task) {
       direction: 'ltr',
       mode: 'loop_times',
       intervalId: null,
-      timeoutId: setTimeout(() => { if (loopState) { loopState.active = false; loopState = null; stopLoopSound(); } }, 60000),
+      timeoutId: setTimeout(() => { if (loopState) { loopState.active = false; loopState = null; stopLoopSound(); } }, totalLoopMs),
     };
     await createFlightWindow(msg, 'ltr');
     return;
   }
 
   if (mode === 'loop_interval') {
+    const totalIntervalMs = (task.intervalCount - 1) * task.loopInterval * 60 * 1000 + 60000;
     loopState = {
       active: true,
       taskId: task.id,
@@ -564,7 +566,7 @@ async function triggerFlightWithMode(task) {
       direction: 'ltr',
       mode: 'loop_interval',
       intervalId: null,
-      timeoutId: setTimeout(() => { if (loopState) { loopState.active = false; loopState = null; stopLoopSound(); } }, 60000),
+      timeoutId: setTimeout(() => { if (loopState) { loopState.active = false; loopState = null; stopLoopSound(); } }, totalIntervalMs),
     };
     await createFlightWindow(msg, 'ltr');
     return;
