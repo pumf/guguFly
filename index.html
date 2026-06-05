@@ -55,6 +55,21 @@
           <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
         </div>
 
+        <div class="task-filter-bar">
+          <div class="task-search-wrap">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索任务名或文案" />
+            <button id="taskSearchClear" class="task-search-clear" type="button" hidden>✕</button>
+          </div>
+          <div class="task-type-chips">
+            <button class="task-type-chip is-active" data-type="all">全部</button>
+            <button class="task-type-chip" data-type="alarm">定时</button>
+            <button class="task-type-chip" data-type="countdown">倒计时</button>
+            <button class="task-type-chip" data-type="holiday">节假日</button>
+            <button class="task-type-chip" data-type="anniversary">纪念日</button>
+          </div>
+        </div>
+
         <!-- Task list -->
         <div id="taskList" class="task-list"></div>
       </div>
@@ -334,6 +349,22 @@
               <span class="field-hint">留空则使用随机短句。</span>
             </div>
             <input type="text" id="editMsg" class="edit-input" placeholder="飞行文案（留空随机）" maxlength="30" />
+          </div>
+          <div class="form-block">
+            <div class="block-head">
+              <label>任务级图片（可选）</label>
+              <span class="field-hint">不上传则使用全局飞行图片设置。</span>
+            </div>
+            <div class="form-row" style="gap:8px;align-items:center">
+              <button id="editImageBtn" class="cfg-btn" type="button">📷 上传</button>
+              <input type="file" id="editImageInput" accept="image/png,image/jpeg,image/gif" hidden />
+              <button id="editClearImageBtn" class="cfg-btn small" type="button" hidden>✕ 移除</button>
+              <img id="editImagePreview" class="img-preview hidden" />
+              <label class="img-toggle">
+                <input type="checkbox" id="editUseImageCheckbox" />
+                <span>启用</span>
+              </label>
+            </div>
           </div>
           <div class="modal-footer">
             <button id="deleteTaskBtn" class="del-btn hidden">删除此任务</button>

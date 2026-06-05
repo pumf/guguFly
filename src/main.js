@@ -7,6 +7,7 @@ import { getRandomQuote } from './quotes.js';
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 const appWindow = getCurrentWebviewWindow();
 const isTauriRuntime = !!appWindow;
@@ -54,6 +55,9 @@ const HOLIDAY_PRESETS = {
 
 // DOM refs
 const taskListEl = document.getElementById('taskList');
+const taskSearchInput = document.getElementById('taskSearchInput');
+const taskSearchClear = document.getElementById('taskSearchClear');
+const taskTypeChips = document.querySelectorAll('.task-type-chip');
 const addTaskBtn = document.getElementById('addTaskBtn');
 const modal = document.getElementById('taskModal');
 const modalOverlay = document.getElementById('modalOverlay');
@@ -117,6 +121,11 @@ const imageInput = document.getElementById('imageInput');
 const clearImageBtn = document.getElementById('clearImageBtn');
 const imagePreview = document.getElementById('imagePreview');
 const useImageCheckbox = document.getElementById('useImageCheckbox');
+const editImageBtn = document.getElementById('editImageBtn');
+const editImageInput = document.getElementById('editImageInput');
+const editClearImageBtn = document.getElementById('editClearImageBtn');
+const editImagePreview = document.getElementById('editImagePreview');
+const editUseImageCheckbox = document.getElementById('editUseImageCheckbox');
 const soundSelect = document.getElementById('soundSelect');
 const soundModeSelect = document.getElementById('soundModeSelect');
 const soundBtn = document.getElementById('soundBtn');
@@ -136,6 +145,7 @@ let expandedTaskId = null;
 let isMuted = false;
 let isConfigOpen = false;
 let customImageData = '';
+let editImageData = '';
 let customAudioData = '';
 let customAudioName = '';
 let loopAudio = null;
@@ -149,6 +159,8 @@ let toastTimer = null;
 let activeFlightJob = null;
 let currentTheme = 'system';
 let systemThemeMedia = null;
+let taskSearchKeyword = '';
+let taskTypeFilter = 'all';
 const flightQueue = [];
 const flightSequences = new Map();
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -219,7 +231,7 @@ async function processFlightQueue() {
   const nextJob = flightQueue.shift();
   activeFlightJob = nextJob;
   if (nextJob.playSound && !isMuted) playSound();
-  await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId);
+  await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
 }
 
 function queueFlight(job) {
@@ -540,6 +552,8 @@ function createAlarmTask() {
     hour: 12,
     minute: 0,
     repeat: [],
+    imageData: null,
+    useImage: false,
     _lastTriggeredDate: null,
   };
 }
@@ -556,6 +570,8 @@ function createCountdownTask() {
     loopInterval: 5,
     intervalCount: 10,
     duration: 1800,
+    imageData: null,
+    useImage: false,
     _remaining: 1800,
     _status: 'idle',
     _timer: null,
@@ -578,6 +594,8 @@ function createHolidayTask() {
     day: 1,
     hour: 9,
     minute: 0,
+    imageData: null,
+    useImage: false,
     _lastTriggeredDate: null,
   };
 }
@@ -598,6 +616,8 @@ function createAnniversaryTask() {
     day: d.getDate(),
     hour: 9,
     minute: 0,
+    imageData: null,
+    useImage: false,
     _lastTriggeredDate: null,
   };
 }
@@ -875,6 +895,15 @@ function setGroupEnabled(groupTasks, enabled) {
   showToast(enabled ? `已启用 ${groupTasks.length} 条任务` : `已停用 ${groupTasks.length} 条任务`);
 }
 
+function matchesFilter(task) {
+  if (taskTypeFilter !== 'all' && task.type !== taskTypeFilter) return false;
+  if (taskSearchKeyword) {
+    const haystack = `${task.label || ''} ${task.msg || ''}`.toLowerCase();
+    if (!haystack.includes(taskSearchKeyword)) return false;
+  }
+  return true;
+}
+
 function renderTasks() {
   taskListEl.innerHTML = '';
 
@@ -884,7 +913,14 @@ function renderTasks() {
     return;
   }
 
-  const orderedTasks = [...tasks].sort((a, b) => {
+  const filteredTasks = tasks.filter(matchesFilter);
+  if (filteredTasks.length === 0) {
+    taskListEl.innerHTML = '<div class="empty-hint"><span class="big-icon">🔍</span><strong>没有匹配的任务</strong><span>试试别的关键词，或清除筛选条件。</span></div>';
+    updateHeroStatus();
+    return;
+  }
+
+  const orderedTasks = filteredTasks.sort((a, b) => {
     const scoreDiff = getTaskSortScore(a) - getTaskSortScore(b);
     if (scoreDiff !== 0) return scoreDiff;
     const timeDiff = getTaskTimeAnchor(a) - getTaskTimeAnchor(b);
@@ -991,6 +1027,13 @@ function renderTasks() {
     const label = document.createElement('div');
     label.className = 'task-label';
     label.textContent = task.label || (task.type === 'alarm' ? '闹钟' : task.type === 'countdown' ? '倒计时' : task.type === 'holiday' ? '节日' : '纪念日');
+    if (task.imageData && task.useImage) {
+      const imgBadge = document.createElement('span');
+      imgBadge.className = 'task-image-badge';
+      imgBadge.title = '此任务使用自定义图片';
+      imgBadge.textContent = '🖼';
+      label.appendChild(imgBadge);
+    }
 
     const info = document.createElement('div');
     info.className = 'task-info';
@@ -1230,7 +1273,7 @@ function startAlarmChecker() {
 
 // --- Flight ---
 
-async function createFlightWindow(msg, direction = 'ltr', sequenceId = '') {
+async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskImageData = null, taskUseImage = null) {
   if (!isTauriRuntime) {
     return;
   }
@@ -1242,8 +1285,11 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '') {
   const bubble = bubbleSelect.value;
   const bubblePosition = bubblePositionSelect.value;
 
-  localStorage.setItem('_flightImage', customImageData || '');
-  localStorage.setItem('_flightUseImage', useImageCheckbox.checked ? '1' : '0');
+  const effectiveImage = taskImageData !== null ? taskImageData : customImageData;
+  const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckbox.checked;
+
+  localStorage.setItem('_flightImage', effectiveImage || '');
+  localStorage.setItem('_flightUseImage', effectiveUseImage ? '1' : '0');
 
   try {
     const { width: sw, height: sh } = screen;
@@ -1333,13 +1379,16 @@ async function resetFlightSettings() {
 
 async function triggerFlightWithMode(task) {
   const msg = task.msg || getRandomQuote();
+  const taskImage = task.imageData || null;
+  const taskUseImage = task.imageData ? !!task.useImage : null;
 
   await registerFlightTrigger();
+  notifyFlightTriggered(task.label, msg);
 
   const mode = task.flightMode || 'once';
 
   if (mode === 'once') {
-    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true });
+    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true, imageData: taskImage, useImage: taskUseImage });
     return;
   }
 
@@ -1351,6 +1400,8 @@ async function triggerFlightWithMode(task) {
       sequenceId,
       taskId: task.id,
       taskMsg: msg,
+      taskImage,
+      taskUseImage,
       remaining: (task.loopCount || 3),
       direction: 'ltr',
       mode: 'loop_times',
@@ -1364,7 +1415,7 @@ async function triggerFlightWithMode(task) {
         }
       }, totalLoopMs),
     });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true });
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage });
     return;
   }
 
@@ -1376,6 +1427,8 @@ async function triggerFlightWithMode(task) {
       sequenceId,
       taskId: task.id,
       taskMsg: msg,
+      taskImage,
+      taskUseImage,
       remaining: (task.intervalCount || 10),
       mode: 'loop_interval',
       intervalMs: (task.loopInterval || 5) * 60 * 1000,
@@ -1390,7 +1443,7 @@ async function triggerFlightWithMode(task) {
         }
       }, totalIntervalMs),
     });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true });
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage });
     return;
   }
 }
@@ -1487,13 +1540,27 @@ function openEditModal(task) {
     });
     editHolidayHour.value = task.hour;
     editHolidayMinute.value = task.minute;
-  } else if (task.type === 'anniversary') {
+  } else   if (task.type === 'anniversary') {
     anniversaryFields.classList.remove('hidden');
     editAnniMonth.value = task.month;
     editAnniDay.value = task.day;
     editAnniHour.value = task.hour;
     editAnniMinute.value = task.minute;
   }
+
+  editImageData = task.imageData || '';
+  if (editImagePreview) {
+    if (editImageData) {
+      editImagePreview.src = editImageData;
+      editImagePreview.classList.remove('hidden');
+    } else {
+      editImagePreview.src = '';
+      editImagePreview.classList.add('hidden');
+    }
+  }
+  if (editClearImageBtn) editClearImageBtn.hidden = !editImageData;
+  if (editUseImageCheckbox) editUseImageCheckbox.checked = !!task.useImage;
+  if (editImageInput) editImageInput.value = '';
 
   deleteTaskBtn.classList.remove('hidden');
   modal.classList.remove('hidden');
@@ -1533,6 +1600,15 @@ function openNewModal() {
   editAnniDay.value = '1';
   editAnniHour.value = '9';
   editAnniMinute.value = '0';
+
+  editImageData = '';
+  if (editImagePreview) {
+    editImagePreview.src = '';
+    editImagePreview.classList.add('hidden');
+  }
+  if (editClearImageBtn) editClearImageBtn.hidden = true;
+  if (editUseImageCheckbox) editUseImageCheckbox.checked = false;
+  if (editImageInput) editImageInput.value = '';
 
   deleteTaskBtn.classList.add('hidden');
   modal.classList.remove('hidden');
@@ -1580,6 +1656,8 @@ function saveModal() {
     task.loopCount = loopCount;
     task.loopInterval = loopInterval;
     task.intervalCount = intervalCount;
+    task.imageData = editImageData || null;
+    task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -1660,6 +1738,8 @@ function saveModal() {
         t.day = preset ? preset.day : 1;
         t.hour = hour;
         t.minute = minute;
+        t.imageData = editImageData || null;
+        t.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
         tasks.push(t);
         if (!firstTask) firstTask = t;
       });
@@ -1682,6 +1762,8 @@ function saveModal() {
       task.hour = anniversary.hour;
       task.minute = anniversary.minute;
     }
+    task.imageData = editImageData || null;
+    task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
     tasks.push(task);
   }
 
@@ -1700,7 +1782,7 @@ function deleteTask(task) {
 
 function getCleanTasks() {
   return tasks.map(t => {
-    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10 };
+    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, imageData: t.imageData || null, useImage: !!t.useImage };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'countdown') {
       const persisted = t._status === 'paused' ? t._remaining : undefined;
@@ -1723,6 +1805,8 @@ async function init() {
     loopCount: t.loopCount || 3,
     loopInterval: t.loopInterval || 5,
     intervalCount: t.intervalCount || 10,
+    imageData: t.imageData || null,
+    useImage: !!t.useImage,
     _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
     _status: t.type === 'countdown' && t._status === 'paused' ? 'paused' : 'idle',
     _timer: null,
@@ -1794,6 +1878,7 @@ async function init() {
   initHolidayChecklist();
   initSystemThemeWatcher();
   applyTheme(cfg.theme || 'system');
+  initNotificationPermission();
 
   // Apply config panel state
   configPanel.classList.toggle('hidden', !isConfigOpen);
@@ -1900,6 +1985,41 @@ configToggle.addEventListener('click', () => {
   isConfigOpen = !isConfigOpen;
   configPanel.classList.toggle('hidden', !isConfigOpen);
   configArrow.classList.toggle('collapsed', !isConfigOpen);
+});
+
+// Task search & filter
+if (taskSearchInput) {
+  taskSearchInput.addEventListener('input', () => {
+    taskSearchKeyword = taskSearchInput.value.trim().toLowerCase();
+    if (taskSearchClear) taskSearchClear.hidden = !taskSearchKeyword;
+    renderTasks();
+  });
+  taskSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && taskSearchInput.value) {
+      e.stopPropagation();
+      taskSearchInput.value = '';
+      taskSearchKeyword = '';
+      if (taskSearchClear) taskSearchClear.hidden = true;
+      renderTasks();
+    }
+  });
+}
+if (taskSearchClear) {
+  taskSearchClear.addEventListener('click', () => {
+    if (!taskSearchInput) return;
+    taskSearchInput.value = '';
+    taskSearchKeyword = '';
+    taskSearchClear.hidden = true;
+    renderTasks();
+    taskSearchInput.focus();
+  });
+}
+taskTypeChips.forEach(chip => {
+  chip.addEventListener('click', () => {
+    taskTypeFilter = chip.dataset.type || 'all';
+    taskTypeChips.forEach(c => c.classList.toggle('is-active', c === chip));
+    renderTasks();
+  });
 });
 
 // Mute
@@ -2036,6 +2156,46 @@ clearImageBtn.addEventListener('click', () => {
   persistSetting('useImage', false);
 });
 
+// Edit-modal task image
+if (editImageBtn) {
+  editImageBtn.addEventListener('click', () => {
+    if (editImageInput) editImageInput.click();
+  });
+}
+if (editImageInput) {
+  editImageInput.addEventListener('change', () => {
+    const file = editImageInput.files[0];
+    if (!file) return;
+    if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, '图片')) {
+      editImageInput.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      editImageData = e.target.result;
+      if (editImagePreview) {
+        editImagePreview.src = editImageData;
+        editImagePreview.classList.remove('hidden');
+      }
+      if (editClearImageBtn) editClearImageBtn.hidden = false;
+      if (editUseImageCheckbox) editUseImageCheckbox.checked = true;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+if (editClearImageBtn) {
+  editClearImageBtn.addEventListener('click', () => {
+    editImageData = '';
+    if (editImagePreview) {
+      editImagePreview.src = '';
+      editImagePreview.classList.add('hidden');
+    }
+    editClearImageBtn.hidden = true;
+    if (editUseImageCheckbox) editUseImageCheckbox.checked = false;
+    if (editImageInput) editImageInput.value = '';
+  });
+}
+
 // Sound upload
 soundBtn.addEventListener('click', () => soundInput.click());
 soundInput.addEventListener('change', () => {
@@ -2126,7 +2286,7 @@ if (isTauriRuntime) {
       if (loopState.remaining > 0) {
         loopState.direction = loopState.direction === 'ltr' ? 'rtl' : 'ltr';
         continued = true;
-        queueFlight({ msg: loopState.taskMsg, direction: loopState.direction, sequenceId, playSound: false });
+        queueFlight({ msg: loopState.taskMsg, direction: loopState.direction, sequenceId, playSound: false, imageData: loopState.taskImage, useImage: loopState.taskUseImage });
       } else {
         clearSequence(sequenceId);
         if (!hasActiveSequences()) stopLoopSound();
@@ -2142,7 +2302,7 @@ if (isTauriRuntime) {
           const state = getSequence(sequenceId);
           if (state && state.active) {
             state.lastStart = Date.now();
-            queueFlight({ msg: state.taskMsg, direction: 'ltr', sequenceId, playSound: true });
+            queueFlight({ msg: state.taskMsg, direction: 'ltr', sequenceId, playSound: true, imageData: state.taskImage, useImage: state.taskUseImage });
           }
         }, waitMs);
       } else {
@@ -2195,6 +2355,33 @@ function applyTheme(theme) {
   } else {
     document.documentElement.setAttribute('data-active-theme', theme);
   }
+}
+
+// --- System notifications ---
+
+let notificationPermissionGranted = false;
+
+async function initNotificationPermission() {
+  try {
+    notificationPermissionGranted = await isPermissionGranted();
+    if (!notificationPermissionGranted) {
+      const result = await requestPermission();
+      notificationPermissionGranted = result === 'granted';
+    }
+  } catch (e) {
+    notificationPermissionGranted = false;
+  }
+}
+
+function notifyFlightTriggered(taskLabel, msg) {
+  if (!notificationPermissionGranted) return;
+  try {
+    sendNotification({
+      title: taskLabel ? `✈ ${taskLabel}` : '✈ 咕咕机长',
+      body: msg || '该任务已触发',
+      icon: '🛩',
+    });
+  } catch (e) {}
 }
 
 function initSystemThemeWatcher() {
