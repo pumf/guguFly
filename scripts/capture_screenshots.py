@@ -32,10 +32,29 @@ MOCK_TASKS = [
      "imageData": None, "useImage": False, "_lastTriggeredDate": None},
 ]
 
+import datetime as _dt
+_today = _dt.date.today()
+MOCK_FLIGHT_LOG = []
+for i in range(7):
+    d = _today - _dt.timedelta(days=6 - i)
+    base = [3, 5, 2, 7, 4, 6, 8][i]
+    by_type = {"alarm": 0, "countdown": 0, "holiday": 0, "anniversary": 0}
+    by_type["alarm"] = max(0, base - 1)
+    by_type["countdown"] = max(0, base - 3)
+    if i == 6:
+        by_type = {"alarm": 5, "countdown": 3, "holiday": 0, "anniversary": 0}
+    MOCK_FLIGHT_LOG.append({
+        "date": d.isoformat(),
+        "totalCount": base,
+        "byTask": {1: base - 1, 2: 1},
+        "byType": by_type,
+    })
+MOCK_FLIGHT_LOG_JSON = json.dumps(MOCK_FLIGHT_LOG)
 
-def snap(page, name):
+
+def snap(page, name, full_page=False):
     file = OUT_DIR / name
-    page.screenshot(path=str(file))
+    page.screenshot(path=str(file), full_page=full_page)
     print(f"saved {file}")
 
 
@@ -43,12 +62,13 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         ctx = browser.new_context(
-            viewport={"width": 560, "height": 730},
+            viewport={"width": 560, "height": 900},
             device_scale_factor=2,
         )
         page = ctx.new_page()
         page.add_init_script(
-            f"window.localStorage.setItem('gugufly:_tasks', {json.dumps(json.dumps(MOCK_TASKS))});"
+            f"window.localStorage.setItem('gugufly:_tasks', '{json.dumps(MOCK_TASKS)}');"
+            f"window.localStorage.setItem('gugufly:_flightLog', '{json.dumps(MOCK_FLIGHT_LOG)}');"
         )
 
         # 1. Home (default state: config panel collapsed)
@@ -63,6 +83,12 @@ def main():
         except Exception as e:
             print("task-card not found:", e)
         snap(page, "home.png")
+
+        # 1b. Stats panel expanded
+        page.click("#statsToggle", force=True)
+        page.wait_for_timeout(500)
+        snap(page, "stats.png", full_page=True)
+        page.click("#statsToggle", force=True)
 
         # 2. Flight settings (expand config panel)
         page.click("#configToggle", force=True)

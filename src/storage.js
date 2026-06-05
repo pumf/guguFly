@@ -118,3 +118,88 @@ export async function resetStreak() {
   await set('streak', 0);
   return 0;
 }
+
+const FLIGHT_LOG_KEY = '_flightLog';
+const FLIGHT_LOG_RETENTION_DAYS = 90;
+
+function getDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getEmptyDayLog() {
+  return { totalCount: 0, byTask: {}, byType: { alarm: 0, countdown: 0, holiday: 0, anniversary: 0 } };
+}
+
+function pruneOldEntries(log) {
+  if (!Array.isArray(log)) return [];
+  const cutoff = Date.now() - FLIGHT_LOG_RETENTION_DAYS * 86400000;
+  return log.filter(entry => entry && entry.date && new Date(entry.date).getTime() >= cutoff - 86400000);
+}
+
+export async function loadFlightLog() {
+  const log = await get(FLIGHT_LOG_KEY);
+  return pruneOldEntries(Array.isArray(log) ? log : []);
+}
+
+export async function recordFlightTrigger(task) {
+  if (!task || !task.type) return null;
+  const today = getDateKey();
+  const log = await loadFlightLog();
+  let day = log.find(d => d.date === today);
+  if (!day) {
+    day = { date: today, ...getEmptyDayLog() };
+    log.push(day);
+  }
+  day.totalCount += 1;
+  day.byTask[task.id] = (day.byTask[task.id] || 0) + 1;
+  day.byType[task.type] = (day.byType[task.type] || 0) + 1;
+  await set(FLIGHT_LOG_KEY, log);
+  return day;
+}
+
+export async function computeFlightStats() {
+  const log = await loadFlightLog();
+  const sorted = [...log].sort((a, b) => a.date.localeCompare(b.date));
+  const totalCount = sorted.reduce((s, d) => s + d.totalCount, 0);
+  const last7 = sorted.slice(-7);
+  const last30 = sorted.slice(-30);
+  const last7Total = last7.reduce((s, d) => s + d.totalCount, 0);
+  const last30Total = last30.reduce((s, d) => s + d.totalCount, 0);
+  const prev7Start = Math.max(0, sorted.length - 14);
+  const prev7 = sorted.slice(prev7Start, prev7Start + 7);
+  const prev7Total = prev7.reduce((s, d) => s + d.totalCount, 0);
+  let trend = null;
+  if (prev7Total > 0) {
+    trend = Math.round(((last7Total - prev7Total) / prev7Total) * 100);
+  } else if (last7Total > 0) {
+    trend = 100;
+  }
+  const byTypeTotals = { alarm: 0, countdown: 0, holiday: 0, anniversary: 0 };
+  for (const d of sorted) {
+    if (d.byType) {
+      for (const k of Object.keys(byTypeTotals)) {
+        byTypeTotals[k] += d.byType[k] || 0;
+      }
+    }
+  }
+  const taskTotals = {};
+  for (const d of sorted) {
+    if (d.byTask) {
+      for (const [taskId, count] of Object.entries(d.byTask)) {
+        taskTotals[taskId] = (taskTotals[taskId] || 0) + count;
+      }
+    }
+  }
+  return {
+    totalCount,
+    last7Total,
+    last30Total,
+    trend,
+    byType: byTypeTotals,
+    taskTotals,
+    daily: last7,
+  };
+}

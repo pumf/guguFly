@@ -70,6 +70,47 @@
           </div>
         </div>
 
+        <!-- Stats panel (collapsible) -->
+        <div class="stats-section">
+          <div class="stats-toggle" id="statsToggle">
+            <span>📊 飞行统计</span>
+            <span class="toggle-arrow collapsed" id="statsArrow">▴</span>
+          </div>
+          <div id="statsPanel" class="stats-panel hidden">
+            <div class="stats-cards">
+              <div class="stats-card">
+                <span class="stats-label">累计飞行</span>
+                <strong class="stats-value" id="statsTotal">0</strong>
+                <span class="stats-suffix">次提醒</span>
+              </div>
+              <div class="stats-card">
+                <span class="stats-label">本周</span>
+                <strong class="stats-value" id="statsWeek">0</strong>
+                <span class="stats-trend" id="statsTrend"></span>
+              </div>
+              <div class="stats-card">
+                <span class="stats-label">最常触发</span>
+                <strong class="stats-value stats-value--text" id="statsTopTask">—</strong>
+                <span class="stats-suffix" id="statsTopCount">暂无数据</span>
+              </div>
+            </div>
+            <div class="stats-block">
+              <div class="stats-block-head">
+                <strong>近 7 天</strong>
+                <span id="statsRange"></span>
+              </div>
+              <div class="stats-bars" id="statsBars"></div>
+            </div>
+            <div class="stats-block">
+              <div class="stats-block-head">
+                <strong>类型分布</strong>
+                <span id="statsTotalSub">总计 0 次</span>
+              </div>
+              <div class="stats-types" id="statsTypes"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Task list -->
         <div id="taskList" class="task-list"></div>
       </div>
