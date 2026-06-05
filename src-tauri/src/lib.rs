@@ -169,6 +169,7 @@ pub fn run() {
                 api.prevent_exit();
             }
         }
+        #[cfg(target_os = "macos")]
         tauri::RunEvent::Opened { urls } => {
             for url in urls {
                 let _ = _app_handle.emit("deep-link", url.to_string());
