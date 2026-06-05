@@ -9,7 +9,12 @@ import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
-const appWindow = getCurrentWebviewWindow();
+let appWindow;
+try {
+  appWindow = getCurrentWebviewWindow();
+} catch (e) {
+  appWindow = null;
+}
 const isTauriRuntime = !!appWindow;
 
 const HOLIDAY_PRESETS = {
@@ -126,6 +131,7 @@ const editImageInput = document.getElementById('editImageInput');
 const editClearImageBtn = document.getElementById('editClearImageBtn');
 const editImagePreview = document.getElementById('editImagePreview');
 const editUseImageCheckbox = document.getElementById('editUseImageCheckbox');
+const editColorPicker = document.getElementById('editColorPicker');
 const soundSelect = document.getElementById('soundSelect');
 const soundModeSelect = document.getElementById('soundModeSelect');
 const soundBtn = document.getElementById('soundBtn');
@@ -186,6 +192,20 @@ const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
 
 const MUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
 const UNMUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
+
+const TASK_COLORS = [
+  { id: 'red',    label: '红', value: '#e74c3c' },
+  { id: 'orange', label: '橙', value: '#ff9560' },
+  { id: 'yellow', label: '黄', value: '#f1c40f' },
+  { id: 'green',  label: '绿', value: '#62bf82' },
+  { id: 'cyan',   label: '青', value: '#4ecdc4' },
+  { id: 'blue',   label: '蓝', value: '#2d7ff9' },
+  { id: 'purple', label: '紫', value: '#9775fa' },
+  { id: 'pink',   label: '粉', value: '#f783ac' },
+];
+const TASK_COLOR_VALUES = Object.fromEntries(TASK_COLORS.map(c => [c.id, c.value]));
+const TASK_COLOR_IDS = TASK_COLORS.map(c => c.id);
+let selectedEditColor = null;
 
 function syncMuteToTray() {
   if (!isTauriRuntime) return;
@@ -554,6 +574,7 @@ function createAlarmTask() {
     repeat: [],
     imageData: null,
     useImage: false,
+    color: null,
     _lastTriggeredDate: null,
   };
 }
@@ -572,6 +593,7 @@ function createCountdownTask() {
     duration: 1800,
     imageData: null,
     useImage: false,
+    color: null,
     _remaining: 1800,
     _status: 'idle',
     _timer: null,
@@ -596,6 +618,7 @@ function createHolidayTask() {
     minute: 0,
     imageData: null,
     useImage: false,
+    color: null,
     _lastTriggeredDate: null,
   };
 }
@@ -618,6 +641,7 @@ function createAnniversaryTask() {
     minute: 0,
     imageData: null,
     useImage: false,
+    color: null,
     _lastTriggeredDate: null,
   };
 }
@@ -987,6 +1011,12 @@ function renderTasks() {
     card.dataset.taskId = String(task.id);
     if (task._status === 'running') card.classList.add('active');
     if (task._status === 'completed') card.classList.add('completed');
+    if (task.color && TASK_COLOR_VALUES[task.color]) {
+      const bar = document.createElement('div');
+      bar.className = 'task-color-bar';
+      bar.style.background = TASK_COLOR_VALUES[task.color];
+      card.appendChild(bar);
+    }
 
     const toggle = document.createElement('input');
     toggle.type = 'checkbox';
@@ -1562,6 +1592,8 @@ function openEditModal(task) {
   if (editUseImageCheckbox) editUseImageCheckbox.checked = !!task.useImage;
   if (editImageInput) editImageInput.value = '';
 
+  setSelectedColor(task.color || null);
+
   deleteTaskBtn.classList.remove('hidden');
   modal.classList.remove('hidden');
 }
@@ -1609,6 +1641,7 @@ function openNewModal() {
   if (editClearImageBtn) editClearImageBtn.hidden = true;
   if (editUseImageCheckbox) editUseImageCheckbox.checked = false;
   if (editImageInput) editImageInput.value = '';
+  setSelectedColor(null);
 
   deleteTaskBtn.classList.add('hidden');
   modal.classList.remove('hidden');
@@ -1658,6 +1691,7 @@ function saveModal() {
     task.intervalCount = intervalCount;
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
+    task.color = selectedEditColor;
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -1740,6 +1774,7 @@ function saveModal() {
         t.minute = minute;
         t.imageData = editImageData || null;
         t.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
+        t.color = selectedEditColor;
         tasks.push(t);
         if (!firstTask) firstTask = t;
       });
@@ -1764,6 +1799,7 @@ function saveModal() {
     }
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
+    task.color = selectedEditColor;
     tasks.push(task);
   }
 
@@ -1782,7 +1818,7 @@ function deleteTask(task) {
 
 function getCleanTasks() {
   return tasks.map(t => {
-    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, imageData: t.imageData || null, useImage: !!t.useImage };
+    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'countdown') {
       const persisted = t._status === 'paused' ? t._remaining : undefined;
@@ -1807,6 +1843,7 @@ async function init() {
     intervalCount: t.intervalCount || 10,
     imageData: t.imageData || null,
     useImage: !!t.useImage,
+    color: t.color || null,
     _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
     _status: t.type === 'countdown' && t._status === 'paused' ? 'paused' : 'idle',
     _timer: null,
@@ -1879,6 +1916,7 @@ async function init() {
   initSystemThemeWatcher();
   applyTheme(cfg.theme || 'system');
   initNotificationPermission();
+  initColorPicker();
 
   // Apply config panel state
   configPanel.classList.toggle('hidden', !isConfigOpen);
@@ -2064,6 +2102,8 @@ function shouldHandleEmergencyShortcut(event) {
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
     return false;
   }
+  if (modal && !modal.classList.contains('hidden')) return false;
+  if (settingsModal && !settingsModal.classList.contains('hidden')) return false;
   return true;
 }
 
@@ -2382,6 +2422,46 @@ function notifyFlightTriggered(taskLabel, msg) {
       icon: '🛩',
     });
   } catch (e) {}
+}
+
+// --- Color picker (edit modal) ---
+
+function applyColorPickerSelection() {
+  if (!editColorPicker) return;
+  editColorPicker.querySelectorAll('.color-swatch').forEach(swatch => {
+    const id = swatch.dataset.color;
+    const isActive = (id || '') === (selectedEditColor || '');
+    swatch.classList.toggle('is-active', isActive);
+  });
+}
+
+function setSelectedColor(colorId) {
+  if (colorId && !TASK_COLOR_VALUES[colorId]) {
+    selectedEditColor = null;
+  } else {
+    selectedEditColor = colorId || null;
+  }
+  applyColorPickerSelection();
+}
+
+function initColorPicker() {
+  if (!editColorPicker) return;
+  TASK_COLORS.forEach(c => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'color-swatch';
+    sw.dataset.color = c.id;
+    sw.title = c.label;
+    sw.style.background = c.value;
+    sw.setAttribute('aria-label', `选择颜色 ${c.label}`);
+    sw.addEventListener('click', () => setSelectedColor(c.id));
+    editColorPicker.appendChild(sw);
+  });
+  const noneBtn = editColorPicker.querySelector('.color-swatch--none');
+  if (noneBtn) {
+    noneBtn.addEventListener('click', () => setSelectedColor(null));
+  }
+  applyColorPickerSelection();
 }
 
 function initSystemThemeWatcher() {

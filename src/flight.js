@@ -1,8 +1,13 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { emit } from '@tauri-apps/api/event';
 
-const appWindow = getCurrentWebviewWindow();
-appWindow.setIgnoreCursorEvents(true);
+let appWindow;
+try {
+  appWindow = getCurrentWebviewWindow();
+  appWindow.setIgnoreCursorEvents(true);
+} catch (e) {
+  appWindow = null;
+}
 
 const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');
@@ -14,11 +19,11 @@ const H = parseInt(params.get('h')) || 1080;
 const speedMap = { vslow: 0.1, slow: 0.2, normal: 0.35, fast: 0.6 };
 const heightMap = { top: 0.25, center: 0.5, bottom: 0.75 };
 const effectMap = {
-  linear: { durationBase: 2500, enterProgress: 0.18, exitProgress: 0.82, floatDivisor: 100, floatAmount: 5, linear: true, travelMid: 0.16, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1 },
-  steady: { durationBase: 3400, enterProgress: 0.24, exitProgress: 0.82, floatDivisor: 165, floatAmount: 3, travelMid: 0.12, fadeIn: 0.2, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 0.85 },
-  ceremony: { durationBase: 4600, enterProgress: 0.3, exitProgress: 0.74, floatDivisor: 220, floatAmount: 2, travelMid: 0.08, fadeIn: 0.24, fadeOutStart: 0.86, fadeOutSpan: 0.14, particleBoost: 0.7 },
-  swift: { durationBase: 2200, enterProgress: 0.12, exitProgress: 0.9, floatDivisor: 115, floatAmount: 2.5, travelMid: 0.26, fadeIn: 0.1, fadeOutStart: 0.94, fadeOutSpan: 0.06, particleBoost: 1.2 },
-  playful: { durationBase: 3100, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 78, floatAmount: 8, travelMid: 0.18, fadeIn: 0.14, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 1.35 },
+  linear: { durationBase: 2500, enterProgress: 0.18, exitProgress: 0.82, floatDivisor: 100, floatAmount: 5, linear: true, travelMid: 0.16, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1, path: 'straight', pathAmplitude: 0 },
+  steady: { durationBase: 3400, enterProgress: 0.24, exitProgress: 0.82, floatDivisor: 165, floatAmount: 3, travelMid: 0.12, fadeIn: 0.2, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 0.85, path: 'straight', pathAmplitude: 0 },
+  ceremony: { durationBase: 4600, enterProgress: 0.3, exitProgress: 0.74, floatDivisor: 220, floatAmount: 2, travelMid: 0.08, fadeIn: 0.24, fadeOutStart: 0.86, fadeOutSpan: 0.14, particleBoost: 0.7, path: 'arc', pathAmplitude: 90 },
+  swift: { durationBase: 2200, enterProgress: 0.12, exitProgress: 0.9, floatDivisor: 115, floatAmount: 2.5, travelMid: 0.26, fadeIn: 0.1, fadeOutStart: 0.94, fadeOutSpan: 0.06, particleBoost: 1.2, path: 'straight', pathAmplitude: 0 },
+  playful: { durationBase: 3100, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 78, floatAmount: 8, travelMid: 0.18, fadeIn: 0.14, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 1.35, path: 'sine', pathAmplitude: 70 },
 };
 
 const speedFactor = speedMap[params.get('speed')] || 0.35;
@@ -492,7 +497,16 @@ function animate() {
     plane.x = -120 * SCALE + totalDist * easedProgress;
   }
   const floatY = Math.sin(t / effectConfig.floatDivisor) * effectConfig.floatAmount;
-  const currentY = plane.y + floatY;
+
+  let pathY = 0;
+  if (effectConfig.path === 'arc') {
+    const u = Math.sin(easedProgress * Math.PI);
+    pathY = u * effectConfig.pathAmplitude;
+  } else if (effectConfig.path === 'sine') {
+    pathY = Math.sin(easedProgress * Math.PI * 2) * effectConfig.pathAmplitude;
+  }
+
+  const currentY = plane.y + floatY + pathY;
   ctx.clearRect(0, 0, W, H);
   const particleOffX = isRtl ? 30 * SCALE : -30 * SCALE;
   if (plane.x >= -60 * SCALE && plane.x <= W + 60 * SCALE) {

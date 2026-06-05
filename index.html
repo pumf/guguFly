@@ -78,9 +78,9 @@
       <div class="bottom-section">
         <div class="bottom-toggle" id="configToggle">
           <span>✈ 飞行外观与声音</span>
-          <span class="toggle-arrow" id="configArrow">▴</span>
+          <span class="toggle-arrow collapsed" id="configArrow">▴</span>
         </div>
-        <div id="configPanel" class="config-panel">
+        <div id="configPanel" class="config-panel hidden">
           <p class="config-lead">统一调整飞行节奏、视觉样式和提示音，让提醒更自然地融入你的桌面。</p>
           <div class="config-actions">
             <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
@@ -364,6 +364,15 @@
                 <input type="checkbox" id="editUseImageCheckbox" />
                 <span>启用</span>
               </label>
+            </div>
+          </div>
+          <div class="form-block">
+            <div class="block-head">
+              <label>颜色标签</label>
+              <span class="field-hint">给任务分类，方便在列表里快速识别。</span>
+            </div>
+            <div class="color-picker" id="editColorPicker">
+              <button class="color-swatch color-swatch--none" type="button" data-color="" title="无颜色">✕</button>
             </div>
           </div>
           <div class="modal-footer">
