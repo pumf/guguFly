@@ -1,131 +1,84 @@
 # 咕咕机长
 
-![Tauri](https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)
-![Desktop App](https://img.shields.io/badge/Desktop-App-4B5563)
-![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey)
+> 一个更轻巧、更有趣的桌面提醒工具。
 
-一个更轻巧、更有趣的桌面提醒工具。
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#平台支持)
+[![Release](https://img.shields.io/github/v/release/pumf/guguFly)](../../releases/latest)
+[![Stars](https://img.shields.io/github/stars/pumf/guguFly)](../../stargazers)
+[![GitHub Sponsors](https://img.shields.io/badge/sponsor-pumf-EA4AAA?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/pumf)
 
-咕咕机长基于 `Tauri + Vite` 构建，面向日常提醒、倒计时、节日和纪念日场景。它不只是一条弹出的提醒文字，而是把任务提示做成了更有桌面感的飞行动画体验，并支持自定义图片、自定义音频和多种飞行表现形式。
+咕咕机长基于 `Tauri 2 + Vite + Vanilla JS` 构建，面向日常提醒、倒计时、节日和纪念日场景。它不只是一条弹出的提醒文字，而是把任务提示做成了更有桌面感的**飞行动画**体验，并支持自定义图片、自定义音频和多种飞行表现形式。
 
-## 版本信息
+[📸 查看截图](#界面预览) · [🚀 快速开始](#快速开始) · [💡 功能概览](#功能概览) · [📦 下载安装](../../releases/latest)
 
-- 当前桌面版本：`0.1.0`
-- 当前仓库主分支：`main`
-- 最近一轮重点更新：
-  - 飞行设置抽屉化
-  - 多种飞行效果与外观样式扩展
-  - 自定义音频文件名展示
-  - `试听 / 结束试听`
-  - 飞行时优先播放自定义音频
-  - 主界面布局和顶部区域持续优化
+---
 
-## Releases
+## ✨ 为什么选择咕咕机长
 
-如果后续发布正式构建版本，建议在这里放 GitHub Releases 链接：
-
-- [Releases](../../releases)
-
-如果暂时还没有发布页，也可以先保留这个入口，后续补充安装包说明。
-
-## 目录
-
-- [项目亮点](#项目亮点)
-- [界面预览](#界面预览)
-- [功能概览](#功能概览)
-- [技术栈](#技术栈)
-- [快速开始](#快速开始)
-- [使用说明](#使用说明)
-- [项目结构](#项目结构)
-- [当前进展](#当前进展)
-- [适用场景](#适用场景)
-- [License](#license)
-
-## 项目亮点
-
-- `桌面提醒工具`：适合日常轻量使用，不追求复杂流程
-- `飞行动画提醒`：提醒不再只是弹窗，而是更有存在感的动态表现
-- `高自定义`：支持飞机、尾焰、文案框、图片、音频等多种配置
-- `桌面端体验优化`：支持开机启动、本地持久化、紧急停止、静音等能力
+- 🎯 **桌面原生体验** — 飞行窗口叠加在所有应用之上，关屏也能看到
+- 🎨 **高度可定制** — 飞机、轨迹、尾焰、文案框、提示音都能改
+- 🪶 **极致轻量** — 基于 Tauri 2，安装包仅 ~10MB，内存占用 < 50MB
+- 🔌 **本地优先** — 数据完全在本地，无需注册账号即可使用全部核心功能
+- 🔗 **可扩展** — 支持 `gugufly://` URL Scheme 与外部应用联动
 
 ## 界面预览
 
-后续建议在这里补充截图，仓库首页展示效果会更完整。
+> 仓库首页 `docs/screenshots/` 下有完整截图。
 
-### 建议展示的截图
-
-- 首页主界面
-- 飞行设置展开状态
-- 新建任务弹窗
-- 自定义音频与试听区域
-
-### 截图占位示例
-
-```md
-![主界面截图](./docs/screenshots/home.png)
-![飞行设置截图](./docs/screenshots/flight-settings.png)
-![新建任务截图](./docs/screenshots/task-modal.png)
-![自定义音频截图](./docs/screenshots/custom-audio.png)
-```
+| 主界面 | 飞行设置 | 统计面板 |
+|:------:|:--------:|:--------:|
+| 任务列表 + 颜色标签 + 起飞按钮 | 12 个音色 + 飞行节奏 + 外观样式 | 累计/本周/类型分布 |
 
 ## 功能概览
 
-### 任务提醒
+### 任务管理
+- 4 种任务类型：定时 / 倒计时 / 节假日 / 纪念日
+- 任务启用、停用、编辑、删除
+- 倒计时：开始 / 暂停 / 停止
+- 重复：每周特定日期
+- 搜索框：实时过滤任务名 + 文案
+- 类型筛选 chip：全部 / 定时 / 倒计时 / 节假日 / 纪念日
+- 颜色标签：8 种颜色帮助视觉分类
+- 任务级自定义图片（覆盖全局设置）
+- 飞行方式：一次性 / 连续循环 / 间隔循环
 
-- 支持定时提醒
-- 支持倒计时提醒
-- 支持节日提醒
-- 支持纪念日提醒
-- 支持任务启用、停用、编辑、删除
-- 支持倒计时的开始、暂停、停止
+### 飞行动画
+- 4 种飞行节奏效果：经典直穿 / 自然滑过 / 仪式感（弧线）/ 利落提醒 / 活泼一点（S 形）
+- 6 套飞机样式：经典 / 火箭 / 蝴蝶 / 喷射 / 纸飞机 / 飞碟
+- 6 套尾焰粒子：飘带 / 火焰 / 星点 / 尾迹 / 闪光 / 云团
+- 6 套文案框样式：圆角 / 锐角 / 柔圆 / 简约条 / 玻璃感 / 贴纸感
+- 3 个文案框位置：上方 / 居中 / 下方
+- 飞行高度：上方 / 居中 / 下方
+- 飞行速度：超慢 / 慢速 / 正常 / 快速
 
-### 飞行表现
+### 声音
+- 12 种内置音色：咻 / 叮咚 / 铃声 / 柔和 / 风铃 / 脉冲 / 鸟鸣 / 钟声 / 成功 / 水泡 / 激光 / 晨光
+- 播放方式：一次 / 循环
+- 自定义音频上传（mp3 / wav / ogg）
+- 试听 / 结束试听
 
-- 支持飞行速度配置
-- 支持飞行高度配置
-- 支持多种飞行节奏效果
-- 支持多种飞机样式
-- 支持多种尾焰样式
-- 支持多种文案框样式
-- 支持文案框位置设置
+### 桌面体验
+- 系统通知（macOS Notification Center）
+- 托盘菜单：开始 / 暂停 / 停止 / 静音 / 打开主窗口 / 退出
+- 紧急降落按钮（一键停止所有飞行 + 清空 streak）
+- ESC 快捷键触发紧急降落
+- 本地持久化（自动保存）
+- 浅色 / 深色 / 跟随系统主题
+- 飞行时优化焦点占用，不抢输入
+- 开机自启动
 
-### 自定义能力
+### 集成
+- URL Scheme `gugufly://add?msg=...` 接受外部唤起
+- 全局快捷键（macOS: ⌘⌥S/P/Q, 其他: Ctrl+Alt+S/P/Q）
+- 飞行统计面板（累计 / 本周 / 7 天柱状图 / 类型分布）
 
-- 支持自定义飞行图片
-- 支持普通图片和 GIF 动图
-- 支持自定义提示音
-- 支持显示已选音频文件名
-- 支持 `试听 / 结束试听`
-- 勾选后飞行时优先播放自定义音频
-
-### 桌面端体验
-
-- 支持静音
-- 支持紧急停止
-- 支持开机启动
-- 支持本地持久化保存
-- 优化了飞行时对输入操作的干扰
-
-## 技术栈
-
-- `Tauri 2`
-- `Vite`
-- `Vanilla JavaScript`
-- `@tauri-apps/plugin-store`
-- `@tauri-apps/plugin-autostart`
-- `@tauri-apps/plugin-global-shortcut`
-- `@tauri-apps/plugin-deep-link`
-- `@tauri-apps/plugin-notification`
-- `@tauri-apps/plugin-log`
-
-### 平台支持
-
-- **macOS** (Apple Silicon) — 主要平台，全部能力（含 `macos-private-api` 透明飞行窗口）
-- **Windows** (x64) — 通过 NSIS 安装包分发
-- **Linux** (Ubuntu 24.04) — 通过 AppImage 和 DEB 分发
-- 需要 Linux 端运行，请先安装：`libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf`
+### 数据
+- JSON 导入 / 导出（带版本号和校验）
+- 90 天飞行日志（自动清理）
 
 ## 快速开始
 
@@ -135,131 +88,158 @@
 npm install
 ```
 
-### 启动前端开发环境
-
-```bash
-npm run dev
-```
-
-默认访问地址：
-
-```text
-http://localhost:5173
-```
-
-### 启动桌面应用
+### 启动开发环境
 
 ```bash
 npm run tauri dev
 ```
 
-### 构建前端资源
+> 第一次启动会下载 Rust 依赖和编译，时间较长。
 
-```bash
-npm run build
-```
-
-### 构建桌面安装包
+### 构建生产版本
 
 ```bash
 npm run tauri build
 ```
 
-打包前请确保本地已经安装好 Tauri 所需的系统依赖环境。
+产物在 `src-tauri/target/release/bundle/`。
+
+## 平台支持
+
+| 平台 | 状态 | 安装包 |
+|---|---|---|
+| **macOS** (Apple Silicon) | ✅ 主要平台，全部能力 | `.dmg` |
+| **Windows** (x64) | ✅ | `.exe` (NSIS) |
+| **Linux** (Ubuntu 24.04) | ✅ | `.AppImage` / `.deb` |
+
+> Linux 上运行需要：`libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf`
 
 ## 使用说明
 
-### 1. 创建提醒任务
+### URL Scheme（外部唤起）
 
-当前支持四类提醒：
+```bash
+# 创建定时任务
+open "gugufly://add?msg=开会&type=alarm&hour=15&minute=30"
 
-- 定时提醒
-- 倒计时提醒
-- 节日提醒
-- 纪念日提醒
+# 创建倒计时
+open "gugufly://add?msg=番茄钟&type=countdown&mins=25"
 
-### 2. 配置飞行效果
+# 创建纪念日
+open "gugufly://add?msg=结婚纪念&type=anniversary&month=5&day=20&hour=9&minute=0"
 
-在底部的“飞行外观与声音”区域中，可以统一调整提醒的视觉和声音风格，包括：
-
-- 飞行速度
-- 飞行高度
-- 飞行效果
-- 飞机样式
-- 尾焰样式
-- 文案框样式
-- 文案框位置
-- 提示音音色
-- 提示音播放方式
-- 自定义图片
-- 自定义音频
-
-### 3. 使用自定义音频
-
-上传音频后，界面会显示：
-
-- 当前音频文件名
-- `试听` 按钮
-- 试听中切换为 `结束试听`
-
-建议优先使用以下音频格式：
-
-- `mp3`
-- `wav`
-- `ogg`
-
-## 项目结构
-
-```text
-guguFly/
-├── index.html              # 主界面结构
-├── src/
-│   ├── main.js             # 主界面逻辑、任务管理、飞行配置、音频逻辑
-│   ├── flight.js           # 飞行动画窗口逻辑
-│   ├── style.css           # 主界面样式
-│   ├── storage.js          # 本地存储封装
-│   ├── timer.js            # 计时器能力
-│   └── quotes.js           # 提醒文案数据
-├── src-tauri/
-│   ├── tauri.conf.json     # Tauri 配置
-│   └── src/
-│       └── lib.rs          # Rust 侧入口
-└── dist/                   # 前端构建产物
+# 工作日重复
+open "gugufly://add?msg=站会&type=alarm&hour=10&minute=0&days=1,2,3,4,5"
 ```
 
-## 当前进展
+支持参数：`type`、`msg`、`hour`、`minute`、`mins`、`secs`、`month`、`day`、`days`、`holidayKey`
 
-### 已完成
+### 全局快捷键
 
-- 主界面多轮布局优化
-- 提醒列表可视空间优化
-- 飞行设置抽屉化
-- 多种飞行效果与样式扩展
-- 自定义图片与 GIF 支持
-- 自定义音频文件名展示
-- `试听 / 结束试听` 交互
-- 飞行时优先播放自定义音频
-- 倒计时开始、暂停、停止逻辑完善
-- 开机启动能力接入
+- `⌘⌥S` (macOS) / `Ctrl+Alt+S` — 开始倒计时
+- `⌘⌥P` (macOS) / `Ctrl+Alt+P` — 暂停所有倒计时
+- `⌘⌥Q` (macOS) / `Ctrl+Alt+Q` — 停止所有倒计时
+- `ESC` — 紧急降落（停止所有飞行 + 清空 streak）
 
-### 计划继续完善
+## 截图
 
-- 更完整的设置页
-- 更多飞行动画模板
-- 更多内置提示音
-- 任务导入导出
-- 多语言支持
-- 系统通知联动
-- 截图与演示资源补充
+完整截图见 [`docs/screenshots/`](docs/screenshots/)，README 顶部预览使用了：
 
-## 适用场景
+- `home.png` — 主界面（任务列表 + 搜索 + 起飞按钮）
+- `flight-settings.png` — 飞行设置抽屉
+- `task-modal.png` — 新建任务模态
+- `settings-modal.png` — 设置模态（主题 + 备份）
+- `stats.png` — 飞行统计面板
 
-- 日常定时提醒
-- 番茄钟 / 倒计时提醒
-- 周期性轻提醒
-- 节日、纪念日提示
-- 想要更有趣一点的桌面提醒体验
+## 开发
 
-## License
+### 项目结构
 
-本项目当前使用 [MIT License](./LICENSE)。
+```
+guguFly/
+├── index.html              # 主界面
+├── flight.html             # 飞行窗口
+├── src/
+│   ├── main.js             # 主界面逻辑（任务 / 飞行 / 设置）
+│   ├── flight.js           # 飞行动画渲染
+│   ├── style.css           # 主样式
+│   ├── storage.js          # Tauri Store 封装
+│   ├── timer.js            # 倒计时
+│   ├── quotes.js           # 文案库
+│   ├── sounds.js           # 音色合成
+│   └── backup.js           # 导入导出
+├── src-tauri/              # Rust 端
+│   ├── src/lib.rs          # 主入口 + 托盘 + 全局快捷键
+│   ├── Cargo.toml
+│   ├── tauri.conf.json
+│   └── capabilities/
+├── scripts/
+│   └── capture_screenshots.py
+└── .github/workflows/
+    ├── ci.yml
+    └── release.yml
+```
+
+### 调试
+
+```bash
+# 仅前端
+npm run dev
+
+# Tauri 完整开发
+npm run tauri dev
+
+# 重新生成截图
+python3 scripts/capture_screenshots.py
+```
+
+## 🤝 贡献
+
+欢迎 PR、Issue、Feature Request！提交前请：
+
+1. Fork 仓库
+2. 创建 feature 分支 (`git checkout -b feature/awesome`)
+3. 提交清晰的 commit message
+4. 推送到 fork
+5. 开 PR 并描述改动
+
+## 📜 路线图
+
+### v0.3（开源核心）
+- [ ] cron-like 重复模式（"每月第 N 个周 X"）
+- [ ] 更多飞行动画模板（螺旋 / 心形 / 8 字）
+- [ ] 任务历史 / 日志
+- [ ] 番茄钟统计（专注时长累计）
+- [ ] 成就系统（连飞 7 天 / 100 次）
+- [ ] 应用内 onboarding
+- [ ] 键盘快捷键（Cmd+N 新建任务）
+
+### v1.0（Pro 计划）
+- [ ] ☁️ 云端备份 + 多设备同步（WebDAV 通用协议）
+- [ ] 📊 数据洞察面板（vs 当前简化版）
+- [ ] 🤖 AI 智能建议
+- [ ] 🎨 主题市场 + 创作者分成
+- [ ] 👥 家庭共享清单
+
+> Pro 计划是云服务订阅（按月 / 按年）。**核心功能永远开源免费**，Pro 只提供"更省事 + 额外价值"。
+
+## 💖 赞助
+
+如果你喜欢这个项目：
+
+- ⭐ 给仓库点 Star
+- 🐛 报告 Bug 或建议新功能
+- 📢 推荐给朋友
+- 💰 [GitHub Sponsors](https://github.com/sponsors/pumf) | [爱发电](https://afdian.net/)
+
+## 📄 License
+
+[MIT](LICENSE) — 自由使用、修改、分发。
+
+## 平台 Logo
+
+<p align="left">
+  <a href="#"><img src="https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white" alt="Tauri"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white" alt="Vite"></a>
+  <a href="#"><img src="https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"></a>
+</p>

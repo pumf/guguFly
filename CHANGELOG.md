@@ -1,0 +1,55 @@
+# Changelog
+
+咕咕机长的所有重要变更都会记录在这里。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
+
+## [0.2.0] - 2026-06-05
+
+### ✨ 新增
+
+#### 核心功能
+- 任务搜索：实时过滤任务名 + 文案
+- 类型筛选：5 个 chip（全部 / 定时 / 倒计时 / 节假日 / 纪念日）
+- 任务颜色标签：8 种颜色帮助视觉分类
+- 任务级自定义图片：覆盖全局设置
+- 飞行轨迹模式：弧线（ceremony）、S 形（playful）
+- macOS 系统通知：飞行触发时弹出系统通知
+- URL Scheme `gugufly://add?msg=...`：外部应用唤起
+- 全局快捷键 macOS (⌘⌥S/P/Q) + Windows/Linux (Ctrl+Alt+S/P/Q)
+- ESC 紧急降落快捷键
+- 飞行统计面板：累计/本周/7 天柱状图/类型分布
+- 任务数据 JSON 导入/导出（带版本校验）
+- 12 个内置音色（咻/叮咚/铃声/柔和/风铃/脉冲/鸟鸣/钟声/成功/水泡/激光/晨光）
+- 浅色/深色/跟随系统主题
+
+#### 跨平台
+- Linux 适配：webkit2gtk + pkg-config
+- GitHub Actions CI：macOS / Linux / Windows 三平台自动构建
+
+#### 工程化
+- 卸载浏览器降级路径，保持桌面端专注
+- Vite 8 升级
+- 5 张自动生成的 README 截图（`scripts/capture_screenshots.py`）
+- release.yml 多平台打包
+- 移除 marketing-site 混入，单独仓库管理
+
+### 🐛 修复
+- `_remaining` 初始化错误（`t.duration || t.duration` → `t._remaining ?? t.duration`）
+- 倒计时暂停状态现在能持久化跨 App 重启
+- `getCurrentWebviewWindow` 加防御性 try/catch
+- ESC 紧急降落不会在模态打开时误触发
+- HTML 静态加 `hidden` 避免首屏闪烁
+- 移除 `urlencoding` 死代码
+
+### 📦 体积
+- 压缩 `logo.png` 1.1MB → 83KB（−92%）
+- 压缩 `fly_logo.png` 800KB → 18KB（−98%）
+
+## [0.1.0] - 早期版本
+
+### ✨ 初始功能
+- 4 种任务类型：定时 / 倒计时 / 节假日 / 纪念日
+- 飞行动画：4 种效果、6 套飞机、6 套尾焰、6 套文案框
+- 自定义图片和音频
+- 托盘菜单
+- macOS 启动自启
+- 本地持久化
