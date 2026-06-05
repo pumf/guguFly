@@ -950,6 +950,38 @@ body {
   color: var(--muted);
 }
 
+.settings-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--soft-muted);
+  margin-top: 8px;
+}
+
+.settings-action-btn,
+.theme-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.settings-action-btn:hover,
+.theme-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.theme-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 .modal-overlay {
   position: absolute;
   inset: 0;
@@ -1396,5 +1428,129 @@ body {
 
   .modal-content {
     width: min(92vw, 380px);
+  }
+}
+
+[data-theme="dark"] {
+  --bg-sky: linear-gradient(160deg, #1a1f2e 0%, #1e2536 45%, #1a2030 100%);
+  --panel: rgba(35, 42, 58, 0.78);
+  --panel-strong: rgba(28, 34, 48, 0.94);
+  --panel-soft: rgba(40, 48, 64, 0.58);
+  --border: rgba(120, 140, 180, 0.18);
+  --border-strong: rgba(140, 165, 200, 0.28);
+  --shadow: 0 20px 48px rgba(0, 0, 0, 0.36);
+  --text: #e6ecf5;
+  --muted: #9aa8c0;
+  --soft-muted: #6b7a92;
+  --accent: #5fa0ff;
+  --accent-warm: #ff9a6e;
+  --accent-green: #6fcd8b;
+  --danger: #e87a64;
+}
+
+[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 156, 110, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(95, 160, 255, 0.18), transparent 22%),
+    var(--bg-sky);
+}
+
+[data-theme="dark"] .settings-block {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .settings-action-btn,
+[data-theme="dark"] .theme-btn {
+  background: rgba(28, 34, 48, 0.72);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-theme="dark"] .settings-action-btn:hover,
+[data-theme="dark"] .theme-btn:hover {
+  background: rgba(40, 48, 64, 0.95);
+}
+
+[data-theme="dark"] .theme-btn.is-active {
+  background: var(--accent);
+  color: #0c1220;
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .task-card {
+  background: rgba(28, 34, 48, 0.78);
+  border-color: var(--border-strong);
+}
+
+[data-theme="dark"] .img-toggle span,
+[data-theme="dark"] .day-btn,
+[data-theme="dark"] .type-btn,
+[data-theme="dark"] .task-expand-btn,
+[data-theme="dark"] .task-takeoff-btn,
+[data-theme="dark"] .task-del-btn,
+[data-theme="dark"] .task-play-btn,
+[data-theme="dark"] .task-stop-btn,
+[data-theme="dark"] .task-detail-btn,
+[data-theme="dark"] .task-group-btn {
+  color: var(--text);
+}
+
+[data-theme="dark"] .edit-input,
+[data-theme="dark"] .time-input,
+[data-theme="dark"] select {
+  background: rgba(20, 26, 38, 0.72);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-theme="dark"] .modal-content {
+  background: linear-gradient(180deg, #1e2536 0%, #1a2030 100%);
+  color: var(--text);
+}
+
+[data-theme="dark"] .status-bar {
+  background: rgba(28, 34, 48, 0.6);
+  color: var(--muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --bg-sky: linear-gradient(160deg, #1a1f2e 0%, #1e2536 45%, #1a2030 100%);
+    --panel: rgba(35, 42, 58, 0.78);
+    --panel-strong: rgba(28, 34, 48, 0.94);
+    --panel-soft: rgba(40, 48, 64, 0.58);
+    --border: rgba(120, 140, 180, 0.18);
+    --border-strong: rgba(140, 165, 200, 0.28);
+    --shadow: 0 20px 48px rgba(0, 0, 0, 0.36);
+    --text: #e6ecf5;
+    --muted: #9aa8c0;
+    --soft-muted: #6b7a92;
+    --accent: #5fa0ff;
+  }
+  [data-theme="system"] body {
+    background:
+      radial-gradient(circle at top left, rgba(255, 156, 110, 0.18), transparent 26%),
+      radial-gradient(circle at top right, rgba(95, 160, 255, 0.18), transparent 22%),
+      var(--bg-sky);
+  }
+  [data-theme="system"] .settings-block {
+    background: rgba(28, 34, 48, 0.72);
+  }
+  [data-theme="system"] .edit-input,
+  [data-theme="system"] .time-input,
+  [data-theme="system"] select {
+    background: rgba(20, 26, 38, 0.72);
+    color: var(--text);
+  }
+  [data-theme="system"] .modal-content {
+    background: linear-gradient(180deg, #1e2536 0%, #1a2030 100%);
+    color: var(--text);
+  }
+  [data-theme="system"] .task-card {
+    background: rgba(28, 34, 48, 0.78);
+  }
+  [data-theme="system"] .status-bar {
+    background: rgba(28, 34, 48, 0.6);
   }
 }

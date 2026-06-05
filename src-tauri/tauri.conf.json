@@ -15,10 +15,10 @@
       {
         "title": "咕咕机长",
         "label": "main",
-        "width": 610,
+        "width": 560,
         "height": 730,
-        "minWidth": 610,
-        "maxWidth": 610,
+        "minWidth": 560,
+        "maxWidth": 560,
         "minHeight": 680,
         "resizable": true,
         "fullscreen": false,
@@ -44,5 +44,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["gugufly"]
+      }
+    }
   }
 }

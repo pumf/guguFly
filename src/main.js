@@ -1,20 +1,14 @@
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { AccurateTimer } from './timer.js';
 import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak } from './storage.js';
 import { getRandomQuote } from './quotes.js';
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
+import { exportTasksAsJson, readBackupFromFile } from './backup.js';
+import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 
-function safeGetCurrentWebviewWindow() {
-  try {
-    return getCurrentWebviewWindow();
-  } catch (e) {
-    return null;
-  }
-}
-
-const appWindow = safeGetCurrentWebviewWindow();
+const appWindow = getCurrentWebviewWindow();
 const isTauriRuntime = !!appWindow;
 
 const HOLIDAY_PRESETS = {
@@ -102,6 +96,10 @@ const settingsModal = document.getElementById('settingsModal');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const settingsCloseBtn = document.getElementById('settingsCloseBtn');
 const autostartToggle = document.getElementById('autostartToggle');
+const themeButtons = document.querySelectorAll('.theme-btn');
+const exportTasksBtn = document.getElementById('exportTasksBtn');
+const importTasksBtn = document.getElementById('importTasksBtn');
+const importTasksInput = document.getElementById('importTasksInput');
 const speedSelect = document.getElementById('speedSelect');
 const heightSelect = document.getElementById('heightSelect');
 const effectSelect = document.getElementById('effectSelect');
@@ -149,6 +147,8 @@ let customAudioObjectUrl = '';
 let previewAudioHandle = null;
 let toastTimer = null;
 let activeFlightJob = null;
+let currentTheme = 'system';
+let systemThemeMedia = null;
 const flightQueue = [];
 const flightSequences = new Map();
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -169,6 +169,16 @@ const DEFAULT_FLIGHT_SETTINGS = {
   soundMode: 'once',
   useSound: false,
 };
+
+const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
+
+const MUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+const UNMUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
+
+function syncMuteToTray() {
+  if (!isTauriRuntime) return;
+  void invoke('set_tray_mute_label', { muted: !!isMuted }).catch(() => {});
+}
 
 function createSequenceId(taskId) {
   return `seq-${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1428,95 +1438,9 @@ function stopLoopSound() {
 
 async function playOscillator(sound) {
   try {
+    if (!KNOWN_SOUND_VALUES.has(sound)) sound = 'whoosh';
     const audioCtx = await getAudioContext();
-    if (sound === 'whoosh') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.4);
-    } else if (sound === 'dingdong') {
-      const osc1 = audioCtx.createOscillator();
-      const osc2 = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc1.type = 'sine';
-      osc2.type = 'sine';
-      osc1.frequency.setValueAtTime(784, audioCtx.currentTime);
-      osc2.frequency.setValueAtTime(988, audioCtx.currentTime + 0.25);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      osc1.connect(gain); osc2.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc1.start(audioCtx.currentTime);
-      osc1.stop(audioCtx.currentTime + 0.22);
-      osc2.start(audioCtx.currentTime + 0.25);
-      osc2.stop(audioCtx.currentTime + 0.5);
-    } else if (sound === 'ring') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      const lfo = audioCtx.createOscillator();
-      const lfoGain = audioCtx.createGain();
-      lfo.frequency.setValueAtTime(6, audioCtx.currentTime);
-      lfoGain.gain.setValueAtTime(100, audioCtx.currentTime);
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.frequency);
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      lfo.start(audioCtx.currentTime);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.6);
-      lfo.stop(audioCtx.currentTime + 0.6);
-    } else if (sound === 'soft') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(528, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.15);
-      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.6);
-    } else if (sound === 'chime') {
-      const osc1 = audioCtx.createOscillator();
-      const osc2 = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc1.type = 'triangle';
-      osc2.type = 'triangle';
-      osc1.frequency.setValueAtTime(1046, audioCtx.currentTime);
-      osc2.frequency.setValueAtTime(1318, audioCtx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.9);
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc1.start(audioCtx.currentTime);
-      osc1.stop(audioCtx.currentTime + 0.38);
-      osc2.start(audioCtx.currentTime + 0.12);
-      osc2.stop(audioCtx.currentTime + 0.62);
-    } else if (sound === 'pulse') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(620, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.18, audioCtx.currentTime + 0.08);
-      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.45);
-    }
+    await playPresetSound(audioCtx, sound);
   } catch (e) {}
 }
 
@@ -1778,7 +1702,10 @@ function getCleanTasks() {
   return tasks.map(t => {
     const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10 };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
-    if (t.type === 'countdown') return { ...base, duration: t.duration };
+    if (t.type === 'countdown') {
+      const persisted = t._status === 'paused' ? t._remaining : undefined;
+      return { ...base, duration: t.duration, _remaining: persisted, _status: t._status === 'paused' ? 'paused' : 'idle' };
+    }
     if (t.type === 'holiday') return { ...base, holidayKey: t.holidayKey, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'anniversary') return { ...base, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
     return base;
@@ -1796,8 +1723,8 @@ async function init() {
     loopCount: t.loopCount || 3,
     loopInterval: t.loopInterval || 5,
     intervalCount: t.intervalCount || 10,
-    _remaining: t.duration || t.duration,
-    _status: 'idle',
+    _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
+    _status: t.type === 'countdown' && t._status === 'paused' ? 'paused' : 'idle',
     _timer: null,
   }));
   nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
@@ -1806,9 +1733,8 @@ async function init() {
   const cfg = await loadSettings();
 
   isMuted = cfg.muted;
-  muteBtn.innerHTML = isMuted
-    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
-    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
+  muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
+  syncMuteToTray();
   todayCountEl.textContent = cfg.todayCount;
   if (cfg.speed) speedSelect.value = cfg.speed;
   if (cfg.height) heightSelect.value = cfg.height;
@@ -1866,6 +1792,8 @@ async function init() {
   renderTasks();
   startAlarmChecker();
   initHolidayChecklist();
+  initSystemThemeWatcher();
+  applyTheme(cfg.theme || 'system');
 
   // Apply config panel state
   configPanel.classList.toggle('hidden', !isConfigOpen);
@@ -1907,6 +1835,7 @@ async function loadSettings() {
     customAudio: await get('customAudio'),
     customAudioName: await get('customAudioName'),
     useImage: await get('useImage'),
+    theme: await get('theme'),
   };
 }
 
@@ -1977,9 +1906,8 @@ configToggle.addEventListener('click', () => {
 muteBtn.addEventListener('click', async () => {
   await unlockAudioIfNeeded();
   isMuted = !isMuted;
-  muteBtn.innerHTML = isMuted
-    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
-    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
+  muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
+  syncMuteToTray();
   if (isMuted) {
     stopLoopSound();
     stopPreviewAudio();
@@ -1988,7 +1916,7 @@ muteBtn.addEventListener('click', async () => {
 });
 
 // Emergency
-emergencyBtn.addEventListener('click', async () => {
+async function triggerEmergencyLanding() {
   stopLoopSound();
   stopPreviewAudio();
   clearAllSequences();
@@ -2000,12 +1928,34 @@ emergencyBtn.addEventListener('click', async () => {
     }
   });
   try {
-    const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
     const all = await WebviewWindow.getAll();
     for (const w of all) {
       if (w.label.startsWith('flight-')) await w.close();
     }
   } catch (e) {}
+  showToast('已紧急降落');
+}
+
+let emergencyCooldownUntil = 0;
+function shouldHandleEmergencyShortcut(event) {
+  if (event.key !== 'Escape') return false;
+  if (Date.now() < emergencyCooldownUntil) return false;
+  const target = event.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+    return false;
+  }
+  return true;
+}
+
+document.addEventListener('keydown', (event) => {
+  if (!shouldHandleEmergencyShortcut(event)) return;
+  emergencyCooldownUntil = Date.now() + 1500;
+  void triggerEmergencyLanding();
+});
+
+emergencyBtn.addEventListener('click', () => {
+  emergencyCooldownUntil = Date.now() + 1500;
+  void triggerEmergencyLanding();
 });
 
 // Settings
@@ -2229,6 +2179,242 @@ window.addEventListener('beforeunload', async () => {
   await set('customAudio', customAudioData);
   await set('customAudioName', customAudioName);
   await set('useImage', useImageCheckbox.checked);
+});
+
+// --- Theme ---
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  themeButtons.forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.theme === theme);
+  });
+  if (theme === 'system' && systemThemeMedia) {
+    const isDark = systemThemeMedia.matches;
+    document.documentElement.setAttribute('data-active-theme', isDark ? 'dark' : 'light');
+  } else {
+    document.documentElement.setAttribute('data-active-theme', theme);
+  }
+}
+
+function initSystemThemeWatcher() {
+  if (!window.matchMedia) return;
+  systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  const handler = () => {
+    if (currentTheme === 'system') applyTheme('system');
+  };
+  if (systemThemeMedia.addEventListener) {
+    systemThemeMedia.addEventListener('change', handler);
+  } else if (systemThemeMedia.addListener) {
+    systemThemeMedia.addListener(handler);
+  }
+}
+
+themeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.theme;
+    applyTheme(theme);
+    void set('theme', theme);
+  });
+});
+
+// --- Backup (import / export) ---
+
+function collectSettingsMap() {
+  return {
+    speed: speedSelect.value,
+    height: heightSelect.value,
+    effect: effectSelect.value,
+    plane: planeSelect.value,
+    particle: particleSelect.value,
+    bubble: bubbleSelect.value,
+    bubblePosition: bubblePositionSelect.value,
+    sound: soundSelect.value,
+    soundMode: soundModeSelect.value,
+    useSound: useSoundCheckbox.checked,
+    useImage: useImageCheckbox.checked,
+    muted: isMuted,
+  };
+}
+
+function applySettingsFromBackup(settings) {
+  if (!settings || typeof settings !== 'object') return;
+  if (settings.speed) speedSelect.value = settings.speed;
+  if (settings.height) heightSelect.value = settings.height;
+  if (settings.effect) effectSelect.value = settings.effect;
+  if (settings.plane) planeSelect.value = settings.plane;
+  if (settings.particle) particleSelect.value = settings.particle;
+  if (settings.bubble) bubbleSelect.value = settings.bubble;
+  if (settings.bubblePosition) bubblePositionSelect.value = settings.bubblePosition;
+  if (settings.sound) soundSelect.value = settings.sound;
+  if (settings.soundMode) soundModeSelect.value = settings.soundMode;
+  if (typeof settings.useSound === 'boolean') useSoundCheckbox.checked = settings.useSound;
+  if (typeof settings.useImage === 'boolean') useImageCheckbox.checked = settings.useImage;
+  if (typeof settings.muted === 'boolean') {
+    isMuted = settings.muted;
+    muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
+  }
+}
+
+async function handleExportTasks() {
+  try {
+    const count = exportTasksAsJson(getCleanTasks(), collectSettingsMap());
+    showToast(`已导出 ${count} 条任务到下载文件夹`);
+  } catch (e) {
+    console.error('export failed:', e);
+    showToast('导出失败，请重试');
+  }
+}
+
+async function handleImportTasks() {
+  importTasksInput.value = '';
+  importTasksInput.click();
+}
+
+async function handleImportFileChange() {
+  const file = importTasksInput.files?.[0];
+  if (!file) return;
+  try {
+    const data = await readBackupFromFile(file);
+    const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
+    if (count === 0) {
+      showToast('备份里没有任务数据');
+      return;
+    }
+    const proceed = window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
+    if (!proceed) return;
+
+    const maxId = data.tasks.reduce((m, t) => Math.max(m, t.id || 0), 0);
+    tasks = data.tasks.map(t => ({
+      ...t,
+      flightMode: t.flightMode || 'once',
+      loopCount: t.loopCount || 3,
+      loopInterval: t.loopInterval || 5,
+      intervalCount: t.intervalCount || 10,
+      _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
+      _status: 'idle',
+      _timer: null,
+    }));
+    nextId = maxId + 1;
+    await saveTasks(getCleanTasks());
+    if (data.settings) {
+      applySettingsFromBackup(data.settings);
+      await persistFlightSettings();
+      await set('muted', isMuted);
+    }
+    renderTasks();
+    showToast(`已导入 ${count} 条任务`);
+  } catch (e) {
+    console.error('import failed:', e);
+    showToast(`导入失败：${e.message || '未知错误'}`);
+  }
+}
+
+if (exportTasksBtn) exportTasksBtn.addEventListener('click', handleExportTasks);
+if (importTasksBtn) importTasksBtn.addEventListener('click', handleImportTasks);
+if (importTasksInput) importTasksInput.addEventListener('change', handleImportFileChange);
+
+// --- Deep link (gugufly://add?msg=...&type=...&hour=...&minute=...) ---
+
+function parseDeepLinkUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch (e) {
+    return null;
+  }
+  if (url.protocol !== 'gugufly:') return null;
+  const action = url.host || url.pathname.replace(/^\/+/, '') || '';
+  const params = Object.fromEntries(url.searchParams.entries());
+  return { action, params };
+}
+
+function buildTaskFromDeepLink(params) {
+  const type = ['alarm', 'countdown', 'holiday', 'anniversary'].includes(params.type) ? params.type : 'alarm';
+  const msg = (params.msg || '').trim();
+  const hour = Math.min(23, Math.max(0, parseInt(params.hour, 10) || 0));
+  const minute = Math.min(59, Math.max(0, parseInt(params.minute, 10) || 0));
+  const mins = Math.min(999, Math.max(0, parseInt(params.mins, 10) || 0));
+  const secs = Math.min(59, Math.max(0, parseInt(params.secs, 10) || 0));
+
+  let task;
+  if (type === 'countdown') {
+    task = createCountdownTask();
+    task.duration = mins * 60 + secs;
+    if (task.duration <= 0) task.duration = 60;
+    task._remaining = task.duration;
+  } else if (type === 'holiday') {
+    task = createHolidayTask();
+    const presetKey = params.holidayKey && HOLIDAY_PRESETS[params.holidayKey] ? params.holidayKey : 'new_year';
+    const preset = HOLIDAY_PRESETS[presetKey];
+    task.holidayKey = presetKey;
+    task.label = formatHolidayLabel(preset);
+    task.month = preset.month;
+    task.day = preset.day;
+    task.hour = hour;
+    task.minute = minute;
+    if (msg) task.msg = msg;
+    return task;
+  } else if (type === 'anniversary') {
+    const d = new Date();
+    task = createAnniversaryTask();
+    task.month = Math.min(12, Math.max(1, parseInt(params.month, 10) || (d.getMonth() + 1)));
+    task.day = Math.min(31, Math.max(1, parseInt(params.day, 10) || d.getDate()));
+    task.hour = hour;
+    task.minute = minute;
+    if (msg) task.msg = msg;
+    return task;
+  } else {
+    task = createAlarmTask();
+    task.hour = hour;
+    task.minute = minute;
+    const days = (params.days || '')
+      .split(',')
+      .map(s => parseInt(s.trim(), 10))
+      .filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
+    task.repeat = Array.from(new Set(days));
+  }
+
+  if (msg) task.msg = msg;
+  return task;
+}
+
+async function handleDeepLinkAdd(params) {
+  const task = buildTaskFromDeepLink(params);
+  tasks.push(task);
+  await saveTasks(getCleanTasks());
+  renderTasks();
+  showToast(`已通过链接创建任务：${task.label || task.msg || '新任务'}`);
+}
+
+function handleDeepLink(rawUrl) {
+  const parsed = parseDeepLinkUrl(rawUrl);
+  if (!parsed) return;
+  if (parsed.action === 'add') {
+    void handleDeepLinkAdd(parsed.params);
+  }
+}
+
+if (isTauriRuntime) {
+  listen('deep-link', (event) => {
+    handleDeepLink(event.payload);
+  }).catch(e => console.error('deep-link listen failed:', e));
+}
+
+// --- Global error reporting ---
+
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason;
+  const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  console.error('[unhandledrejection]', message);
+  if (typeof showToast === 'function') {
+    showToast(`后台任务出错了：${reason?.message || reason}`);
+  }
+});
+
+window.addEventListener('error', (event) => {
+  console.error('[window.onerror]', event.error || event.message);
 });
 
 init();

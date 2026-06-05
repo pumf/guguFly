@@ -1,18 +1,8 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { emit } from '@tauri-apps/api/event';
 
-function safeGetCurrentWebviewWindow() {
-  try {
-    return getCurrentWebviewWindow();
-  } catch (e) {
-    return null;
-  }
-}
-
-const appWindow = safeGetCurrentWebviewWindow();
-if (appWindow) {
-  appWindow.setIgnoreCursorEvents(true);
-}
+const appWindow = getCurrentWebviewWindow();
+appWindow.setIgnoreCursorEvents(true);
 
 const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');

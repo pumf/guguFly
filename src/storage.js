@@ -1,49 +1,10 @@
 import { Store } from '@tauri-apps/plugin-store';
 
 let store = null;
-let browserStoreAvailable = null;
-
-function isBrowserStoreAvailable() {
-  if (browserStoreAvailable !== null) return browserStoreAvailable;
-  try {
-    const key = '__gugufly_probe__';
-    window.localStorage.setItem(key, '1');
-    window.localStorage.removeItem(key);
-    browserStoreAvailable = true;
-  } catch (e) {
-    browserStoreAvailable = false;
-  }
-  return browserStoreAvailable;
-}
 
 async function getStore() {
   if (!store) {
-    try {
-      store = await Store.load('config.json');
-    } catch (e) {
-      store = {
-        async get(key) {
-          if (!isBrowserStoreAvailable()) return undefined;
-          const raw = window.localStorage.getItem(`gugufly:${key}`);
-          return raw === null ? undefined : JSON.parse(raw);
-        },
-        async set(key, value) {
-          if (!isBrowserStoreAvailable()) return;
-          window.localStorage.setItem(`gugufly:${key}`, JSON.stringify(value));
-        },
-        async save() {},
-        async entries() {
-          if (!isBrowserStoreAvailable()) return [];
-          const pairs = [];
-          for (let i = 0; i < window.localStorage.length; i++) {
-            const key = window.localStorage.key(i);
-            if (!key || !key.startsWith('gugufly:')) continue;
-            pairs.push([key.slice('gugufly:'.length), JSON.parse(window.localStorage.getItem(key))]);
-          }
-          return pairs;
-        },
-      };
-    }
+    store = await Store.load('config.json');
   }
   return store;
 }

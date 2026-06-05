@@ -177,6 +177,12 @@
                   <option value="soft">柔和</option>
                   <option value="chime">风铃</option>
                   <option value="pulse">脉冲</option>
+                  <option value="bird">鸟鸣</option>
+                  <option value="bell">钟声</option>
+                  <option value="success">成功</option>
+                  <option value="bubble">水泡</option>
+                  <option value="laser">激光</option>
+                  <option value="morning">晨光</option>
                 </select>
                 <select id="soundModeSelect">
                   <option value="once">一次</option>
@@ -364,9 +370,26 @@
                 </div>
               </div>
               <div class="settings-block">
+                <div class="settings-block-title">主题</div>
+                <div class="form-row" style="margin-top:10px;gap:8px">
+                  <button class="theme-btn" data-theme="light">浅色</button>
+                  <button class="theme-btn" data-theme="dark">深色</button>
+                  <button class="theme-btn" data-theme="system">跟随系统</button>
+                </div>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">数据备份</div>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+                  <button id="exportTasksBtn" class="settings-action-btn">导出任务</button>
+                  <button id="importTasksBtn" class="settings-action-btn">导入任务</button>
+                  <input type="file" id="importTasksInput" accept="application/json,.json" hidden />
+                </div>
+                <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
+              </div>
+              <div class="settings-block">
                 <div class="settings-block-title">软件说明</div>
                 <div class="settings-list">
-                  <div class="settings-item">`开始 / 暂停 / 停止` 可以直接控制倒计时。</div>
+                  <div class="settings-item">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
                   <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
                   <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
                 </div>

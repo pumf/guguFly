@@ -1,11 +1,15 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
+    menu::{MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    Emitter, Manager, State,
 };
+use tauri_plugin_deep_link::DeepLinkExt;
 
 static QUITTING: AtomicBool = AtomicBool::new(false);
+
+struct MuteMenuItem(Mutex<Option<MenuItem<tauri::Wry>>>);
 
 #[tauri::command]
 fn show_window(app: tauri::AppHandle) {
@@ -16,25 +20,22 @@ fn show_window(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn urlencoding(s: &str) -> String {
-    let mut out = String::new();
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
-            b' ' => out.push('+'),
-            _ => out.push_str(&format!("%{:02X}", b)),
+fn set_tray_mute_label(state: State<'_, MuteMenuItem>, muted: bool) {
+    let label = if muted { "🔊 已静音" } else { "🔇 静音" };
+    if let Ok(guard) = state.0.lock() {
+        if let Some(item) = guard.as_ref() {
+            let _ = item.set_text(label);
         }
     }
-    out
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .manage(MuteMenuItem(Mutex::new(None)))
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, _event| {
@@ -50,13 +51,16 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            let log_level = if cfg!(debug_assertions) {
+                log::LevelFilter::Debug
+            } else {
+                log::LevelFilter::Info
+            };
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log_level)
+                    .build(),
+            )?;
 
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
@@ -87,6 +91,12 @@ pub fn run() {
             let show = MenuItemBuilder::with_id("show", "📂 打开主窗口").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "✕ 退出").build(app)?;
 
+            if let Some(state) = app.try_state::<MuteMenuItem>() {
+                if let Ok(mut guard) = state.0.lock() {
+                    *guard = Some(mute.clone());
+                }
+            }
+
             let menu = MenuBuilder::new(app)
                 .item(&start)
                 .item(&pause)
@@ -98,7 +108,7 @@ pub fn run() {
                 .item(&quit)
                 .build()?;
 
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("main-tray")
                 .menu(&menu)
                 .tooltip("咕咕机长")
                 .on_tray_icon_event(|tray, event| {
@@ -139,9 +149,16 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            let app_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    let _ = app_handle.emit("deep-link", url.to_string());
+                }
+            });
+
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, urlencoding])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
@@ -149,6 +166,11 @@ pub fn run() {
         tauri::RunEvent::ExitRequested { api, .. } => {
             if !QUITTING.load(Ordering::Relaxed) {
                 api.prevent_exit();
+            }
+        }
+        tauri::RunEvent::Opened { urls } => {
+            for url in urls {
+                let _ = _app_handle.emit("deep-link", url.to_string());
             }
         }
         _ => {}
