@@ -115,6 +115,17 @@
 - `Vanilla JavaScript`
 - `@tauri-apps/plugin-store`
 - `@tauri-apps/plugin-autostart`
+- `@tauri-apps/plugin-global-shortcut`
+- `@tauri-apps/plugin-deep-link`
+- `@tauri-apps/plugin-notification`
+- `@tauri-apps/plugin-log`
+
+### 平台支持
+
+- **macOS** (Apple Silicon) — 主要平台，全部能力（含 `macos-private-api` 透明飞行窗口）
+- **Windows** (x64) — 通过 NSIS 安装包分发
+- **Linux** (Ubuntu 24.04) — 通过 AppImage 和 DEB 分发
+- 需要 Linux 端运行，请先安装：`libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf`
 
 ## 快速开始
 

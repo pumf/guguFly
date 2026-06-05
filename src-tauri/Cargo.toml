@@ -26,3 +26,9 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-notification = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2"
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
+pkg-config = "0.3"
