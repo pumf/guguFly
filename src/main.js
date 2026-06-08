@@ -302,7 +302,7 @@ async function processFlightQueue() {
   if (activeFlightJob || !flightQueue.length) return;
   const nextJob = flightQueue.shift();
   activeFlightJob = nextJob;
-  if (nextJob.playSound && !isMuted) playSound();
+  if (nextJob.playSound && !isMuted) await playSound();
   await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
 }
 
@@ -1536,9 +1536,11 @@ function updateStreak(n) {
   streakDisplay.textContent = n >= 2 ? `🔥 连飞 ${n} 次` : '';
 }
 
-function playSound() {
+async function playSound() {
   if (isMuted) return;
   stopLoopSound();
+
+  await unlockAudioIfNeeded();
 
   const sound = soundSelect.value;
   const loopMode = soundModeSelect.value === 'loop';

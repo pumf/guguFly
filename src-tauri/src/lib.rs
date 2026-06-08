@@ -109,9 +109,11 @@ pub fn run() {
                 .item(&quit)
                 .build()?;
 
-            TrayIconBuilder::with_id("main-tray")
+            let tray_icon_bytes = include_bytes!("../icons/tray-icon.png");
+            let tray = TrayIconBuilder::with_id("main-tray")
+                .icon(tauri::image::Image::from_bytes(tray_icon_bytes).expect("invalid tray icon"))
+                .icon_as_template(true)
                 .menu(&menu)
-                .show_menu_on_left_click(false)
                 .tooltip("咕咕机长")
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
@@ -154,6 +156,9 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+
+            // Keep tray alive: TrayIcon is Send+Sync, store in managed state
+            app.manage(tray);
 
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
