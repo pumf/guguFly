@@ -2,6 +2,13 @@
 
 咕咕机长的所有重要变更都会记录在这里。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [0.3.1] - 2026-06-08
+
+### 🐛 修复
+- **托盘图标无响应**（根因：tray-icon.png 构建时未打包进 .app bundle，点击事件回调被释放但图标残留）
+- **飞行时内置声音不播放**（根因：AudioContext 未被 `unlock`，`playOscillator` 的 try/catch 静默吞掉错误）
+- 修复后：图标 `include_bytes!` 嵌入二进制，声音调用 `await unlockAudioIfNeeded()` 解锁后播放
+
 ## [0.3.0] - 2026-06-08
 
 ### ✨ 新增
