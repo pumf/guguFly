@@ -127,6 +127,9 @@ const heightSelect = document.getElementById('heightSelect');
 const effectSelect = document.getElementById('effectSelect');
 const previewFlightBtn = document.getElementById('previewFlightBtn');
 const resetFlightBtn = document.getElementById('resetFlightBtn');
+const effectPicker = document.getElementById('effectPicker');
+const effectCards = effectPicker ? effectPicker.querySelectorAll('.effect-card') : [];
+const presetButtons = document.querySelectorAll('.preset-btn');
 const configToggle = document.getElementById('configToggle');
 const configPanel = document.getElementById('configPanel');
 const configArrow = document.getElementById('configArrow');
@@ -202,6 +205,39 @@ const DEFAULT_FLIGHT_SETTINGS = {
   sound: 'whoosh',
   soundMode: 'once',
   useSound: false,
+};
+
+const FLIGHT_PRESETS = {
+  work: {
+    label: '工作模式',
+    speed: 'normal', height: 'center', effect: 'steady',
+    plane: 'classic', particle: 'classic', bubble: 'classic', bubblePosition: 'top',
+    sound: 'dingdong', soundMode: 'once',
+  },
+  quick: {
+    label: '速战速决',
+    speed: 'fast', height: 'center', effect: 'swift',
+    plane: 'jet', particle: 'jet', bubble: 'jet', bubblePosition: 'top',
+    sound: 'whoosh', soundMode: 'once',
+  },
+  festive: {
+    label: '节日氛围',
+    speed: 'slow', height: 'top', effect: 'playful',
+    plane: 'butterfly', particle: 'spark', bubble: 'butterfly', bubblePosition: 'top',
+    sound: 'bird', soundMode: 'once',
+  },
+  anniversary: {
+    label: '纪念日',
+    speed: 'normal', height: 'center', effect: 'ceremony',
+    plane: 'paper', particle: 'cloud', bubble: 'glass', bubblePosition: 'top',
+    sound: 'bell', soundMode: 'once',
+  },
+  night: {
+    label: '夜间低调',
+    speed: 'vslow', height: 'bottom', effect: 'linear',
+    plane: 'paper', particle: 'cloud', bubble: 'jet', bubblePosition: 'bottom',
+    sound: 'soft', soundMode: 'once',
+  },
 };
 
 const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
@@ -1884,6 +1920,7 @@ async function init() {
   if (cfg.bubblePosition) bubblePositionSelect.value = cfg.bubblePosition;
   if (cfg.sound) soundSelect.value = cfg.sound;
   if (cfg.soundMode) soundModeSelect.value = cfg.soundMode;
+  if (cfg.effect) syncEffectPicker(cfg.effect);
   useSoundCheckbox.checked = !!cfg.useSound && !!cfg.customAudio;
   customImageData = cfg.customImage || '';
   customAudioData = cfg.customAudio || '';
@@ -1940,6 +1977,7 @@ async function init() {
   configPanel.classList.toggle('hidden', !isConfigOpen);
   configArrow.classList.toggle('collapsed', !isConfigOpen);
 
+  syncPresetButtons();
   await renderStats();
 }
 
@@ -2178,6 +2216,82 @@ previewFlightBtn?.addEventListener('click', () => {
 });
 resetFlightBtn?.addEventListener('click', () => {
   resetFlightSettings();
+});
+
+// Effect picker (custom card-style)
+function syncEffectPicker(effect) {
+  if (!effectCards.length) return;
+  effectCards.forEach(c => {
+    c.classList.toggle('is-active', c.dataset.effect === effect);
+  });
+}
+
+effectCards.forEach(card => {
+  card.addEventListener('click', () => {
+    const effect = card.dataset.effect;
+    effectSelect.value = effect;
+    syncEffectPicker(effect);
+    void persistSetting('effect', effect);
+  });
+});
+
+// Scene presets
+function detectActivePreset() {
+  const current = {
+    speed: speedSelect.value,
+    height: heightSelect.value,
+    effect: effectSelect.value,
+    plane: planeSelect.value,
+    particle: particleSelect.value,
+    bubble: bubbleSelect.value,
+    bubblePosition: bubblePositionSelect.value,
+    sound: soundSelect.value,
+    soundMode: soundModeSelect.value,
+  };
+  for (const [key, preset] of Object.entries(FLIGHT_PRESETS)) {
+    const matches = ['speed', 'height', 'effect', 'plane', 'particle', 'bubble', 'bubblePosition', 'sound', 'soundMode']
+      .every(k => current[k] === preset[k]);
+    if (matches) return key;
+  }
+  return null;
+}
+
+function syncPresetButtons() {
+  const active = detectActivePreset();
+  presetButtons.forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.preset === active);
+  });
+}
+
+function applyPreset(presetKey) {
+  const preset = FLIGHT_PRESETS[presetKey];
+  if (!preset) return;
+  speedSelect.value = preset.speed;
+  heightSelect.value = preset.height;
+  effectSelect.value = preset.effect;
+  planeSelect.value = preset.plane;
+  particleSelect.value = preset.particle;
+  bubbleSelect.value = preset.bubble;
+  bubblePositionSelect.value = preset.bubblePosition;
+  soundSelect.value = preset.sound;
+  soundModeSelect.value = preset.soundMode;
+  syncEffectPicker(preset.effect);
+  syncPresetButtons();
+  void persistFlightSettings();
+  showToast(`已应用预设：${preset.label}`);
+}
+
+presetButtons.forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
+
+const presetWatchSelectors = [
+  speedSelect, heightSelect, effectSelect,
+  planeSelect, particleSelect, bubbleSelect, bubblePositionSelect,
+  soundSelect, soundModeSelect,
+];
+presetWatchSelectors.forEach(sel => {
+  sel.addEventListener('change', () => syncPresetButtons());
 });
 
 // Image upload

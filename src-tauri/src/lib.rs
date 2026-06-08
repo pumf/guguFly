@@ -111,6 +111,7 @@ pub fn run() {
 
             TrayIconBuilder::with_id("main-tray")
                 .menu(&menu)
+                .show_menu_on_left_click(false)
                 .tooltip("咕咕机长")
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
@@ -121,6 +122,8 @@ pub fn run() {
                     {
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
                             let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.unminimize();
                         }
                     }
                 })
@@ -140,6 +143,8 @@ pub fn run() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.unminimize();
                         }
                     }
                     "quit" => {

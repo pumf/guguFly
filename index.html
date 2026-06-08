@@ -127,6 +127,39 @@
             <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
             <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
           </div>
+          <section class="config-card preset-card">
+            <div class="config-card-head">
+              <strong>场景预设</strong>
+              <span>一键应用一套飞行风格</span>
+            </div>
+            <div class="preset-grid">
+              <button class="preset-btn" type="button" data-preset="work">
+                <span class="preset-emoji">🏢</span>
+                <span class="preset-name">工作模式</span>
+                <span class="preset-desc">稳重克制</span>
+              </button>
+              <button class="preset-btn" type="button" data-preset="quick">
+                <span class="preset-emoji">⚡</span>
+                <span class="preset-name">速战速决</span>
+                <span class="preset-desc">快速擦过</span>
+              </button>
+              <button class="preset-btn" type="button" data-preset="festive">
+                <span class="preset-emoji">🎉</span>
+                <span class="preset-name">节日氛围</span>
+                <span class="preset-desc">S 形 + 鸟鸣</span>
+              </button>
+              <button class="preset-btn" type="button" data-preset="anniversary">
+                <span class="preset-emoji">💝</span>
+                <span class="preset-name">纪念日</span>
+                <span class="preset-desc">仪式感</span>
+              </button>
+              <button class="preset-btn" type="button" data-preset="night">
+                <span class="preset-emoji">🌙</span>
+                <span class="preset-name">夜间低调</span>
+                <span class="preset-desc">底部慢速</span>
+              </button>
+            </div>
+          </section>
           <div class="config-stack">
             <section class="config-card">
               <div class="config-card-head">
@@ -151,9 +184,36 @@
                     <option value="bottom">下方</option>
                   </select>
                 </div>
-                <div class="config-row">
+                <div class="config-row config-row--effect">
                   <label>效果</label>
-                  <select id="effectSelect">
+                  <div class="effect-picker" id="effectPicker">
+                    <button class="effect-card" type="button" data-effect="linear">
+                      <span class="effect-preview effect-preview--linear"><span class="effect-dot"></span></span>
+                      <span class="effect-name">经典直穿</span>
+                      <span class="effect-desc">直线</span>
+                    </button>
+                    <button class="effect-card is-active" type="button" data-effect="steady">
+                      <span class="effect-preview effect-preview--steady"><span class="effect-dot"></span></span>
+                      <span class="effect-name">自然滑过</span>
+                      <span class="effect-desc">缓入缓出</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="ceremony">
+                      <span class="effect-preview effect-preview--ceremony"><span class="effect-dot"></span></span>
+                      <span class="effect-name">仪式感</span>
+                      <span class="effect-desc">弧线</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="swift">
+                      <span class="effect-preview effect-preview--swift"><span class="effect-dot"></span></span>
+                      <span class="effect-name">利落提醒</span>
+                      <span class="effect-desc">快速</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="playful">
+                      <span class="effect-preview effect-preview--playful"><span class="effect-dot"></span></span>
+                      <span class="effect-name">活泼一点</span>
+                      <span class="effect-desc">S 形</span>
+                    </button>
+                  </div>
+                  <select id="effectSelect" hidden>
                     <option value="linear">经典直穿</option>
                     <option value="steady" selected>自然滑过</option>
                     <option value="ceremony">仪式感</option>

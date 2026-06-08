@@ -1953,3 +1953,209 @@ body {
     background: rgba(28, 34, 48, 0.6);
   }
 }
+
+/* === Scene presets === */
+.preset-card {
+  margin-bottom: 0;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .preset-btn {
+  background: rgba(20, 26, 38, 0.4);
+}
+
+.preset-btn:hover {
+  background: rgba(45, 127, 249, 0.08);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.preset-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .preset-btn.is-active {
+  background: var(--accent);
+  color: #0c1220;
+}
+
+.preset-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.preset-name {
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.preset-desc {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.7;
+  letter-spacing: 0.2px;
+}
+
+.preset-btn.is-active .preset-desc {
+  opacity: 0.9;
+}
+
+/* === Effect picker === */
+.config-row--effect {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.config-row--effect > label {
+  margin-bottom: 6px;
+}
+
+.effect-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.effect-card {
+  flex: 1 1 calc(33% - 6px);
+  min-width: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .effect-card {
+  background: rgba(20, 26, 38, 0.4);
+}
+
+.effect-card:hover {
+  background: rgba(45, 127, 249, 0.08);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.effect-card.is-active {
+  background: rgba(45, 127, 249, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-theme="dark"] .effect-card.is-active {
+  background: rgba(95, 160, 255, 0.18);
+  color: var(--accent);
+}
+
+.effect-preview {
+  position: relative;
+  width: 100%;
+  height: 22px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(45, 127, 249, 0.06) 20%,
+    rgba(45, 127, 249, 0.06) 80%,
+    transparent 100%);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.effect-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  box-shadow: 0 0 4px rgba(45, 127, 249, 0.5);
+}
+
+.effect-preview--linear .effect-dot {
+  animation: dotLinear 2s linear infinite;
+}
+.effect-preview--steady .effect-dot {
+  animation: dotSteady 2.4s ease-in-out infinite;
+}
+.effect-preview--ceremony .effect-dot {
+  animation: dotCeremony 2.4s ease-in-out infinite;
+}
+.effect-preview--swift .effect-dot {
+  animation: dotSwift 1.4s linear infinite;
+}
+.effect-preview--playful .effect-dot {
+  animation: dotPlayful 2.2s ease-in-out infinite;
+}
+
+@keyframes dotLinear {
+  0%   { left: 0%; top: 50%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotSteady {
+  0%   { left: 0%; top: 50%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotCeremony {
+  0%   { left: 0%; top: 50%; }
+  50%  { left: 50%; top: 90%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotSwift {
+  0%   { left: 0%; top: 50%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotPlayful {
+  0%   { left: 0%; top: 50%; }
+  25%  { left: 25%; top: 10%; }
+  50%  { left: 50%; top: 50%; }
+  75%  { left: 75%; top: 90%; }
+  100% { left: 100%; top: 50%; }
+}
+
+.effect-name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.effect-desc {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}

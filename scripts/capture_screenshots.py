@@ -62,7 +62,7 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         ctx = browser.new_context(
-            viewport={"width": 560, "height": 900},
+            viewport={"width": 620, "height": 900},
             device_scale_factor=2,
         )
         page = ctx.new_page()
@@ -93,7 +93,12 @@ def main():
         # 2. Flight settings (expand config panel)
         page.click("#configToggle", force=True)
         page.wait_for_timeout(500)
-        snap(page, "flight-settings.png")
+        snap(page, "flight-settings.png", full_page=True)
+
+        # 2b. Click festive preset
+        page.click(".preset-btn[data-preset='festive']", force=True)
+        page.wait_for_timeout(500)
+        snap(page, "preset-festive.png", full_page=True)
 
         # Collapse again for next shots
         page.click("#configToggle", force=True)
