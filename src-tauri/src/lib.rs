@@ -6,6 +6,9 @@ use tauri::{
     Emitter, Manager, State,
 };
 use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_opener::OpenerExt;
+
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 static QUITTING: AtomicBool = AtomicBool::new(false);
 
@@ -17,6 +20,16 @@ fn show_window(app: tauri::AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+#[tauri::command]
+fn get_app_version() -> String {
+    APP_VERSION.to_string()
+}
+
+#[tauri::command]
+fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -37,6 +50,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, _event| {
@@ -169,7 +183,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

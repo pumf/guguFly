@@ -16,10 +16,10 @@
         "title": "咕咕机长",
         "label": "main",
         "width": 620,
-        "height": 820,
-        "minWidth": 620,
-        "maxWidth": 620,
-        "minHeight": 700,
+"height": 880,
+"minWidth": 620,
+"maxWidth": 620,
+"minHeight": 760,
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
@@ -28,10 +28,6 @@
     ],
     "security": {
       "csp": null
-    },
-    "trayIcon": {
-      "iconPath": "icons/tray-icon.png",
-      "iconAsTemplate": true
     }
   },
   "bundle": {

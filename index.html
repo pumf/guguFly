@@ -487,14 +487,14 @@
       <!-- Settings modal -->
       <div id="settingsModal" class="modal hidden">
         <div class="modal-overlay" id="settingsOverlay"></div>
-        <div class="modal-content" style="max-height:460px">
+        <div class="modal-content" style="max-height:520px">
           <div class="modal-header">
             <span>设置</span>
             <button id="settingsCloseBtn" class="modal-close-btn">✕</button>
           </div>
           <div class="modal-body">
             <div style="font-size:13px;line-height:1.6;color:#636e72">
-              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">咕咕机长 v0.1.0</p>
+              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">咕咕机长 <span id="appVersionDisplay">v0.3.1</span></p>
               <p>一款桌面提醒工具，可以统一管理闹钟、倒计时、节日和纪念日任务。</p>
               <p style="margin-top:6px">提醒触发时会出现飞机飞行动画，并带上你的自定义文案，但不会再抢走当前输入焦点。</p>
               <p style="margin-top:6px;font-size:11px;color:#b2bec3">macOS · 轻量 · 免费</p>
@@ -528,6 +528,20 @@
                 <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
               </div>
               <div class="settings-block">
+                <div class="settings-block-title">版本更新</div>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+                  <button id="checkUpdateBtn" class="settings-action-btn">检查更新</button>
+                  <span id="updateStatus" class="settings-hint" style="display:inline-flex;align-items:center;margin:0"></span>
+                </div>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">问题反馈</div>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+                  <button id="feedbackBtn" class="settings-action-btn">报告问题 / 建议</button>
+                </div>
+                <p class="settings-hint">通过 GitHub Issues 提交问题或功能建议。</p>
+              </div>
+              <div class="settings-block">
                 <div class="settings-block-title">软件说明</div>
                 <div class="settings-list">
                   <div class="settings-item">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
@@ -536,6 +550,44 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update dialog -->
+      <div id="updateModal" class="modal hidden">
+        <div class="modal-overlay" id="updateOverlay"></div>
+        <div class="modal-content update-modal-content">
+          <div class="modal-header">
+            <span id="updateModalTitle">发现新版本</span>
+            <button id="updateCloseBtn" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div id="updateInfo" class="update-info">
+              <div class="update-version-row">
+                <span id="updateCurrentVersion" class="update-badge update-badge--current"></span>
+                <span class="update-arrow">→</span>
+                <span id="updateLatestVersion" class="update-badge update-badge--latest"></span>
+              </div>
+              <div id="updateReleaseNotes" class="update-release-notes"></div>
+            </div>
+            <div id="updateLoading" class="update-loading hidden">
+              <span class="update-spinner"></span>
+              <span>正在检查更新...</span>
+            </div>
+            <div id="updateNoUpdate" class="update-no-update hidden">
+              <span id="updateNoUpdateIcon" style="font-size:32px">✅</span>
+              <p id="updateNoUpdateText">已是最新版本</p>
+            </div>
+            <div id="updateError" class="update-error hidden">
+              <span style="font-size:32px">❌</span>
+              <p id="updateErrorMsg">检查更新失败，请检查网络后重试</p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="updateDownloadBtn" class="save-btn hidden" type="button">前往下载</button>
+            <button id="updateOpenReleaseBtn" class="save-btn hidden" type="button">前往发布页面</button>
+            <button id="updateCloseActionBtn" class="del-btn" type="button">关闭</button>
           </div>
         </div>
       </div>

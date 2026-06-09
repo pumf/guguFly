@@ -18,6 +18,11 @@ try {
 }
 const isTauriRuntime = !!appWindow;
 
+const GITHUB_REPO = 'pumf/guguFly';
+const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+const GITHUB_DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
+const GITHUB_ISSUES_URL = `https://github.com/${GITHUB_REPO}/issues/new/choose`;
+
 const HOLIDAY_PRESETS = {
   // Solar holidays
   new_year: { label: '元旦', month: 1, day: 1 },
@@ -122,6 +127,25 @@ const themeButtons = document.querySelectorAll('.theme-btn');
 const exportTasksBtn = document.getElementById('exportTasksBtn');
 const importTasksBtn = document.getElementById('importTasksBtn');
 const importTasksInput = document.getElementById('importTasksInput');
+const appVersionDisplay = document.getElementById('appVersionDisplay');
+const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+const updateStatus = document.getElementById('updateStatus');
+const feedbackBtn = document.getElementById('feedbackBtn');
+const updateModal = document.getElementById('updateModal');
+const updateOverlay = document.getElementById('updateOverlay');
+const updateCloseBtn = document.getElementById('updateCloseBtn');
+const updateModalTitle = document.getElementById('updateModalTitle');
+const updateCurrentVersion = document.getElementById('updateCurrentVersion');
+const updateLatestVersion = document.getElementById('updateLatestVersion');
+const updateReleaseNotes = document.getElementById('updateReleaseNotes');
+const updateInfo = document.getElementById('updateInfo');
+const updateLoading = document.getElementById('updateLoading');
+const updateNoUpdate = document.getElementById('updateNoUpdate');
+const updateError = document.getElementById('updateError');
+const updateErrorMsg = document.getElementById('updateErrorMsg');
+const updateDownloadBtn = document.getElementById('updateDownloadBtn');
+const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
+const updateCloseActionBtn = document.getElementById('updateCloseActionBtn');
 const speedSelect = document.getElementById('speedSelect');
 const heightSelect = document.getElementById('heightSelect');
 const effectSelect = document.getElementById('effectSelect');
@@ -262,6 +286,171 @@ let selectedEditColor = null;
 function syncMuteToTray() {
   if (!isTauriRuntime) return;
   void invoke('set_tray_mute_label', { muted: !!isMuted }).catch(() => {});
+}
+
+function compareVersions(a, b) {
+  const pa = a.replace('v', '').split('.').map(Number);
+  const pb = b.replace('v', '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+}
+
+async function getCurrentVersion() {
+  if (isTauriRuntime) {
+    try {
+      return await invoke('get_app_version');
+    } catch (e) {
+      return '0.3.1';
+    }
+  }
+  return '0.3.1';
+}
+
+function showUpdateModal() {
+  updateModal.classList.remove('hidden');
+  updateInfo.classList.add('hidden');
+  updateLoading.classList.add('hidden');
+  updateNoUpdate.classList.add('hidden');
+  updateError.classList.add('hidden');
+  updateDownloadBtn.classList.add('hidden');
+  updateOpenReleaseBtn.classList.add('hidden');
+}
+
+const UPDATE_CACHE_KEY = '_updateCache';
+
+function getCachedUpdate() {
+  try {
+    const raw = localStorage.getItem(UPDATE_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (Date.now() - cache.timestamp > 86400000) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedUpdate(data) {
+  try {
+    localStorage.setItem(UPDATE_CACHE_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
+  } catch {}
+}
+
+function openReleasePage() {
+  if (isTauriRuntime) {
+    invoke('open_url_in_browser', { url: GITHUB_DOWNLOAD_URL }).catch(() => {});
+  } else {
+    window.open(GITHUB_DOWNLOAD_URL, '_blank');
+  }
+}
+
+async function checkForUpdate() {
+  if (updateStatus) updateStatus.textContent = '检查中...';
+  showUpdateModal();
+  updateLoading.classList.remove('hidden');
+
+  const currentVer = await getCurrentVersion();
+  const cached = getCachedUpdate();
+
+  if (cached && cached.version === currentVer) {
+    updateLoading.classList.add('hidden');
+    updateNoUpdate.classList.remove('hidden');
+    updateModalTitle.textContent = '已是最新版本';
+    if (updateStatus) updateStatus.textContent = '已是最新';
+    return;
+  }
+
+  if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
+    updateLoading.classList.add('hidden');
+    updateInfo.classList.remove('hidden');
+    updateModalTitle.textContent = '发现新版本';
+    updateCurrentVersion.textContent = `v${currentVer}`;
+    updateLatestVersion.textContent = `v${cached.version}`;
+    updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+    updateDownloadBtn.classList.remove('hidden');
+    updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
+    if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
+    return;
+  }
+
+  try {
+    const resp = await fetch(GITHUB_RELEASES_URL, {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'guguFly-desktop',
+      },
+    });
+    if (resp.status === 403 || resp.status === 404) {
+      updateLoading.classList.add('hidden');
+      updateNoUpdate.classList.remove('hidden');
+      updateModalTitle.textContent = '检查更新';
+      document.getElementById('updateNoUpdateIcon').textContent = resp.status === 404 ? '📭' : '🌐';
+      document.getElementById('updateNoUpdateText').textContent =
+        resp.status === 404 ? '暂未发现发布版本' : '无法连接 GitHub，请前往发布页面查看';
+      updateOpenReleaseBtn.classList.remove('hidden');
+      if (updateStatus) updateStatus.textContent = '检查暂不可用';
+      return;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const latestVer = (data.tag_name || '').replace(/^v/, '');
+    const htmlUrl = data.html_url || GITHUB_DOWNLOAD_URL;
+    const body = data.body || '';
+
+    setCachedUpdate({ version: latestVer, url: htmlUrl, notes: body });
+    updateLoading.classList.add('hidden');
+
+    if (compareVersions('v' + latestVer, 'v' + currentVer) > 0) {
+      updateInfo.classList.remove('hidden');
+      updateModalTitle.textContent = '发现新版本';
+      updateCurrentVersion.textContent = `v${currentVer}`;
+      updateLatestVersion.textContent = `v${latestVer}`;
+      updateReleaseNotes.innerHTML = body.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+      updateDownloadBtn.classList.remove('hidden');
+      updateDownloadBtn.dataset.url = htmlUrl;
+      if (updateStatus) updateStatus.textContent = `发现 v${latestVer}`;
+    } else {
+      updateNoUpdate.classList.remove('hidden');
+      updateModalTitle.textContent = '已是最新版本';
+      if (updateStatus) updateStatus.textContent = '已是最新';
+    }
+  } catch (e) {
+    updateLoading.classList.add('hidden');
+    if (cached) {
+      updateInfo.classList.remove('hidden');
+      updateModalTitle.textContent = '发现新版本（缓存）';
+      updateCurrentVersion.textContent = `v${currentVer}`;
+      updateLatestVersion.textContent = `v${cached.version}`;
+      updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+      updateDownloadBtn.classList.remove('hidden');
+      updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
+      if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
+      return;
+    }
+    updateNoUpdate.classList.remove('hidden');
+    updateModalTitle.textContent = '检查更新';
+    document.getElementById('updateNoUpdateIcon').textContent = '🌐';
+    document.getElementById('updateNoUpdateText').textContent = '无法连接 GitHub，请前往发布页面查看';
+    updateOpenReleaseBtn.classList.remove('hidden');
+    if (updateStatus) updateStatus.textContent = '检查暂不可用';
+  }
+}
+
+async function openFeedbackPage() {
+  if (isTauriRuntime) {
+    try {
+      await invoke('open_url_in_browser', { url: GITHUB_ISSUES_URL });
+    } catch (e) {
+      window.open(GITHUB_ISSUES_URL, '_blank');
+    }
+  } else {
+    window.open(GITHUB_ISSUES_URL, '_blank');
+  }
 }
 
 function createSequenceId(taskId) {
@@ -2182,6 +2371,42 @@ emergencyBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', openSettingsModal);
 settingsOverlay.addEventListener('click', closeSettingsModal);
 settingsCloseBtn.addEventListener('click', closeSettingsModal);
+
+// Update & Feedback
+if (isTauriRuntime) {
+  getCurrentVersion().then(v => {
+    if (appVersionDisplay) appVersionDisplay.textContent = `v${v}`;
+  });
+}
+
+checkUpdateBtn?.addEventListener('click', () => {
+  void checkForUpdate();
+});
+
+feedbackBtn?.addEventListener('click', () => {
+  void openFeedbackPage();
+});
+
+// Update dialog
+updateOverlay?.addEventListener('click', () => updateModal.classList.add('hidden'));
+updateCloseBtn?.addEventListener('click', () => updateModal.classList.add('hidden'));
+updateCloseActionBtn?.addEventListener('click', () => updateModal.classList.add('hidden'));
+function doOpenUrl(url) {
+  if (isTauriRuntime) {
+    invoke('open_url_in_browser', { url }).catch(() => window.open(url, '_blank'));
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+updateDownloadBtn?.addEventListener('click', () => {
+  doOpenUrl(updateDownloadBtn.dataset.url || GITHUB_DOWNLOAD_URL);
+  updateModal.classList.add('hidden');
+});
+updateOpenReleaseBtn?.addEventListener('click', () => {
+  doOpenUrl(GITHUB_DOWNLOAD_URL);
+  updateModal.classList.add('hidden');
+});
 
 autostartToggle.addEventListener('change', async () => {
   if (!isTauriRuntime) {

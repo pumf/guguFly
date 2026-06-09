@@ -25,6 +25,8 @@
     "global-shortcut:allow-unregister",
     "autostart:default",
     "deep-link:default",
-    "notification:default"
+    "notification:default",
+    "opener:default",
+    "opener:allow-open-url"
   ]
 }
