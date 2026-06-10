@@ -43,7 +43,7 @@ body {
   padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 12px;
   position: relative;
   overflow: visible;
 }
@@ -1037,14 +1037,9 @@ body {
 }
 
 .bottom-section {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 6px;
   flex-shrink: 0;
   border-radius: 22px;
   overflow: hidden;
-  z-index: 30;
 }
 
 .bottom-toggle {
@@ -1694,29 +1689,6 @@ body {
   color: var(--muted);
 }
 
-.status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  min-height: 0;
-  padding: 2px 2px 44px;
-  flex-shrink: 0;
-}
-
-.streak {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 2px;
-  color: var(--accent-warm);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.streak:empty {
-  display: none;
-}
-
 .icon-btn {
   width: 30px;
   height: 30px;
@@ -1908,11 +1880,6 @@ body {
   color: var(--text);
 }
 
-[data-theme="dark"] .status-bar {
-  background: rgba(28, 34, 48, 0.6);
-  color: var(--muted);
-}
-
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
     --bg-sky: linear-gradient(160deg, #1a1f2e 0%, #1e2536 45%, #1a2030 100%);
@@ -1948,9 +1915,6 @@ body {
   }
   [data-theme="system"] .task-card {
     background: rgba(28, 34, 48, 0.78);
-  }
-  [data-theme="system"] .status-bar {
-    background: rgba(28, 34, 48, 0.6);
   }
 }
 

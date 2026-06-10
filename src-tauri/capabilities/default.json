@@ -27,6 +27,8 @@
     "deep-link:default",
     "notification:default",
     "opener:default",
-    "opener:allow-open-url"
+    "opener:allow-open-url",
+    "dialog:default",
+    "dialog:allow-open"
   ]
 }

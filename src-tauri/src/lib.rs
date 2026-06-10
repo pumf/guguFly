@@ -33,6 +33,32 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn open_app(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("无法打开应用: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("无法打开应用: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path])
+            .spawn()
+            .map_err(|e| format!("无法打开应用: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn set_tray_mute_label(state: State<'_, MuteMenuItem>, muted: bool) {
     let label = if muted { "🔊 已静音" } else { "🔇 静音" };
     if let Ok(guard) = state.0.lock() {
@@ -51,6 +77,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, _event| {
@@ -183,7 +210,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

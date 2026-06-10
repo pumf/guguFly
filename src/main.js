@@ -9,6 +9,7 @@ import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { recordFlightTrigger, computeFlightStats } from './storage.js';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 let appWindow;
 try {
@@ -110,11 +111,17 @@ const editLoopInterval = document.getElementById('editLoopInterval');
 const editIntervalCount = document.getElementById('editIntervalCount');
 const loopTimesField = document.getElementById('loopTimesField');
 const loopIntervalField = document.getElementById('loopIntervalField');
+const editPostFlightAction = document.getElementById('editPostFlightAction');
+const editPostFlightAppPath = document.getElementById('editPostFlightAppPath');
+const editPostFlightUrl = document.getElementById('editPostFlightUrl');
+const postFlightAppField = document.getElementById('postFlightAppField');
+const postFlightUrlField = document.getElementById('postFlightUrlField');
+const selectAppBtn = document.getElementById('selectAppBtn');
+const selectAppInput = document.getElementById('selectAppInput');
 const deleteTaskBtn = document.getElementById('deleteTaskBtn');
 const saveTaskBtn = document.getElementById('saveTaskBtn');
 const todayCountEl = document.getElementById('todayCount');
 const heroStatusEl = document.getElementById('heroStatus');
-const streakDisplay = document.getElementById('streakDisplay');
 const toastEl = document.getElementById('toast');
 const muteBtn = document.getElementById('muteBtn');
 const emergencyBtn = document.getElementById('emergencyBtn');
@@ -779,13 +786,11 @@ async function registerFlightTrigger() {
 
   await set('streak', streak);
   await set('streakLastDate', today);
-  updateStreak(streak);
 }
 
 async function clearFlightStreak() {
   await resetStreak();
   await set('streakLastDate', null);
-  updateStreak(0);
 }
 
 function updateTitleLogo() {
@@ -810,6 +815,9 @@ function createAlarmTask() {
     loopCount: 3,
     loopInterval: 5,
     intervalCount: 10,
+    postFlightAction: 'none',
+    postFlightAppPath: '',
+    postFlightUrl: '',
     hour: 12,
     minute: 0,
     repeat: [],
@@ -831,6 +839,9 @@ function createCountdownTask() {
     loopCount: 3,
     loopInterval: 5,
     intervalCount: 10,
+    postFlightAction: 'none',
+    postFlightAppPath: '',
+    postFlightUrl: '',
     duration: 1800,
     imageData: null,
     useImage: false,
@@ -852,6 +863,9 @@ function createHolidayTask() {
     loopCount: 3,
     loopInterval: 5,
     intervalCount: 10,
+    postFlightAction: 'none',
+    postFlightAppPath: '',
+    postFlightUrl: '',
     holidayKey: 'new_year',
     month: 1,
     day: 1,
@@ -876,6 +890,9 @@ function createAnniversaryTask() {
     loopCount: 3,
     loopInterval: 5,
     intervalCount: 10,
+    postFlightAction: 'none',
+    postFlightAppPath: '',
+    postFlightUrl: '',
     month: d.getMonth() + 1,
     day: d.getDate(),
     hour: 9,
@@ -890,6 +907,9 @@ function createAnniversaryTask() {
 function cloneTask(t) {
   return {
     ...t,
+    postFlightAction: t.postFlightAction || 'none',
+    postFlightAppPath: t.postFlightAppPath || '',
+    postFlightUrl: t.postFlightUrl || '',
     _remaining: t.duration,
     _status: 'idle',
     _timer: null,
@@ -1652,6 +1672,7 @@ async function triggerFlightWithMode(task) {
   const msg = task.msg || getRandomQuote();
   const taskImage = task.imageData || null;
   const taskUseImage = task.imageData ? !!task.useImage : null;
+  const postFlight = { action: task.postFlightAction || 'none', appPath: task.postFlightAppPath || '', url: task.postFlightUrl || '' };
 
   await registerFlightTrigger();
   await recordFlightTrigger(task);
@@ -1661,7 +1682,7 @@ async function triggerFlightWithMode(task) {
   const mode = task.flightMode || 'once';
 
   if (mode === 'once') {
-    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true, imageData: taskImage, useImage: taskUseImage });
+    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
     return;
   }
 
@@ -1675,6 +1696,7 @@ async function triggerFlightWithMode(task) {
       taskMsg: msg,
       taskImage,
       taskUseImage,
+      postFlight,
       remaining: (task.loopCount || 3),
       direction: 'ltr',
       mode: 'loop_times',
@@ -1688,7 +1710,7 @@ async function triggerFlightWithMode(task) {
         }
       }, totalLoopMs),
     });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage });
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
     return;
   }
 
@@ -1702,6 +1724,7 @@ async function triggerFlightWithMode(task) {
       taskMsg: msg,
       taskImage,
       taskUseImage,
+      postFlight,
       remaining: (task.intervalCount || 10),
       mode: 'loop_interval',
       intervalMs: (task.loopInterval || 5) * 60 * 1000,
@@ -1716,13 +1739,23 @@ async function triggerFlightWithMode(task) {
         }
       }, totalIntervalMs),
     });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage });
+    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
     return;
   }
 }
 
-function updateStreak(n) {
-  streakDisplay.textContent = n >= 2 ? `🔥 连飞 ${n} 次` : '';
+async function executePostFlightAction(postFlight) {
+  if (!postFlight || postFlight.action === 'none') return;
+  if (!isTauriRuntime) return;
+  try {
+    if (postFlight.action === 'app' && postFlight.appPath) {
+      await invoke('open_app', { path: postFlight.appPath });
+    } else if (postFlight.action === 'url' && postFlight.url) {
+      await invoke('open_url_in_browser', { url: postFlight.url });
+    }
+  } catch (e) {
+    console.error('Post-flight action failed:', e);
+  }
 }
 
 async function playSound() {
@@ -1788,6 +1821,12 @@ function openEditModal(task) {
   editIntervalCount.value = task.intervalCount || 10;
   loopTimesField.classList.toggle('hidden', editFlightMode.value !== 'loop_times');
   loopIntervalField.classList.toggle('hidden', editFlightMode.value !== 'loop_interval');
+
+  editPostFlightAction.value = task.postFlightAction || 'none';
+  editPostFlightAppPath.value = task.postFlightAppPath || '';
+  editPostFlightUrl.value = task.postFlightUrl || '';
+  postFlightAppField.classList.toggle('hidden', editPostFlightAction.value !== 'app');
+  postFlightUrlField.classList.toggle('hidden', editPostFlightAction.value !== 'url');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === task.type);
@@ -1857,6 +1896,12 @@ function openNewModal() {
   editIntervalCount.value = 10;
   loopTimesField.classList.add('hidden');
   loopIntervalField.classList.add('hidden');
+
+  editPostFlightAction.value = 'none';
+  editPostFlightAppPath.value = '';
+  editPostFlightUrl.value = '';
+  postFlightAppField.classList.add('hidden');
+  postFlightUrlField.classList.add('hidden');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === 'alarm');
@@ -1937,6 +1982,9 @@ function saveModal() {
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
     task.color = selectedEditColor;
+    task.postFlightAction = editPostFlightAction.value;
+    task.postFlightAppPath = editPostFlightAppPath.value.trim();
+    task.postFlightUrl = editPostFlightUrl.value.trim();
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -2013,6 +2061,9 @@ function saveModal() {
         t.loopCount = loopCount;
         t.loopInterval = loopInterval;
         t.intervalCount = intervalCount;
+        t.postFlightAction = editPostFlightAction.value;
+        t.postFlightAppPath = editPostFlightAppPath.value.trim();
+        t.postFlightUrl = editPostFlightUrl.value.trim();
         t.month = preset ? preset.month : 1;
         t.day = preset ? preset.day : 1;
         t.hour = hour;
@@ -2045,6 +2096,9 @@ function saveModal() {
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
     task.color = selectedEditColor;
+    task.postFlightAction = editPostFlightAction.value;
+    task.postFlightAppPath = editPostFlightAppPath.value.trim();
+    task.postFlightUrl = editPostFlightUrl.value.trim();
     tasks.push(task);
   }
 
@@ -2063,7 +2117,7 @@ function deleteTask(task) {
 
 function getCleanTasks() {
   return tasks.map(t => {
-    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
+    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, postFlightAction: t.postFlightAction || 'none', postFlightAppPath: t.postFlightAppPath || '', postFlightUrl: t.postFlightUrl || '', imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'countdown') {
       const persisted = t._status === 'paused' ? t._remaining : undefined;
@@ -2086,6 +2140,9 @@ async function init() {
     loopCount: t.loopCount || 3,
     loopInterval: t.loopInterval || 5,
     intervalCount: t.intervalCount || 10,
+    postFlightAction: t.postFlightAction || 'none',
+    postFlightAppPath: t.postFlightAppPath || '',
+    postFlightUrl: t.postFlightUrl || '',
     imageData: t.imageData || null,
     useImage: !!t.useImage,
     color: t.color || null,
@@ -2141,8 +2198,6 @@ async function init() {
   const streakGap = dayDiff(streakLastDate, getDateKey());
   if (streakLastDate && streakGap !== null && streakGap > 1) {
     await clearFlightStreak();
-  } else {
-    updateStreak(cfg.streak);
   }
 
   // Load autostart state
@@ -2258,6 +2313,29 @@ editFlightMode.addEventListener('change', () => {
   const v = editFlightMode.value;
   loopTimesField.classList.toggle('hidden', v !== 'loop_times');
   loopIntervalField.classList.toggle('hidden', v !== 'loop_interval');
+});
+
+// Post-flight action mode change
+editPostFlightAction.addEventListener('change', () => {
+  const v = editPostFlightAction.value;
+  postFlightAppField.classList.toggle('hidden', v !== 'app');
+  postFlightUrlField.classList.toggle('hidden', v !== 'url');
+});
+
+// Select app button
+selectAppBtn.addEventListener('click', async () => {
+  if (!isTauriRuntime) return;
+  try {
+    const selected = await openDialog({
+      multiple: false,
+      title: '选择应用程序',
+    });
+    if (selected) {
+      editPostFlightAppPath.value = selected;
+    }
+  } catch (e) {
+    console.error('File dialog failed:', e);
+  }
 });
 
 // Day buttons
@@ -2678,6 +2756,7 @@ if (isTauriRuntime) {
     const sequenceId = event.payload?.sequenceId || '';
     const loopState = getSequence(sequenceId);
     const inLoop = !!(loopState && loopState.active);
+    const oncePostFlight = activeFlightJob?.postFlight || null;
     let continued = false;
 
     if (!inLoop) stopLoopSound();
@@ -2714,6 +2793,12 @@ if (isTauriRuntime) {
 
     releaseFlightQueue();
     if (continued) return;
+
+    if (inLoop && loopState) {
+      await executePostFlightAction(loopState.postFlight);
+    } else {
+      await executePostFlightAction(oncePostFlight);
+    }
   });
 
   // Close to tray

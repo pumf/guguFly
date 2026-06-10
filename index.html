@@ -453,6 +453,29 @@
           </div>
           <div class="form-block">
             <div class="block-head">
+              <label>飞行后操作</label>
+              <span class="field-hint">飞行结束后自动打开软件或网页。</span>
+            </div>
+            <div class="form-row">
+              <select id="editPostFlightAction" class="edit-input">
+                <option value="none">无操作</option>
+                <option value="app">打开软件</option>
+                <option value="url">打开网页</option>
+              </select>
+            </div>
+            <div id="postFlightAppField" class="form-row hidden">
+              <label style="white-space:nowrap">软件路径</label>
+              <input type="text" id="editPostFlightAppPath" class="edit-input" placeholder="/Applications/Calculator.app" style="flex:1" />
+              <button id="selectAppBtn" class="cfg-btn" type="button">📁 选择</button>
+              <input type="file" id="selectAppInput" hidden />
+            </div>
+            <div id="postFlightUrlField" class="form-row hidden">
+              <label style="white-space:nowrap">网址</label>
+              <input type="url" id="editPostFlightUrl" class="edit-input" placeholder="https://example.com" />
+            </div>
+          </div>
+          <div class="form-block">
+            <div class="block-head">
               <label>任务级图片（可选）</label>
               <span class="field-hint">不上传则使用全局飞行图片设置。</span>
             </div>
@@ -592,10 +615,6 @@
         </div>
       </div>
 
-      <!-- Status bar -->
-      <div class="status-bar">
-        <span class="streak" id="streakDisplay"></span>
-      </div>
       <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
     </div>
 
