@@ -140,6 +140,7 @@ const appVersionDisplay = document.getElementById('appVersionDisplay');
 const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 const updateStatus = document.getElementById('updateStatus');
 const feedbackBtn = document.getElementById('feedbackBtn');
+const repoLink = document.getElementById('repoLink');
 const updateModal = document.getElementById('updateModal');
 const updateOverlay = document.getElementById('updateOverlay');
 const updateCloseBtn = document.getElementById('updateCloseBtn');
@@ -648,7 +649,7 @@ function formatHolidayLabel(preset) {
 
 async function getAudioContext() {
   if (!sharedAudioCtx) {
-    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sharedAudioCtx = new AudioContext();
   }
   if (sharedAudioCtx.state === 'suspended') {
     try {
@@ -850,10 +851,10 @@ function updateTitleLogo() {
 
 // --- Task data model ---
 
-function createAlarmTask() {
+function createBaseTask(type) {
   return {
     id: nextId++,
-    type: 'alarm',
+    type,
     label: '',
     msg: '',
     enabled: true,
@@ -864,34 +865,26 @@ function createAlarmTask() {
     postFlightAction: 'none',
     postFlightAppPath: '',
     postFlightUrl: '',
-    hour: 12,
-    minute: 0,
-    repeat: [],
     imageData: null,
     useImage: false,
     color: null,
+  };
+}
+
+function createAlarmTask() {
+  return {
+    ...createBaseTask('alarm'),
+    hour: 12,
+    minute: 0,
+    repeat: [],
     _lastTriggeredDate: null,
   };
 }
 
 function createCountdownTask() {
   return {
-    id: nextId++,
-    type: 'countdown',
-    label: '',
-    msg: '',
-    enabled: true,
-    flightMode: 'once',
-    loopCount: 3,
-    loopInterval: 5,
-    intervalCount: 10,
-    postFlightAction: 'none',
-    postFlightAppPath: '',
-    postFlightUrl: '',
+    ...createBaseTask('countdown'),
     duration: 1800,
-    imageData: null,
-    useImage: false,
-    color: null,
     _remaining: 1800,
     _status: 'idle',
     _timer: null,
@@ -900,52 +893,24 @@ function createCountdownTask() {
 
 function createHolidayTask() {
   return {
-    id: nextId++,
-    type: 'holiday',
+    ...createBaseTask('holiday'),
     label: '元旦',
-    msg: '',
-    enabled: true,
-    flightMode: 'once',
-    loopCount: 3,
-    loopInterval: 5,
-    intervalCount: 10,
-    postFlightAction: 'none',
-    postFlightAppPath: '',
-    postFlightUrl: '',
     holidayKey: 'new_year',
     month: 1,
     day: 1,
     hour: 9,
     minute: 0,
-    imageData: null,
-    useImage: false,
-    color: null,
     _lastTriggeredDate: null,
   };
 }
 
 function createAnniversaryTask() {
-  const d = new Date();
   return {
-    id: nextId++,
-    type: 'anniversary',
-    label: '',
-    msg: '',
-    enabled: true,
-    flightMode: 'once',
-    loopCount: 3,
-    loopInterval: 5,
-    intervalCount: 10,
-    postFlightAction: 'none',
-    postFlightAppPath: '',
-    postFlightUrl: '',
-    month: d.getMonth() + 1,
-    day: d.getDate(),
+    ...createBaseTask('anniversary'),
+    month: new Date().getMonth() + 1,
+    day: new Date().getDate(),
     hour: 9,
     minute: 0,
-    imageData: null,
-    useImage: false,
-    color: null,
     _lastTriggeredDate: null,
   };
 }
@@ -1429,7 +1394,20 @@ function renderTasks() {
         openEditModal(task);
       });
 
+      const triggerBtn = document.createElement('button');
+      triggerBtn.className = 'task-detail-btn task-detail-btn--primary';
+      triggerBtn.textContent = '立即触发';
+      triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (task.type === 'countdown' && task._status === 'running') {
+          stopCountdown(task);
+        }
+        void triggerFlightWithMode(task);
+        showToast('飞行已触发 ✈');
+      });
+
       detailActions.appendChild(quickEditBtn);
+      detailActions.appendChild(triggerBtn);
       details.appendChild(detailActions);
       body.appendChild(details);
     }
@@ -2078,7 +2056,10 @@ function saveModal() {
     } else if (type === 'holiday') {
       // Edit: single holiday
       const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
-      if (checkedBoxes.length === 0) return;
+      if (checkedBoxes.length === 0) {
+        showToast('请至少选择一个节假日');
+        return;
+      }
       const useKey = checkedBoxes[0].value;
       const preset = HOLIDAY_PRESETS[useKey];
       task.holidayKey = useKey;
@@ -2120,7 +2101,10 @@ function saveModal() {
       task._remaining = task.duration;
     } else if (type === 'holiday') {
       const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
-      if (checkedBoxes.length === 0) return;
+      if (checkedBoxes.length === 0) {
+        showToast('请至少选择一个节假日');
+        return;
+      }
       const hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
       const minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
       const msg = editMsg.value.trim();
@@ -2184,6 +2168,13 @@ function saveModal() {
 
 function deleteTask(task) {
   if (task._status === 'running') stopCountdown(task);
+  for (const [seqId, seq] of flightSequences) {
+    if (seq.taskId === task.id) {
+      if (seq.timeoutId) clearTimeout(seq.timeoutId);
+      if (seq.intervalId) clearTimeout(seq.intervalId);
+      flightSequences.delete(seqId);
+    }
+  }
   tasks = tasks.filter(t => t.id !== task.id);
   closeModal();
   saveTasks(getCleanTasks());
@@ -2540,6 +2531,11 @@ feedbackBtn?.addEventListener('click', () => {
   void openFeedbackPage();
 });
 
+repoLink?.addEventListener('click', (e) => {
+  e.preventDefault();
+  doOpenUrl('https://github.com/pumf/guguFly');
+});
+
 // Update dialog
 updateOverlay?.addEventListener('click', () => updateModal.classList.add('hidden'));
 updateCloseBtn?.addEventListener('click', () => updateModal.classList.add('hidden'));
@@ -2825,6 +2821,10 @@ if (isTauriRuntime) {
   });
   listen('toggle-mute', () => muteBtn.click());
 
+  listen('emergency-landing', () => {
+    void triggerEmergencyLanding();
+  });
+
   listen('flight-ended', async (event) => {
     localStorage.removeItem('_flightImage');
     localStorage.removeItem('_flightUseImage');
@@ -2876,9 +2876,10 @@ if (isTauriRuntime) {
     }
   });
 
-  // Close to tray
+  // Close to tray — save before hiding
   appWindow.onCloseRequested(async (e) => {
     e.preventDefault();
+    await saveTasks(getCleanTasks());
     await appWindow.hide();
   });
 
@@ -3303,6 +3304,8 @@ function buildTaskFromDeepLink(params) {
 }
 
 async function handleDeepLinkAdd(params) {
+  closeModal();
+  closeSettingsModal();
   const task = buildTaskFromDeepLink(params);
   tasks.push(task);
   await saveTasks(getCleanTasks());

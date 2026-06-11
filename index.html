@@ -11,13 +11,12 @@
       <div class="hero-card">
         <div class="hero-topline">
           <div class="title-bar">
-            <img id="titleLogo" class="title-logo" src="/logo.png" />
+            <img id="titleLogo" class="title-logo" src="/logo.png" alt="咕咕机长" />
             <div class="title-copy">
               <div class="title-mainline">
                 <span class="title-text">咕咕机长</span>
                 <span class="hero-title">轻巧提醒，把每条任务都安排清楚。</span>
               </div>
-              <span class="title-mini">轻量桌面提醒</span>
             </div>
           </div>
           <div class="hero-head-actions">
@@ -121,7 +120,6 @@
           <span class="toggle-arrow collapsed" id="configArrow">▴</span>
         </div>
         <div id="configPanel" class="config-panel hidden">
-          <p class="config-lead">统一调整飞行节奏、视觉样式和提示音，让提醒更自然地融入你的桌面。</p>
           <div class="config-actions">
             <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
             <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
@@ -179,7 +177,7 @@
                   <button id="imageBtn" class="cfg-btn">📷 图片</button>
                   <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
                   <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
-                  <img id="imagePreview" class="img-preview hidden" />
+                  <img id="imagePreview" class="img-preview hidden" alt="飞行图片预览" />
                   <label class="img-toggle">
                     <input type="checkbox" id="useImageCheckbox" />
                     <span>图片</span>
@@ -483,7 +481,7 @@
               <button id="editImageBtn" class="cfg-btn" type="button">📷 上传</button>
               <input type="file" id="editImageInput" accept="image/png,image/jpeg,image/gif" hidden />
               <button id="editClearImageBtn" class="cfg-btn small" type="button" hidden>✕ 移除</button>
-              <img id="editImagePreview" class="img-preview hidden" />
+              <img id="editImagePreview" class="img-preview hidden" alt="任务图片预览" />
               <label class="img-toggle">
                 <input type="checkbox" id="editUseImageCheckbox" />
                 <span>启用</span>
@@ -499,6 +497,7 @@
               <button class="color-swatch color-swatch--none" type="button" data-color="" title="无颜色">✕</button>
             </div>
           </div>
+          </div>
           <div class="modal-footer">
             <button id="deleteTaskBtn" class="del-btn hidden">删除此任务</button>
             <button id="saveTaskBtn" class="save-btn">保存</button>
@@ -510,7 +509,7 @@
       <!-- Settings modal -->
       <div id="settingsModal" class="modal hidden">
         <div class="modal-overlay" id="settingsOverlay"></div>
-        <div class="modal-content" style="max-height:520px">
+        <div class="modal-content">
           <div class="modal-header">
             <span>设置</span>
             <button id="settingsCloseBtn" class="modal-close-btn">✕</button>
@@ -571,6 +570,11 @@
                   <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
                   <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
                 </div>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">开源信息</div>
+                <p class="settings-hint">本软件基于 MIT 协议开源</p>
+                <p class="settings-hint">GitHub: <a href="#" id="repoLink" style="color:var(--accent);text-decoration:none">pumf/guguFly</a></p>
               </div>
             </div>
           </div>

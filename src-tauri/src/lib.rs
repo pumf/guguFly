@@ -34,6 +34,15 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn close_flight_windows(app: tauri::AppHandle) {
+    for (label, window) in app.webview_windows() {
+        if label.starts_with("flight-") {
+            let _ = window.close();
+        }
+    }
+}
+
+#[tauri::command]
 fn open_app(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -64,18 +73,20 @@ async fn check_latest_release() -> Result<HashMap<String, String>, String> {
     const RELEASES_LATEST: &str = "https://github.com/pumf/guguFly/releases/latest";
     const API_LATEST: &str = "https://api.github.com/repos/pumf/guguFly/releases/latest";
 
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("guguFly-desktop")
+        .build()
+        .map_err(|e| format!("HTTP: {}", e))?;
+
     // Try API first — gives version + notes in one call
-    if let Ok(api_output) = std::process::Command::new("curl")
-        .args([
-            "-s", "--connect-timeout", "5", "--max-time", "8",
-            "-H", "Accept: application/vnd.github.v3+json",
-            "-H", "User-Agent: guguFly-desktop",
-            API_LATEST,
-        ])
-        .output()
+    if let Ok(resp) = client
+        .get(API_LATEST)
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
     {
-        let body_text = String::from_utf8_lossy(&api_output.stdout);
-        if let Ok(api_data) = serde_json::from_str::<serde_json::Value>(&body_text) {
+        if let Ok(api_data) = resp.json::<serde_json::Value>().await {
             if let Some(tag_name) = api_data.get("tag_name").and_then(|t| t.as_str()) {
                 let mut result = HashMap::new();
                 let ver = tag_name.trim_start_matches('v').to_string();
@@ -92,22 +103,26 @@ async fn check_latest_release() -> Result<HashMap<String, String>, String> {
     }
 
     // Fallback: get version from redirect URL
-    let redirect_output = std::process::Command::new("curl")
-        .args([
-            "-sI", "-o", "/dev/null",
-            "-w", "%{redirect_url}",
-            RELEASES_LATEST,
-        ])
-        .output()
-        .map_err(|e| format!("无法执行 curl: {}", e))?;
+    let no_redirect = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent("guguFly-desktop")
+        .build()
+        .map_err(|e| format!("HTTP: {}", e))?;
 
-    let redirect_url = String::from_utf8_lossy(&redirect_output.stdout).trim().to_string();
+    let resp = no_redirect
+        .head(RELEASES_LATEST)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
 
-    if redirect_url.is_empty() {
-        return Err("无法获取重定向地址".to_string());
-    }
+    let location = resp
+        .headers()
+        .get("location")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| "未找到重定向地址".to_string())?;
 
-    let tag = redirect_url
+    let tag = location
         .rsplit('/')
         .next()
         .unwrap_or("")
@@ -119,50 +134,60 @@ async fn check_latest_release() -> Result<HashMap<String, String>, String> {
     }
 
     let mut result = HashMap::new();
-    result.insert("version".to_string(), tag.clone());
-    result.insert("html_url".to_string(), redirect_url);
+    result.insert("version".to_string(), tag);
+    result.insert("html_url".to_string(), location.to_string());
 
     // Try HTML page for notes (API rate-limited)
-    let py_script = r#"
-import sys, re, html
-t = sys.stdin.read()
-i = t.find('markdown-body')
-if i > 0:
-    s = t.find('>', i) + 1
-    d, p = 1, s
-    while d and p < len(t):
-        o = t.find('<div', p)
-        c = t.find('</div', p)
-        if c < 0: break
-        if o >= 0 and o < c:
-            d += 1; p = o + 5
-        else:
-            d -= 1; p = c + 6
-    body = t[s:p-6]
-    print(html.unescape(re.sub('<[^>]+>', '', body)).strip(), end='')
-"#;
-    let tmp_path = std::env::temp_dir().join("gugufly_release_notes.py");
-    if let Ok(_) = std::fs::write(&tmp_path, py_script) {
-        if let Ok(html_output) = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(format!("curl -sL --connect-timeout 10 --max-time 15 {} | python3 {}", RELEASES_LATEST, tmp_path.display()))
-            .output()
-        {
-            let raw = String::from_utf8_lossy(&html_output.stdout);
-            let notes = raw.trim().to_string();
-            if !notes.is_empty() {
+    if let Ok(html_resp) = client.get(RELEASES_LATEST).send().await {
+        if let Ok(html) = html_resp.text().await {
+            if let Some(notes) = extract_release_body(&html) {
                 result.insert("notes".to_string(), notes);
             }
         }
-        let _ = std::fs::remove_file(&tmp_path);
     }
 
     Ok(result)
 }
 
+fn extract_release_body(html: &str) -> Option<String> {
+    let i = html.find("markdown-body")?;
+    let s = html[i..].find('>')? + i + 1;
+    let mut depth = 1u32;
+    let mut p = s;
+    while depth > 0 && p < html.len() {
+        let open = html[p..].find("<div");
+        let close = html[p..].find("</div");
+        if close.is_none() { break; }
+        let close_pos = p + close.unwrap();
+        if let Some(open_pos) = open.map(|o| p + o) {
+            if open_pos < close_pos { depth += 1; p = open_pos + 5; continue; }
+        }
+        depth -= 1;
+        p = close_pos + 6;
+    }
+    let body = &html[s..p - 6];
+    let text = body
+        .split('>')
+        .flat_map(|part| {
+            let i = part.find('<');
+            if i == Some(0) { vec![] } else { vec![&part[..i.unwrap_or(part.len())]] }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    let text = text
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .trim()
+        .to_string();
+    if text.is_empty() { None } else { Some(text) }
+}
+
 #[tauri::command]
 fn set_tray_mute_label(state: State<'_, MuteMenuItem>, muted: bool) {
-    let label = if muted { "🔊 已静音" } else { "🔇 静音" };
+    let label = if muted { "🔇 已静音" } else { "🔊 静音" };
     if let Ok(guard) = state.0.lock() {
         if let Some(item) = guard.as_ref() {
             let _ = item.set_text(label);
@@ -226,11 +251,12 @@ pub fn run() {
                 s("Ctrl+Alt+Q")?;
             }
 
-            let start = MenuItemBuilder::with_id("start", "▶ 开始").build(app)?;
-            let pause = MenuItemBuilder::with_id("pause", "⏸ 暂停").build(app)?;
-            let stop = MenuItemBuilder::with_id("stop", "⏹ 停止").build(app)?;
+            let start = MenuItemBuilder::with_id("start", "▶ 开始").accelerator("CmdOrCtrl+Alt+S").build(app)?;
+            let pause = MenuItemBuilder::with_id("pause", "⏸ 暂停").accelerator("CmdOrCtrl+Alt+P").build(app)?;
+            let stop = MenuItemBuilder::with_id("stop", "⏹ 停止").accelerator("CmdOrCtrl+Alt+Q").build(app)?;
             let sep1 = PredefinedMenuItem::separator(app)?;
             let mute = MenuItemBuilder::with_id("mute", "🔇 静音").build(app)?;
+            let emergency = MenuItemBuilder::with_id("emergency", "🛑 紧急降落").build(app)?;
             let sep2 = PredefinedMenuItem::separator(app)?;
             let show = MenuItemBuilder::with_id("show", "📂 打开主窗口").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "✕ 退出").build(app)?;
@@ -247,6 +273,7 @@ pub fn run() {
                 .item(&stop)
                 .item(&sep1)
                 .item(&mute)
+                .item(&emergency)
                 .item(&sep2)
                 .item(&show)
                 .item(&quit)
@@ -285,6 +312,9 @@ pub fn run() {
                     "mute" => {
                         let _ = app.emit("toggle-mute", ());
                     }
+                    "emergency" => {
+                        let _ = app.emit("emergency-landing", ());
+                    }
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -312,7 +342,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
