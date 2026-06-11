@@ -27,6 +27,7 @@
               </button>
               <button id="settingsBtn" class="icon-btn" type="button" title="设置">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                <span class="update-dot hidden" id="settingsUpdateDot"></span>
               </button>
               <button id="muteBtn" class="icon-btn" type="button" title="声音开关">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
@@ -44,33 +45,6 @@
             <strong class="metric-value metric-text" id="heroStatus">等待下一次起飞</strong>
           </div>
         </div>
-      </div>
-
-      <div class="task-section">
-        <div class="section-head">
-          <div>
-            <h2 class="section-title">你的提醒列表</h2>
-            <p class="section-tip">所有提醒都会按状态集中展示在这里。</p>
-          </div>
-          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
-        </div>
-
-        <div class="task-filter-bar">
-          <div class="task-search-wrap">
-            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
-            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索任务名或文案" />
-            <button id="taskSearchClear" class="task-search-clear" type="button" hidden>✕</button>
-          </div>
-          <div class="task-type-chips">
-            <button class="task-type-chip is-active" data-type="all">全部</button>
-            <button class="task-type-chip" data-type="alarm">定时</button>
-            <button class="task-type-chip" data-type="countdown">倒计时</button>
-            <button class="task-type-chip" data-type="holiday">节假日</button>
-            <button class="task-type-chip" data-type="anniversary">纪念日</button>
-          </div>
-        </div>
-
-        <!-- Stats panel (collapsible) -->
         <div class="stats-section">
           <div class="stats-toggle" id="statsToggle">
             <span>📊 飞行统计</span>
@@ -108,6 +82,31 @@
               </div>
               <div class="stats-types" id="statsTypes"></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task-section">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">你的提醒列表</h2>
+            <p class="section-tip">所有提醒都会按状态集中展示在这里。</p>
+          </div>
+          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+        </div>
+
+        <div class="task-filter-bar">
+          <div class="task-search-wrap">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索任务名或文案" />
+            <button id="taskSearchClear" class="task-search-clear" type="button" hidden>✕</button>
+          </div>
+          <div class="task-type-chips">
+            <button class="task-type-chip is-active" data-type="all">全部</button>
+            <button class="task-type-chip" data-type="alarm">定时</button>
+            <button class="task-type-chip" data-type="countdown">倒计时</button>
+            <button class="task-type-chip" data-type="holiday">节假日</button>
+            <button class="task-type-chip" data-type="anniversary">纪念日</button>
           </div>
         </div>
 
@@ -163,69 +162,6 @@
           <div class="config-stack">
             <section class="config-card">
               <div class="config-card-head">
-                <strong>飞行节奏</strong>
-                <span>控制速度、高度和飞过屏幕的整体感觉</span>
-              </div>
-              <div class="config-grid config-grid--basic">
-                <div class="config-row">
-                  <label>速度</label>
-                  <select id="speedSelect">
-                    <option value="vslow">超慢</option>
-                    <option value="slow">慢速</option>
-                    <option value="normal" selected>正常</option>
-                    <option value="fast">快速</option>
-                  </select>
-                </div>
-                <div class="config-row">
-                  <label>高度</label>
-                  <select id="heightSelect">
-                    <option value="top">上方</option>
-                    <option value="center" selected>居中</option>
-                    <option value="bottom">下方</option>
-                  </select>
-                </div>
-                <div class="config-row config-row--effect">
-                  <label>效果</label>
-                  <div class="effect-picker" id="effectPicker">
-                    <button class="effect-card" type="button" data-effect="linear">
-                      <span class="effect-preview effect-preview--linear"><span class="effect-dot"></span></span>
-                      <span class="effect-name">经典直穿</span>
-                      <span class="effect-desc">直线</span>
-                    </button>
-                    <button class="effect-card is-active" type="button" data-effect="steady">
-                      <span class="effect-preview effect-preview--steady"><span class="effect-dot"></span></span>
-                      <span class="effect-name">自然滑过</span>
-                      <span class="effect-desc">缓入缓出</span>
-                    </button>
-                    <button class="effect-card" type="button" data-effect="ceremony">
-                      <span class="effect-preview effect-preview--ceremony"><span class="effect-dot"></span></span>
-                      <span class="effect-name">仪式感</span>
-                      <span class="effect-desc">弧线</span>
-                    </button>
-                    <button class="effect-card" type="button" data-effect="swift">
-                      <span class="effect-preview effect-preview--swift"><span class="effect-dot"></span></span>
-                      <span class="effect-name">利落提醒</span>
-                      <span class="effect-desc">快速</span>
-                    </button>
-                    <button class="effect-card" type="button" data-effect="playful">
-                      <span class="effect-preview effect-preview--playful"><span class="effect-dot"></span></span>
-                      <span class="effect-name">活泼一点</span>
-                      <span class="effect-desc">S 形</span>
-                    </button>
-                  </div>
-                  <select id="effectSelect" hidden>
-                    <option value="linear">经典直穿</option>
-                    <option value="steady" selected>自然滑过</option>
-                    <option value="ceremony">仪式感</option>
-                    <option value="swift">利落提醒</option>
-                    <option value="playful">活泼一点</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section class="config-card">
-              <div class="config-card-head">
                 <strong>外观样式</strong>
                 <span>调整飞机、尾焰和文案框</span>
               </div>
@@ -274,6 +210,70 @@
                     <option value="top" selected>上方</option>
                     <option value="center">居中</option>
                     <option value="bottom">下方</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="config-card">
+              <div class="config-card-head">
+                <strong>飞行节奏</strong>
+                <span>控制速度、高度和飞过屏幕的整体感觉</span>
+              </div>
+              <div class="config-grid config-grid--basic">
+                <div class="config-row">
+                  <label>速度</label>
+                  <select id="speedSelect">
+                    <option value="vslow">超慢</option>
+                    <option value="slow">慢速</option>
+                    <option value="normal" selected>正常</option>
+                    <option value="fast">快速</option>
+                  </select>
+                </div>
+                <div class="config-row">
+                  <label>高度</label>
+                  <select id="heightSelect">
+                    <option value="top">上方</option>
+                    <option value="center" selected>居中</option>
+                    <option value="bottom">下方</option>
+                  </select>
+                </div>
+              </div>
+              <div class="config-row config-row--effect">
+                <label>效果</label>
+                <div class="effect-picker" id="effectPicker">
+                    <button class="effect-card" type="button" data-effect="linear">
+                      <span class="effect-preview effect-preview--linear"><span class="effect-dot"></span></span>
+                      <span class="effect-name">经典直穿</span>
+                      <span class="effect-desc">直线</span>
+                    </button>
+                    <button class="effect-card is-active" type="button" data-effect="steady">
+                      <span class="effect-preview effect-preview--steady"><span class="effect-dot"></span></span>
+                      <span class="effect-name">自然滑过</span>
+                      <span class="effect-desc">缓入缓出</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="ceremony">
+                      <span class="effect-preview effect-preview--ceremony"><span class="effect-dot"></span></span>
+                      <span class="effect-name">仪式感</span>
+                      <span class="effect-desc">弧线</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="swift">
+                      <span class="effect-preview effect-preview--swift"><span class="effect-dot"></span></span>
+                      <span class="effect-name">利落提醒</span>
+                      <span class="effect-desc">快速</span>
+                    </button>
+                    <button class="effect-card" type="button" data-effect="playful">
+                      <span class="effect-preview effect-preview--playful"><span class="effect-dot"></span></span>
+                      <span class="effect-name">活泼一点</span>
+                      <span class="effect-desc">S 形</span>
+                    </button>
+                  </div>
+                  <select id="effectSelect" hidden>
+                    <option value="linear">经典直穿</option>
+                    <option value="steady" selected>自然滑过</option>
+                    <option value="ceremony">仪式感</option>
+                    <option value="swift">利落提醒</option>
+                    <option value="playful">活泼一点</option>
                   </select>
                 </div>
               </div>
@@ -551,7 +551,7 @@
                 <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">版本更新</div>
+                <div class="settings-block-title">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
                   <button id="checkUpdateBtn" class="settings-action-btn">检查更新</button>
                   <span id="updateStatus" class="settings-hint" style="display:inline-flex;align-items:center;margin:0"></span>

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{
@@ -56,6 +57,107 @@ fn open_app(path: String) -> Result<(), String> {
             .map_err(|e| format!("无法打开应用: {}", e))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+async fn check_latest_release() -> Result<HashMap<String, String>, String> {
+    const RELEASES_LATEST: &str = "https://github.com/pumf/guguFly/releases/latest";
+    const API_LATEST: &str = "https://api.github.com/repos/pumf/guguFly/releases/latest";
+
+    // Try API first — gives version + notes in one call
+    if let Ok(api_output) = std::process::Command::new("curl")
+        .args([
+            "-s", "--connect-timeout", "5", "--max-time", "8",
+            "-H", "Accept: application/vnd.github.v3+json",
+            "-H", "User-Agent: guguFly-desktop",
+            API_LATEST,
+        ])
+        .output()
+    {
+        let body_text = String::from_utf8_lossy(&api_output.stdout);
+        if let Ok(api_data) = serde_json::from_str::<serde_json::Value>(&body_text) {
+            if let Some(tag_name) = api_data.get("tag_name").and_then(|t| t.as_str()) {
+                let mut result = HashMap::new();
+                let ver = tag_name.trim_start_matches('v').to_string();
+                let html = api_data.get("html_url").and_then(|u| u.as_str()).unwrap_or("");
+                result.insert("version".to_string(), ver);
+                result.insert("html_url".to_string(),
+                    if html.is_empty() { format!("https://github.com/pumf/guguFly/releases/tag/{}", tag_name) }
+                    else { html.to_string() });
+                result.insert("notes".to_string(),
+                    api_data.get("body").and_then(|b| b.as_str()).unwrap_or("").to_string());
+                return Ok(result);
+            }
+        }
+    }
+
+    // Fallback: get version from redirect URL
+    let redirect_output = std::process::Command::new("curl")
+        .args([
+            "-sI", "-o", "/dev/null",
+            "-w", "%{redirect_url}",
+            RELEASES_LATEST,
+        ])
+        .output()
+        .map_err(|e| format!("无法执行 curl: {}", e))?;
+
+    let redirect_url = String::from_utf8_lossy(&redirect_output.stdout).trim().to_string();
+
+    if redirect_url.is_empty() {
+        return Err("无法获取重定向地址".to_string());
+    }
+
+    let tag = redirect_url
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .trim_start_matches('v')
+        .to_string();
+
+    if tag.is_empty() {
+        return Err("无法解析版本号".to_string());
+    }
+
+    let mut result = HashMap::new();
+    result.insert("version".to_string(), tag.clone());
+    result.insert("html_url".to_string(), redirect_url);
+
+    // Try HTML page for notes (API rate-limited)
+    let py_script = r#"
+import sys, re, html
+t = sys.stdin.read()
+i = t.find('markdown-body')
+if i > 0:
+    s = t.find('>', i) + 1
+    d, p = 1, s
+    while d and p < len(t):
+        o = t.find('<div', p)
+        c = t.find('</div', p)
+        if c < 0: break
+        if o >= 0 and o < c:
+            d += 1; p = o + 5
+        else:
+            d -= 1; p = c + 6
+    body = t[s:p-6]
+    print(html.unescape(re.sub('<[^>]+>', '', body)).strip(), end='')
+"#;
+    let tmp_path = std::env::temp_dir().join("gugufly_release_notes.py");
+    if let Ok(_) = std::fs::write(&tmp_path, py_script) {
+        if let Ok(html_output) = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(format!("curl -sL --connect-timeout 10 --max-time 15 {} | python3 {}", RELEASES_LATEST, tmp_path.display()))
+            .output()
+        {
+            let raw = String::from_utf8_lossy(&html_output.stdout);
+            let notes = raw.trim().to_string();
+            if !notes.is_empty() {
+                result.insert("notes".to_string(), notes);
+            }
+        }
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -210,7 +312,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
