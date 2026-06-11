@@ -254,6 +254,11 @@ pub fn run() {
             let start = MenuItemBuilder::with_id("start", "▶ 开始").accelerator("CmdOrCtrl+Alt+S").build(app)?;
             let pause = MenuItemBuilder::with_id("pause", "⏸ 暂停").accelerator("CmdOrCtrl+Alt+P").build(app)?;
             let stop = MenuItemBuilder::with_id("stop", "⏹ 停止").accelerator("CmdOrCtrl+Alt+Q").build(app)?;
+            let sep_timer = PredefinedMenuItem::separator(app)?;
+            let cd5 = MenuItemBuilder::with_id("countdown_5", "⏱ 快速倒计时 5 分钟").build(app)?;
+            let cd15 = MenuItemBuilder::with_id("countdown_15", "⏱ 快速倒计时 15 分钟").build(app)?;
+            let cd25 = MenuItemBuilder::with_id("countdown_25", "⏱ 快速倒计时 25 分钟").build(app)?;
+            let cd30 = MenuItemBuilder::with_id("countdown_30", "⏱ 快速倒计时 30 分钟").build(app)?;
             let sep1 = PredefinedMenuItem::separator(app)?;
             let mute = MenuItemBuilder::with_id("mute", "🔇 静音").build(app)?;
             let emergency = MenuItemBuilder::with_id("emergency", "🛑 紧急降落").build(app)?;
@@ -271,6 +276,11 @@ pub fn run() {
                 .item(&start)
                 .item(&pause)
                 .item(&stop)
+                .item(&sep_timer)
+                .item(&cd5)
+                .item(&cd15)
+                .item(&cd25)
+                .item(&cd30)
                 .item(&sep1)
                 .item(&mute)
                 .item(&emergency)
@@ -314,6 +324,18 @@ pub fn run() {
                     }
                     "emergency" => {
                         let _ = app.emit("emergency-landing", ());
+                    }
+                    "countdown_5" => {
+                        let _ = app.emit("quick-countdown", 300);
+                    }
+                    "countdown_15" => {
+                        let _ = app.emit("quick-countdown", 900);
+                    }
+                    "countdown_25" => {
+                        let _ = app.emit("quick-countdown", 1500);
+                    }
+                    "countdown_30" => {
+                        let _ = app.emit("quick-countdown", 1800);
                     }
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {

@@ -81,6 +81,7 @@
               </div>
               <div class="stats-types" id="statsTypes"></div>
             </div>
+            <div id="weeklySummary" class="weekly-summary-stats hidden"></div>
           </div>
         </div>
       </div>
@@ -91,7 +92,17 @@
             <h2 class="section-title">你的提醒列表</h2>
             <p class="section-tip">所有提醒都会按状态集中展示在这里。</p>
           </div>
-          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+          <div style="display:flex;align-items:center;gap:6px;position:relative">
+            <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+            <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
+            <div id="templateMenu" class="template-menu hidden">
+              <button class="template-item" data-template="pomodoro">🍅 番茄钟 25 分钟</button>
+              <button class="template-item" data-template="drink">💧 喝水提醒 · 每小时</button>
+              <button class="template-item" data-template="standup">📋 每日站会 09:30</button>
+              <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
+              <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
+            </div>
+          </div>
         </div>
 
         <div class="task-filter-bar">
@@ -234,6 +245,13 @@
                     <option value="top">上方</option>
                     <option value="center" selected>居中</option>
                     <option value="bottom">下方</option>
+                  </select>
+                </div>
+                <div class="config-row">
+                  <label>屏幕</label>
+                  <select id="displaySelect">
+                    <option value="all" selected>所有屏幕</option>
+                    <option value="active">当前屏幕</option>
                   </select>
                 </div>
               </div>
@@ -548,6 +566,20 @@
                   <input type="file" id="importTasksInput" accept="application/json,.json" hidden />
                 </div>
                 <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">静默时段</div>
+                <p class="settings-hint">在指定时间段内自动跳过飞行提醒。</p>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+                  <input type="number" id="quietStartHour" class="time-input" min="0" max="23" value="22" style="width:50px" />
+                  <span style="font-size:12px;color:var(--muted)">:00 —</span>
+                  <input type="number" id="quietEndHour" class="time-input" min="0" max="23" value="8" style="width:50px" />
+                  <span style="font-size:12px;color:var(--muted)">:00</span>
+                  <label class="img-toggle" style="margin-left:4px">
+                    <input type="checkbox" id="quietHoursToggle" />
+                    <span>启用</span>
+                  </label>
+                </div>
               </div>
               <div class="settings-block">
                 <div class="settings-block-title">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>

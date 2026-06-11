@@ -83,6 +83,8 @@ const statsRangeEl = document.getElementById('statsRange');
 const statsTypesEl = document.getElementById('statsTypes');
 const statsTotalSubEl = document.getElementById('statsTotalSub');
 const addTaskBtn = document.getElementById('addTaskBtn');
+const templateBtn = document.getElementById('templateBtn');
+const templateMenu = document.getElementById('templateMenu');
 const modal = document.getElementById('taskModal');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalTitle = document.getElementById('modalTitle');
@@ -132,6 +134,9 @@ const settingsCloseBtn = document.getElementById('settingsCloseBtn');
 const settingsUpdateDot = document.getElementById('settingsUpdateDot');
 const updateSectionDot = document.getElementById('updateSectionDot');
 const autostartToggle = document.getElementById('autostartToggle');
+const quietHoursToggle = document.getElementById('quietHoursToggle');
+const quietStartHour = document.getElementById('quietStartHour');
+const quietEndHour = document.getElementById('quietEndHour');
 const themeButtons = document.querySelectorAll('.theme-btn');
 const exportTasksBtn = document.getElementById('exportTasksBtn');
 const importTasksBtn = document.getElementById('importTasksBtn');
@@ -158,6 +163,7 @@ const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
 const updateCloseActionBtn = document.getElementById('updateCloseActionBtn');
 const speedSelect = document.getElementById('speedSelect');
 const heightSelect = document.getElementById('heightSelect');
+const displaySelect = document.getElementById('displaySelect');
 const effectSelect = document.getElementById('effectSelect');
 const previewFlightBtn = document.getElementById('previewFlightBtn');
 const resetFlightBtn = document.getElementById('resetFlightBtn');
@@ -1636,11 +1642,22 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   localStorage.setItem('_flightUseImage', effectiveUseImage ? '1' : '0');
 
   try {
-    const { width: sw, height: sh } = screen;
+    let sw = screen.width, sh = screen.height, x = 0, y = 0;
+    if (displaySelect.value === 'active') {
+      try {
+        const monitor = await appWindow.currentMonitor();
+        if (monitor) {
+          x = monitor.position.x;
+          y = monitor.position.y;
+          sw = monitor.size.width;
+          sh = monitor.size.height;
+        }
+      } catch (e) {}
+    }
     const params = new URLSearchParams({ w: sw, h: sh, speed, height, effect, plane, particle, bubble, bubblePosition, msg, dir: direction, seq: sequenceId });
     const flightWin = new WebviewWindow(`flight-${Date.now()}`, {
       url: `/flight.html?${params}`,
-      width: sw, height: sh, x: 0, y: 0,
+      width: sw, height: sh, x, y,
       transparent: true, decorations: false,
       alwaysOnTop: true, skipTaskbar: true,
       resizable: false, visible: true, focus: false,
@@ -1721,7 +1738,20 @@ async function resetFlightSettings() {
   showToast('已恢复推荐飞行设置');
 }
 
+function isInQuietHours() {
+  if (!quietHoursToggle?.checked) return false;
+  const now = new Date();
+  const h = now.getHours();
+  const start = parseInt(quietStartHour?.value) || 22;
+  const end = parseInt(quietEndHour?.value) || 8;
+  if (start <= end) {
+    return h >= start && h < end;
+  }
+  return h >= start || h < end;
+}
+
 async function triggerFlightWithMode(task) {
+  if (isInQuietHours()) return;
   const msg = task.msg || getRandomQuote();
   const taskImage = task.imageData || null;
   const taskUseImage = task.imageData ? !!task.useImage : null;
@@ -2227,6 +2257,7 @@ async function init() {
   todayCountEl.textContent = cfg.todayCount;
   if (cfg.speed) speedSelect.value = cfg.speed;
   if (cfg.height) heightSelect.value = cfg.height;
+  if (cfg.display) displaySelect.value = cfg.display;
   if (cfg.effect) effectSelect.value = cfg.effect;
   if (cfg.plane) planeSelect.value = cfg.plane;
   if (cfg.particle) particleSelect.value = cfg.particle;
@@ -2276,6 +2307,10 @@ async function init() {
       autostartToggle.disabled = true;
     }
   } catch (e) {}
+
+  if (quietHoursToggle) quietHoursToggle.checked = !!cfg.quietHoursEnabled;
+  if (quietStartHour) quietStartHour.value = cfg.quietStartHour || 22;
+  if (quietEndHour) quietEndHour.value = cfg.quietEndHour || 8;
 
   renderTasks();
   startAlarmChecker();
@@ -2335,6 +2370,60 @@ async function loadSettings() {
 // --- Events ---
 
 addTaskBtn.addEventListener('click', openNewModal);
+
+templateBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  templateMenu.classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  if (!templateBtn?.contains(e.target) && !templateMenu?.contains(e.target)) {
+    templateMenu?.classList.add('hidden');
+  }
+});
+templateMenu?.querySelectorAll('.template-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const tpl = item.dataset.template;
+    let task;
+    if (tpl === 'pomodoro') {
+      task = createCountdownTask();
+      task.label = '番茄钟';
+      task.duration = 1500;
+      task._remaining = 1500;
+    } else if (tpl === 'drink') {
+      task = createAlarmTask();
+      task.label = '喝水提醒';
+      task.hour = Math.floor(Math.random() * 14) + 8;
+      task.minute = 0;
+      task.repeat = [1,2,3,4,5,6,0];
+    } else if (tpl === 'standup') {
+      task = createAlarmTask();
+      task.label = '每日站会';
+      task.hour = 9;
+      task.minute = 30;
+      task.repeat = [1,2,3,4,5];
+    } else if (tpl === 'lunch') {
+      task = createAlarmTask();
+      task.label = '午休结束';
+      task.hour = 13;
+      task.minute = 30;
+      task.repeat = [1,2,3,4,5];
+    } else if (tpl === 'stretch') {
+      task = createAlarmTask();
+      task.label = '久坐拉伸';
+      task.hour = Math.floor(Math.random() * 6) + 9;
+      task.minute = 0;
+      task.repeat = [1,2,3,4,5,6,0];
+      task.flightMode = 'loop_interval';
+      task.loopInterval = 120;
+      task.intervalCount = 5;
+    }
+    tasks.push(task);
+    saveTasks(getCleanTasks());
+    renderTasks();
+    templateMenu.classList.add('hidden');
+    showToast(`已创建：${task.label}`);
+  });
+});
 validationFields.forEach(field => {
   field?.addEventListener('input', () => {
     field.classList.remove('field-error');
@@ -2573,8 +2662,19 @@ autostartToggle.addEventListener('change', async () => {
   }
 });
 
+quietHoursToggle?.addEventListener('change', () => {
+  persistSetting('quietHoursEnabled', quietHoursToggle.checked);
+});
+quietStartHour?.addEventListener('change', () => {
+  persistSetting('quietStartHour', parseInt(quietStartHour.value) || 22);
+});
+quietEndHour?.addEventListener('change', () => {
+  persistSetting('quietEndHour', parseInt(quietEndHour.value) || 8);
+});
+
 speedSelect.addEventListener('change', () => persistSetting('speed', speedSelect.value));
 heightSelect.addEventListener('change', () => persistSetting('height', heightSelect.value));
+displaySelect.addEventListener('change', () => persistSetting('display', displaySelect.value));
 effectSelect.addEventListener('change', () => persistSetting('effect', effectSelect.value));
 planeSelect.addEventListener('change', () => persistSetting('plane', planeSelect.value));
 particleSelect.addEventListener('change', () => persistSetting('particle', particleSelect.value));
@@ -2825,6 +2925,21 @@ if (isTauriRuntime) {
     void triggerEmergencyLanding();
   });
 
+  listen('quick-countdown', (event) => {
+    const duration = event.payload;
+    const task = createCountdownTask();
+    const mins = Math.floor(duration / 60);
+    task.label = `快速倒计时 ${mins} 分钟`;
+    task.duration = duration;
+    task._remaining = duration;
+    task._status = 'idle';
+    tasks.push(task);
+    saveTasks(getCleanTasks());
+    startCountdown(task);
+    renderTasks();
+    showToast(`已启动 ${mins} 分钟倒计时`);
+  });
+
   listen('flight-ended', async (event) => {
     localStorage.removeItem('_flightImage');
     localStorage.removeItem('_flightUseImage');
@@ -3003,6 +3118,16 @@ async function renderStats() {
   cachedTasksForStats = tasks;
   const stats = await computeFlightStats();
   cachedStats = stats;
+
+  const weeklySummaryEl = document.getElementById('weeklySummary');
+  if (weeklySummaryEl && stats.last7Total > 0) {
+    const topId = Object.entries(stats.taskTotals).sort((a,b) => b[1]-a[1])[0]?.[0];
+    const topTask = tasks.find(t => String(t.id) === topId);
+    weeklySummaryEl.innerHTML = `✈ 本周已飞行 <em>${stats.last7Total}</em> 次${topTask ? ` · 最常触发 <em>${topTask.label || '未命名'}</em>` : ''}`;
+    weeklySummaryEl.classList.remove('hidden');
+  } else if (weeklySummaryEl) {
+    weeklySummaryEl.classList.add('hidden');
+  }
 
   if (statsTotalEl) statsTotalEl.textContent = String(stats.totalCount);
   if (statsWeekEl) statsWeekEl.textContent = String(stats.last7Total);
