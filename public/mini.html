@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:transparent;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;font-family:"PingFang SC","Hiragino Sans GB","Avenir Next",sans-serif;cursor:grab}
+body.dragging{cursor:grabbing}
+#m{display:flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
+background:linear-gradient(135deg,#667eea,#764ba2);
+color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4)}
+#i{font-size:18px}#t{font-weight:700;font-size:14px}#d{opacity:.8;font-size:13px;margin-left:2px}
+</style></head><body>
+<div id="m"><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
+<script>
+(async function(){
+  function setContent(icon, text, detail) {
+    try {
+      if (icon !== undefined) document.getElementById('i').textContent = icon;
+      if (text !== undefined) document.getElementById('t').textContent = text;
+      if (detail !== undefined) document.getElementById('d').textContent = detail;
+    } catch(e) {}
+  }
+  try {
+    if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
+      await window.__TAURI__.event.listen('mini-set-content', function(event){
+        var p = event && event.payload;
+        if (!p) return;
+        setContent(p.icon, p.text, p.detail);
+      });
+    }
+  } catch(e) {}
+
+  var dragging = false;
+  var startX = 0, startY = 0;
+  var winStartX = 0, winStartY = 0;
+  var rafId = 0;
+  var pendingX = 0, pendingY = 0;
+  function getWin() {
+    try { return window.__TAURI__ && window.__TAURI__.webviewWindow ? window.__TAURI__.webviewWindow.getCurrentWebviewWindow() : null; } catch(e){ return null; }
+  }
+  function setWinPos(x, y) {
+    var w = getWin();
+    if (w && w.setPosition) {
+      try { w.setPosition({ type: 'Physical', x: Math.round(x), y: Math.round(y) }); } catch(e){}
+    }
+  }
+  function scheduleMove(x, y) {
+    pendingX = x; pendingY = y;
+    if (rafId) return;
+    rafId = requestAnimationFrame(function(){
+      rafId = 0;
+      setWinPos(pendingX, pendingY);
+    });
+  }
+  function getCurrentWinPos() {
+    try {
+      var w = getWin();
+      if (w && w.outerPosition) {
+        return w.outerPosition().then(function(p){ return { x: p.x, y: p.y }; }).catch(function(){ return null; });
+      }
+    } catch(e){}
+    return Promise.resolve(null);
+  }
+  function onMouseDown(e) {
+    e.preventDefault();
+    dragging = true;
+    document.body.classList.add('dragging');
+    startX = e.screenX || e.clientX;
+    startY = e.screenY || e.clientY;
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+  function onMouseMove(e) {
+    if (!dragging) return;
+    var curX = e.screenX || e.clientX;
+    var curY = e.screenY || e.clientY;
+    var dx = curX - startX;
+    var dy = curY - startY;
+    scheduleMove(winStartX + dx, winStartY + dy);
+  }
+  function onMouseUp() {
+    dragging = false;
+    document.body.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+  document.body.addEventListener('mousedown', function(e){
+    if (e.button !== undefined && e.button !== 0) return;
+    getCurrentWinPos().then(function(p){
+      if (p) { winStartX = p.x; winStartY = p.y; } else { winStartX = 10; winStartY = 10; }
+    });
+    onMouseDown(e);
+  });
+  document.body.addEventListener('touchstart', function(e){
+    if (e.touches && e.touches[0]) {
+      var t = e.touches[0];
+      getCurrentWinPos().then(function(p){
+        if (p) { winStartX = p.x; winStartY = p.y; } else { winStartX = 10; winStartY = 10; }
+      });
+      dragging = true;
+      document.body.classList.add('dragging');
+      startX = t.screenX || t.clientX;
+      startY = t.screenY || t.clientY;
+      document.addEventListener('touchmove', onTouchMove, { passive: false });
+      document.addEventListener('touchend', onTouchEnd);
+    }
+  }, { passive: false });
+  function onTouchMove(e) {
+    if (!dragging || !e.touches[0]) return;
+    e.preventDefault();
+    var t = e.touches[0];
+    var curX = t.screenX || t.clientX;
+    var curY = t.screenY || t.clientY;
+    var dx = curX - startX;
+    var dy = curY - startY;
+    scheduleMove(winStartX + dx, winStartY + dy);
+  }
+  function onTouchEnd() {
+    dragging = false;
+    document.body.classList.remove('dragging');
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+  }
+})();
+</script>
+</body></html>

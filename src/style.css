@@ -320,6 +320,17 @@ body {
 }
 
 /* === Stats panel === */
+.next-upcoming {
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(45,127,249,0.06);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+}
+.next-upcoming.hidden { display: none; }
+
 .stats-section {
   margin-top: 4px;
   background: var(--panel);
@@ -557,6 +568,26 @@ body {
   font-weight: 800;
 }
 
+.achievement-badges {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.achievement-badges.hidden { display: none; }
+.achievement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(255,149,96,0.12), rgba(45,127,249,0.08));
+  color: var(--accent-warm);
+}
+
 .task-list {
   flex: 1;
   min-height: 0;
@@ -770,6 +801,11 @@ body {
   color: #c25580;
 }
 
+.task-badge--group {
+  background: rgba(128, 128, 128, 0.08);
+  color: var(--muted);
+}
+
 .task-status-badge {
   color: var(--muted);
   background: rgba(33, 48, 71, 0.06);
@@ -784,6 +820,9 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-image-badge {
@@ -855,6 +894,9 @@ body {
   font-size: 11px;
   color: var(--muted);
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-details {
@@ -893,17 +935,6 @@ body {
   transform: translateY(-1px);
   background: rgba(45, 127, 249, 0.14);
   border-color: rgba(45, 127, 249, 0.22);
-}
-
-.task-detail-btn--primary {
-  background: var(--accent);
-  color: #fff;
-  border-color: transparent;
-}
-
-.task-detail-btn--primary:hover {
-  background: linear-gradient(135deg, #2d7ff9, #57a7ff);
-  border-color: transparent;
 }
 
 .task-card--alarm .task-icon {

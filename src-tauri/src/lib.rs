@@ -34,6 +34,32 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn run_script(script: String) -> Result<(), String> {
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&script)
+        .spawn()
+        .map_err(|e| format!("执行失败: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_post_flight(app: tauri::AppHandle) {
+    let _ = app.emit("cancel-post-flight", serde_json::json!({}));
+    if let Some(w) = app.get_webview_window("gugufly-pfnotify") {
+        let _ = w.close();
+    }
+}
+
+#[tauri::command]
+fn pf_notify_clicked(app: tauri::AppHandle) {
+    let _ = app.emit("pf-notify-clicked", serde_json::json!({}));
+    if let Some(w) = app.get_webview_window("gugufly-pfnotify") {
+        let _ = w.close();
+    }
+}
+
+#[tauri::command]
 fn close_flight_windows(app: tauri::AppHandle) {
     for (label, window) in app.webview_windows() {
         if label.starts_with("flight-") {
@@ -262,6 +288,7 @@ pub fn run() {
             let sep1 = PredefinedMenuItem::separator(app)?;
             let mute = MenuItemBuilder::with_id("mute", "🔇 静音").build(app)?;
             let emergency = MenuItemBuilder::with_id("emergency", "🛑 紧急降落").build(app)?;
+            let skip_flight = MenuItemBuilder::with_id("skip_flight", "⏭ 跳过当前飞行").build(app)?;
             let sep2 = PredefinedMenuItem::separator(app)?;
             let show = MenuItemBuilder::with_id("show", "📂 打开主窗口").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "✕ 退出").build(app)?;
@@ -284,6 +311,7 @@ pub fn run() {
                 .item(&sep1)
                 .item(&mute)
                 .item(&emergency)
+                .item(&skip_flight)
                 .item(&sep2)
                 .item(&show)
                 .item(&quit)
@@ -325,6 +353,9 @@ pub fn run() {
                     "emergency" => {
                         let _ = app.emit("emergency-landing", ());
                     }
+                    "skip_flight" => {
+                        let _ = app.emit("skip-current-flight", ());
+                    }
                     "countdown_5" => {
                         let _ = app.emit("quick-countdown", 300);
                     }
@@ -364,7 +395,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

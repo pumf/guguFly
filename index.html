@@ -44,6 +44,7 @@
             <strong class="metric-value metric-text" id="heroStatus">等待下一次起飞</strong>
           </div>
         </div>
+        <div id="nextUpcoming" class="next-upcoming hidden"></div>
         <div class="stats-section">
           <div class="stats-toggle" id="statsToggle">
             <span>📊 飞行统计</span>
@@ -82,6 +83,7 @@
               <div class="stats-types" id="statsTypes"></div>
             </div>
             <div id="weeklySummary" class="weekly-summary-stats hidden"></div>
+            <div id="achievementBadges" class="achievement-badges hidden"></div>
           </div>
         </div>
       </div>
@@ -117,6 +119,14 @@
             <button class="task-type-chip" data-type="countdown">倒计时</button>
             <button class="task-type-chip" data-type="holiday">节假日</button>
             <button class="task-type-chip" data-type="anniversary">纪念日</button>
+          </div>
+          <div class="task-type-chips" style="margin-top:6px">
+            <button class="task-type-chip is-active" data-group="all">全部分组</button>
+            <button class="task-type-chip" data-group="work">💼 工作</button>
+            <button class="task-type-chip" data-group="health">💚 健康</button>
+            <button class="task-type-chip" data-group="life">🏠 生活</button>
+            <button class="task-type-chip" data-group="other">📌 其他</button>
+            <button class="task-type-chip" data-group="none">— 未分组</button>
           </div>
         </div>
 
@@ -470,13 +480,17 @@
           <div class="form-block">
             <div class="block-head">
               <label>飞行后操作</label>
-              <span class="field-hint">飞行结束后自动打开软件或网页。</span>
+              <span class="field-hint">飞行结束后自动执行的操作。</span>
             </div>
             <div class="form-row">
               <select id="editPostFlightAction" class="edit-input">
                 <option value="none">无操作</option>
                 <option value="app">打开软件</option>
                 <option value="url">打开网页</option>
+                <option value="lock">锁屏休息</option>
+                <option value="folder">打开文件夹</option>
+                <option value="tts">语音播报文案</option>
+                <option value="script">运行脚本</option>
               </select>
             </div>
             <div id="postFlightAppField" class="form-row hidden">
@@ -488,6 +502,16 @@
             <div id="postFlightUrlField" class="form-row hidden">
               <label style="white-space:nowrap">网址</label>
               <input type="url" id="editPostFlightUrl" class="edit-input" placeholder="https://example.com" />
+            </div>
+            <div id="postFlightFolderField" class="form-row hidden">
+              <label style="white-space:nowrap">文件夹路径</label>
+              <input type="text" id="editPostFlightFolder" class="edit-input" placeholder="~/Documents/项目" style="flex:1" />
+              <button id="selectFolderBtn" class="cfg-btn" type="button">📁 选择</button>
+              <input type="file" id="selectFolderInput" hidden webkitdirectory directory />
+            </div>
+            <div id="postFlightScriptField" class="form-row hidden">
+              <label style="white-space:nowrap">脚本命令</label>
+              <input type="text" id="editPostFlightScript" class="edit-input" placeholder="pmset displaysleepnow" />
             </div>
           </div>
           <div class="form-block">
@@ -504,6 +528,21 @@
                 <input type="checkbox" id="editUseImageCheckbox" />
                 <span>启用</span>
               </label>
+            </div>
+          </div>
+          <div class="form-block">
+            <div class="block-head">
+              <label>分组</label>
+              <span class="field-hint">可选，方便分类管理。</span>
+            </div>
+            <div class="form-row">
+              <select id="editGroup" class="edit-input">
+                <option value="">未分组</option>
+                <option value="work">💼 工作</option>
+                <option value="health">💚 健康</option>
+                <option value="life">🏠 生活</option>
+                <option value="other">📌 其他</option>
+              </select>
             </div>
           </div>
           <div class="form-block">
@@ -556,6 +595,7 @@
                   <button class="theme-btn" data-theme="light">浅色</button>
                   <button class="theme-btn" data-theme="dark">深色</button>
                   <button class="theme-btn" data-theme="system">跟随系统</button>
+                  <button class="theme-btn" data-theme="auto-time">随时间</button>
                 </div>
               </div>
               <div class="settings-block">
@@ -594,6 +634,16 @@
                   <button id="feedbackBtn" class="settings-action-btn">报告问题 / 建议</button>
                 </div>
                 <p class="settings-hint">通过 GitHub Issues 提交问题或功能建议。</p>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">迷你悬浮窗</div>
+                <p class="settings-hint">在屏幕右上角显示下次提醒倒计时。</p>
+                <div class="form-row" style="margin-top:6px">
+                  <label class="img-toggle">
+                    <input type="checkbox" id="miniWindowToggle" />
+                    <span>启用</span>
+                  </label>
+                </div>
               </div>
               <div class="settings-block">
                 <div class="settings-block-title">软件说明</div>

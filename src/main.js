@@ -91,6 +91,7 @@ const modalTitle = document.getElementById('modalTitle');
 const modalError = document.getElementById('modalError');
 const modalCloseBtn = document.getElementById('modalCloseBtn');
 const editLabel = document.getElementById('editLabel');
+const editGroup = document.getElementById('editGroup');
 const editMsg = document.getElementById('editMsg');
 const alarmFields = document.getElementById('alarmFields');
 const countdownFields = document.getElementById('countdownFields');
@@ -116,10 +117,16 @@ const loopIntervalField = document.getElementById('loopIntervalField');
 const editPostFlightAction = document.getElementById('editPostFlightAction');
 const editPostFlightAppPath = document.getElementById('editPostFlightAppPath');
 const editPostFlightUrl = document.getElementById('editPostFlightUrl');
+const editPostFlightFolder = document.getElementById('editPostFlightFolder');
+const editPostFlightScript = document.getElementById('editPostFlightScript');
 const postFlightAppField = document.getElementById('postFlightAppField');
 const postFlightUrlField = document.getElementById('postFlightUrlField');
+const postFlightFolderField = document.getElementById('postFlightFolderField');
+const postFlightScriptField = document.getElementById('postFlightScriptField');
 const selectAppBtn = document.getElementById('selectAppBtn');
 const selectAppInput = document.getElementById('selectAppInput');
+const selectFolderBtn = document.getElementById('selectFolderBtn');
+const selectFolderInput = document.getElementById('selectFolderInput');
 const deleteTaskBtn = document.getElementById('deleteTaskBtn');
 const saveTaskBtn = document.getElementById('saveTaskBtn');
 const todayCountEl = document.getElementById('todayCount');
@@ -137,6 +144,7 @@ const autostartToggle = document.getElementById('autostartToggle');
 const quietHoursToggle = document.getElementById('quietHoursToggle');
 const quietStartHour = document.getElementById('quietStartHour');
 const quietEndHour = document.getElementById('quietEndHour');
+const miniWindowToggle = document.getElementById('miniWindowToggle');
 const themeButtons = document.querySelectorAll('.theme-btn');
 const exportTasksBtn = document.getElementById('exportTasksBtn');
 const importTasksBtn = document.getElementById('importTasksBtn');
@@ -226,6 +234,7 @@ let cachedTasksForStats = [];
 let systemThemeMedia = null;
 let taskSearchKeyword = '';
 let taskTypeFilter = 'all';
+let taskGroupFilter = 'all';
 const flightQueue = [];
 const flightSequences = new Map();
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -547,12 +556,81 @@ function hasActiveSequences() {
   return flightSequences.size > 0;
 }
 
+let pfNotifyWin = null;
+let pendingPfCancel = null;
+let pfAutoClosing = false;
+let pfUnlistenClick = null;
+
+async function showPostFlightNotify(action) {
+  if (!isTauriRuntime) return;
+  try {
+    if (pfNotifyWin) {
+      try { await pfNotifyWin.close(); } catch (e) {}
+      pfNotifyWin = null;
+    }
+    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
+
+    const sw = screen.availWidth || 1440;
+    const sh = screen.availHeight || 900;
+    pfNotifyWin = new WebviewWindow('gugufly-pfnotify', {
+      url: '/postflight-notify.html',
+      width: 380, height: 80,
+      x: Math.round((sw - 380) / 2), y: Math.round(sh * 0.65),
+      transparent: true, decorations: false,
+      alwaysOnTop: true, skipTaskbar: true,
+      resizable: false, focus: false, visible: true,
+    });
+
+    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本' };
+    const label = labels[action] || action;
+    const fullText = '飞行后' + label;
+
+    pfNotifyWin.once('tauri://created', async () => {
+      try {
+        const { emit } = await import('@tauri-apps/api/event');
+        await new Promise(r => setTimeout(r, 150));
+        await emit('pf-notify-set-label', { label: fullText });
+      } catch (e) {}
+    });
+
+    pfNotifyWin.onCloseRequested(() => {
+      if (!pfAutoClosing && pendingPfCancel) {
+        pendingPfCancel();
+        pendingPfCancel = null;
+      }
+    });
+    pfNotifyWin.once('tauri://error', () => {});
+
+    const { listen } = await import('@tauri-apps/api/event');
+    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
+    const unlisten = await listen('pf-notify-clicked', async () => {
+      if (pendingPfCancel) {
+        pendingPfCancel();
+        pendingPfCancel = null;
+      }
+      await closePostFlightNotify();
+      showToast('已取消飞行后操作');
+    });
+    pfUnlistenClick = unlisten;
+  } catch (e) { console.error('showPostFlightNotify failed:', e); }
+}
+
+async function closePostFlightNotify() {
+  if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
+  try { if (pfNotifyWin) { pfAutoClosing = true; await pfNotifyWin.close(); pfNotifyWin = null; } } catch (e) {}
+  pfAutoClosing = false;
+}
+
 async function processFlightQueue() {
   if (activeFlightJob || !flightQueue.length) return;
   const nextJob = flightQueue.shift();
   activeFlightJob = nextJob;
   if (nextJob.playSound && !isMuted) await playSound();
   await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
+  if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
+    pendingPfCancel = () => { nextJob.postFlight.action = 'none'; };
+    showPostFlightNotify(nextJob.postFlight.action);
+  }
 }
 
 function queueFlight(job) {
@@ -871,6 +949,9 @@ function createBaseTask(type) {
     postFlightAction: 'none',
     postFlightAppPath: '',
     postFlightUrl: '',
+    postFlightFolder: '',
+    postFlightScript: '',
+    group: '',
     imageData: null,
     useImage: false,
     color: null,
@@ -927,6 +1008,8 @@ function cloneTask(t) {
     postFlightAction: t.postFlightAction || 'none',
     postFlightAppPath: t.postFlightAppPath || '',
     postFlightUrl: t.postFlightUrl || '',
+    postFlightFolder: t.postFlightFolder || '',
+    postFlightScript: t.postFlightScript || '',
     _remaining: t.duration,
     _status: 'idle',
     _timer: null,
@@ -995,16 +1078,19 @@ function clearFieldErrors() {
   document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
 }
 
-function showToast(message) {
+function showToast(message, duration, onClick) {
   if (!toastEl) return;
   toastEl.textContent = message;
   toastEl.classList.remove('hidden');
   toastEl.classList.add('visible');
+  toastEl.style.cursor = onClick ? 'pointer' : 'default';
+  toastEl.onclick = onClick || null;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     toastEl.classList.remove('visible');
+    toastEl.onclick = null;
     setTimeout(() => toastEl.classList.add('hidden'), 220);
-  }, 1800);
+  }, duration || 1800);
 }
 
 function getTaskTypeMeta(task) {
@@ -1056,18 +1142,89 @@ function getTaskStatusLabel(task) {
   return '待命';
 }
 
+let miniWindow = null;
+
+async function createMiniWindow() {
+  if (!isTauriRuntime) return;
+  if (miniWindow) {
+    try { await miniWindow.show(); } catch (e) {}
+    return;
+  }
+  try {
+    miniWindow = new WebviewWindow('gugufly-mini', {
+      url: '/mini.html',
+      width: 420, height: 56,
+      x: 10, y: 10,
+      transparent: true, decorations: false,
+      alwaysOnTop: true, skipTaskbar: true,
+      resizable: false, focus: false, visible: true,
+    });
+    miniWindow.once('tauri://error', (e) => console.error('mini error:', e));
+  } catch (e) { console.error('mini create failed:', e); miniWindow = null; }
+}
+
+async function positionMiniWindow() {
+  if (!miniWindow) return;
+  try {
+    const m = await appWindow.currentMonitor();
+    if (m) await miniWindow.setPosition({ x: m.position.x + m.size.width - 270, y: m.position.y + 12 });
+  } catch (e) {}
+}
+
+async function updateMiniWindow() {
+  if (!miniWindow) return;
+  const upcoming = await getNextUpcomingTask();
+  try {
+    const { emit } = await import('@tauri-apps/api/event');
+    if (upcoming && upcoming.minutes <= 1440) {
+      const icon = upcoming.task.type === 'alarm' ? '⏰' : upcoming.task.type === 'countdown' ? '⏱' : '📅';
+      const label = upcoming.task.label || '提醒';
+      const m = upcoming.minutes;
+      const time = m < 1 ? '即将' : m < 60 ? m + 'min后' : Math.floor(m/60) + 'h后';
+      await emit('mini-set-content', { icon: icon, text: label, detail: time });
+    } else {
+      await emit('mini-set-content', { icon: '📋', text: '暂无提醒', detail: '' });
+    }
+  } catch (e) {}
+}
+
 function updateHeroStatus() {
   const runningCountdown = tasks.find(task => task.type === 'countdown' && task._status === 'running');
   if (runningCountdown) {
     heroStatusEl.textContent = `倒计时进行中 · ${runningCountdown.label || '未命名任务'}`;
-    return;
+  } else {
+    const enabledCount = tasks.filter(task => task.enabled).length;
+    if (enabledCount === 0) {
+      heroStatusEl.textContent = '还没有航线，先创建一条提醒吧';
+    } else {
+      heroStatusEl.textContent = `已启用 ${enabledCount} 条航线，等待下一次起飞`;
+    }
   }
-  const enabledCount = tasks.filter(task => task.enabled).length;
-  if (enabledCount === 0) {
-    heroStatusEl.textContent = '还没有航线，先创建一条提醒吧';
-    return;
+
+  updateNextUpcoming();
+}
+
+async function updateNextUpcoming() {
+  const el = document.getElementById('nextUpcoming');
+  if (!el) return;
+  const upcoming = await getNextUpcomingTask();
+  if (upcoming && upcoming.minutes <= 1440) {
+    const { task, minutes } = upcoming;
+    const label = task.label || '提醒';
+    const typeIcon = task.type === 'alarm' ? '⏰' : task.type === 'countdown' ? '⏱' : '📅';
+    if (minutes < 1) {
+      el.textContent = `${typeIcon} ${label} · 即将起飞`;
+    } else if (minutes < 60) {
+      el.textContent = `${typeIcon} ${label} · ${minutes} 分钟后`;
+    } else {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      el.textContent = `${typeIcon} ${label} · ${h} 小时${m > 0 ? m + ' 分钟' : ''}后`;
+    }
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
   }
-  heroStatusEl.textContent = `已启用 ${enabledCount} 条航线，等待下一次起飞`;
 }
 
 function getCountdownInfoText(task) {
@@ -1228,6 +1385,10 @@ function setGroupEnabled(groupTasks, enabled) {
 
 function matchesFilter(task) {
   if (taskTypeFilter !== 'all' && task.type !== taskTypeFilter) return false;
+  if (taskGroupFilter !== 'all') {
+    if (taskGroupFilter === 'none' && task.group) return false;
+    if (taskGroupFilter !== 'none' && task.group !== taskGroupFilter) return false;
+  }
   if (taskSearchKeyword) {
     const haystack = `${task.label || ''} ${task.msg || ''}`.toLowerCase();
     if (!haystack.includes(taskSearchKeyword)) return false;
@@ -1359,6 +1520,14 @@ function renderTasks() {
     statusBadge.textContent = getTaskStatusLabel(task);
 
     metaRow.appendChild(typeBadge);
+    if (task.group) {
+      const groupMap = { work: '💼', health: '💚', life: '🏠', other: '📌' };
+      const groupNames = { work: '工作', health: '健康', life: '生活', other: '其他' };
+      const groupBadge = document.createElement('span');
+      groupBadge.className = 'task-badge task-badge--group';
+      groupBadge.textContent = `${groupMap[task.group] || ''} ${groupNames[task.group] || task.group}`;
+      metaRow.appendChild(groupBadge);
+    }
     metaRow.appendChild(statusBadge);
 
     const label = document.createElement('div');
@@ -1400,20 +1569,7 @@ function renderTasks() {
         openEditModal(task);
       });
 
-      const triggerBtn = document.createElement('button');
-      triggerBtn.className = 'task-detail-btn task-detail-btn--primary';
-      triggerBtn.textContent = '立即触发';
-      triggerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (task.type === 'countdown' && task._status === 'running') {
-          stopCountdown(task);
-        }
-        void triggerFlightWithMode(task);
-        showToast('飞行已触发 ✈');
-      });
-
       detailActions.appendChild(quickEditBtn);
-      detailActions.appendChild(triggerBtn);
       details.appendChild(detailActions);
       body.appendChild(details);
     }
@@ -1495,7 +1651,34 @@ function renderTasks() {
     card.appendChild(body);
     card.appendChild(actions);
 
-    card.addEventListener('click', () => openEditModal(task));
+    card.addEventListener('click', () => {
+      toggleTaskExpanded(task.id);
+    });
+    card.addEventListener('dblclick', (e) => {
+      openEditModal(task);
+    });
+    card.draggable = true;
+    card.setAttribute('data-task-id', task.id);
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', String(task.id));
+      e.dataTransfer.effectAllowed = 'move';
+      card.style.opacity = '0.5';
+    });
+    card.addEventListener('dragend', () => { card.style.opacity = ''; });
+    card.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.style.opacity = '';
+      const fromId = e.dataTransfer.getData('text/plain');
+      if (!fromId || fromId === String(task.id)) return;
+      const fromIdx = tasks.findIndex(t => String(t.id) === fromId);
+      const toIdx = tasks.findIndex(t => t === task);
+      if (fromIdx < 0 || toIdx < 0) return;
+      const [moved] = tasks.splice(fromIdx, 1);
+      tasks.splice(toIdx, 0, moved);
+      saveTasks(getCleanTasks());
+      renderTasks();
+    });
 
       section.appendChild(card);
     });
@@ -1581,8 +1764,68 @@ async function onCountdownComplete(task) {
 
 let alarmInterval = null;
 
+async function getNextUpcomingTask() {
+  const now = new Date();
+  let bestTask = null, bestTime = Infinity;
+  for (const task of tasks) {
+    if (!task.enabled) continue;
+    if (task.type === 'alarm') {
+      const today = now.toDateString();
+      if (task._lastTriggeredDate === today) continue;
+      const tMin = task.hour * 60 + task.minute;
+      const nMin = now.getHours() * 60 + now.getMinutes();
+      let wait = tMin - nMin;
+      if (wait <= 0) wait += 1440;
+      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+    } else if (task.type === 'holiday' || task.type === 'anniversary') {
+      const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
+      if (target <= now) target.setFullYear(target.getFullYear() + 1);
+      const wait = Math.ceil((target - now) / 60000);
+      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+    } else if (task.type === 'countdown' && task._status === 'running') {
+      const wait = Math.ceil(task._remaining / 60);
+      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+    }
+  }
+  return bestTask ? { task: bestTask, minutes: bestTime } : null;
+}
+
+const previewedTasks = new Set();
+function checkPreTrigger() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), today = now.toDateString();
+  const currentMinutes = h * 60 + m;
+  const todayMonth = now.getMonth() + 1, todayDate = now.getDate();
+
+  tasks.forEach(task => {
+    if (!task.enabled) return;
+    if ((task.type === 'alarm' || task.type === 'holiday' || task.type === 'anniversary') && task._lastTriggeredDate === today) return;
+    let triggerMin = null, previewKey = null;
+
+    if (task.type === 'alarm') {
+      if (task.repeat.length === 0) return;
+      if (!task.repeat.includes(now.getDay())) return;
+      triggerMin = task.hour * 60 + task.minute;
+    } else if (task.type === 'holiday' || task.type === 'anniversary') {
+      if (task.month !== todayMonth || task.day !== todayDate) return;
+      triggerMin = task.hour * 60 + task.minute;
+    }
+    if (triggerMin == null) return;
+    const diff = triggerMin - currentMinutes;
+    if (diff <= 0 || diff > 5) return;
+
+    previewKey = `${task.id}-${today}-${triggerMin}`;
+    if (previewedTasks.has(previewKey)) return;
+    previewedTasks.add(previewKey);
+
+    const label = task.label || (task.type === 'holiday' ? '节日' : '提醒');
+    showToast(`⏰ ${label} · ${diff} 分钟后起飞`, 3000);
+  });
+}
+
 function startAlarmChecker() {
   if (alarmInterval) return;
+  checkPreTrigger();
   alarmInterval = setInterval(() => {
     const now = new Date();
     const h = now.getHours();
@@ -1618,6 +1861,9 @@ function startAlarmChecker() {
         }
       }
     });
+    checkPreTrigger();
+    updateNextUpcoming();
+    updateMiniWindow();
   }, 1000);
 }
 
@@ -1755,7 +2001,7 @@ async function triggerFlightWithMode(task) {
   const msg = task.msg || getRandomQuote();
   const taskImage = task.imageData || null;
   const taskUseImage = task.imageData ? !!task.useImage : null;
-  const postFlight = { action: task.postFlightAction || 'none', appPath: task.postFlightAppPath || '', url: task.postFlightUrl || '' };
+  const postFlight = { action: task.postFlightAction || 'none', appPath: task.postFlightAppPath || '', url: task.postFlightUrl || '', folder: task.postFlightFolder || '', script: task.postFlightScript || '', taskMsg: msg };
 
   await registerFlightTrigger();
   await recordFlightTrigger(task);
@@ -1835,6 +2081,14 @@ async function executePostFlightAction(postFlight) {
       await invoke('open_app', { path: postFlight.appPath });
     } else if (postFlight.action === 'url' && postFlight.url) {
       await invoke('open_url_in_browser', { url: postFlight.url });
+    } else if (postFlight.action === 'lock') {
+      await invoke('run_script', { script: 'pmset displaysleepnow' });
+    } else if (postFlight.action === 'folder' && postFlight.folder) {
+      await invoke('open_app', { path: postFlight.folder });
+    } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
+      await invoke('run_script', { script: `say "${(postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"')}"` });
+    } else if (postFlight.action === 'script' && postFlight.script) {
+      await invoke('run_script', { script: postFlight.script });
     }
   } catch (e) {
     console.error('Post-flight action failed:', e);
@@ -1897,6 +2151,7 @@ function openEditModal(task) {
 
   editLabel.value = task.label;
   editMsg.value = task.msg || '';
+  editGroup.value = task.group || '';
 
   editFlightMode.value = task.flightMode || 'once';
   editLoopCount.value = task.loopCount || 3;
@@ -1908,8 +2163,12 @@ function openEditModal(task) {
   editPostFlightAction.value = task.postFlightAction || 'none';
   editPostFlightAppPath.value = task.postFlightAppPath || '';
   editPostFlightUrl.value = task.postFlightUrl || '';
+  editPostFlightFolder.value = task.postFlightFolder || '';
+  editPostFlightScript.value = task.postFlightScript || '';
   postFlightAppField.classList.toggle('hidden', editPostFlightAction.value !== 'app');
   postFlightUrlField.classList.toggle('hidden', editPostFlightAction.value !== 'url');
+  postFlightFolderField.classList.toggle('hidden', editPostFlightAction.value !== 'folder');
+  postFlightScriptField.classList.toggle('hidden', editPostFlightAction.value !== 'script' && editPostFlightAction.value !== 'lock');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === task.type);
@@ -1972,6 +2231,7 @@ function openNewModal() {
 
   editLabel.value = '';
   editMsg.value = '';
+  editGroup.value = '';
 
   editFlightMode.value = 'once';
   editLoopCount.value = 3;
@@ -1983,8 +2243,12 @@ function openNewModal() {
   editPostFlightAction.value = 'none';
   editPostFlightAppPath.value = '';
   editPostFlightUrl.value = '';
+  editPostFlightFolder.value = '';
+  editPostFlightScript.value = '';
   postFlightAppField.classList.add('hidden');
   postFlightUrlField.classList.add('hidden');
+  postFlightFolderField.classList.add('hidden');
+  postFlightScriptField.classList.add('hidden');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === 'alarm');
@@ -2057,6 +2321,7 @@ function saveModal() {
 
     task.label = editLabel.value.trim();
     task.msg = editMsg.value.trim();
+    task.group = editGroup.value;
     task.type = type;
     task.flightMode = flightMode;
     task.loopCount = loopCount;
@@ -2065,9 +2330,12 @@ function saveModal() {
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
     task.color = selectedEditColor;
+    task.group = editGroup.value;
     task.postFlightAction = editPostFlightAction.value;
     task.postFlightAppPath = editPostFlightAppPath.value.trim();
     task.postFlightUrl = editPostFlightUrl.value.trim();
+    task.postFlightFolder = editPostFlightFolder.value.trim();
+    task.postFlightScript = editPostFlightScript.value.trim();
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -2185,9 +2453,12 @@ function saveModal() {
     task.imageData = editImageData || null;
     task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
     task.color = selectedEditColor;
+    task.group = editGroup.value;
     task.postFlightAction = editPostFlightAction.value;
     task.postFlightAppPath = editPostFlightAppPath.value.trim();
     task.postFlightUrl = editPostFlightUrl.value.trim();
+    task.postFlightFolder = editPostFlightFolder.value.trim();
+    task.postFlightScript = editPostFlightScript.value.trim();
     tasks.push(task);
   }
 
@@ -2213,7 +2484,7 @@ function deleteTask(task) {
 
 function getCleanTasks() {
   return tasks.map(t => {
-    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, postFlightAction: t.postFlightAction || 'none', postFlightAppPath: t.postFlightAppPath || '', postFlightUrl: t.postFlightUrl || '', imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
+    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, postFlightAction: t.postFlightAction || 'none', postFlightAppPath: t.postFlightAppPath || '', postFlightUrl: t.postFlightUrl || '', postFlightFolder: t.postFlightFolder || '', postFlightScript: t.postFlightScript || '', group: t.group || '', imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
     if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
     if (t.type === 'countdown') {
       const persisted = t._status === 'paused' ? t._remaining : undefined;
@@ -2239,6 +2510,9 @@ async function init() {
     postFlightAction: t.postFlightAction || 'none',
     postFlightAppPath: t.postFlightAppPath || '',
     postFlightUrl: t.postFlightUrl || '',
+    postFlightFolder: t.postFlightFolder || '',
+    postFlightScript: t.postFlightScript || '',
+    group: t.group || '',
     imageData: t.imageData || null,
     useImage: !!t.useImage,
     color: t.color || null,
@@ -2311,11 +2585,15 @@ async function init() {
   if (quietHoursToggle) quietHoursToggle.checked = !!cfg.quietHoursEnabled;
   if (quietStartHour) quietStartHour.value = cfg.quietStartHour || 22;
   if (quietEndHour) quietEndHour.value = cfg.quietEndHour || 8;
+  if (miniWindowToggle) miniWindowToggle.checked = !!cfg.miniWindowEnabled;
 
   renderTasks();
   startAlarmChecker();
   initHolidayChecklist();
   initSystemThemeWatcher();
+  setTimeout(() => {
+    if (miniWindowToggle?.checked) void createMiniWindow();
+  }, 2000);
   applyTheme(cfg.theme || 'system');
   initNotificationPermission();
   initColorPicker();
@@ -2475,6 +2753,8 @@ editPostFlightAction.addEventListener('change', () => {
   const v = editPostFlightAction.value;
   postFlightAppField.classList.toggle('hidden', v !== 'app');
   postFlightUrlField.classList.toggle('hidden', v !== 'url');
+  postFlightFolderField.classList.toggle('hidden', v !== 'folder');
+  postFlightScriptField.classList.toggle('hidden', v !== 'script' && v !== 'lock');
 });
 
 // Select app button
@@ -2490,6 +2770,22 @@ selectAppBtn.addEventListener('click', async () => {
     }
   } catch (e) {
     console.error('File dialog failed:', e);
+  }
+});
+
+selectFolderBtn?.addEventListener('click', async () => {
+  if (!isTauriRuntime) return;
+  try {
+    const selected = await openDialog({
+      multiple: false,
+      title: '选择文件夹',
+      directory: true,
+    });
+    if (selected) {
+      editPostFlightFolder.value = selected;
+    }
+  } catch (e) {
+    console.error('Folder dialog failed:', e);
   }
 });
 
@@ -2538,6 +2834,14 @@ taskTypeChips.forEach(chip => {
   chip.addEventListener('click', () => {
     taskTypeFilter = chip.dataset.type || 'all';
     taskTypeChips.forEach(c => c.classList.toggle('is-active', c === chip));
+    renderTasks();
+  });
+});
+
+document.querySelectorAll('.task-type-chip[data-group]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    taskGroupFilter = chip.dataset.group || 'all';
+    document.querySelectorAll('.task-type-chip[data-group]').forEach(c => c.classList.toggle('is-active', c === chip));
     renderTasks();
   });
 });
@@ -2670,6 +2974,15 @@ quietStartHour?.addEventListener('change', () => {
 });
 quietEndHour?.addEventListener('change', () => {
   persistSetting('quietEndHour', parseInt(quietEndHour.value) || 8);
+});
+
+miniWindowToggle?.addEventListener('change', () => {
+  persistSetting('miniWindowEnabled', miniWindowToggle.checked);
+  if (miniWindowToggle.checked) {
+    void createMiniWindow();
+  } else if (miniWindow) {
+    try { miniWindow.hide(); } catch (e) {}
+  }
 });
 
 speedSelect.addEventListener('change', () => persistSetting('speed', speedSelect.value));
@@ -2921,6 +3234,28 @@ if (isTauriRuntime) {
   });
   listen('toggle-mute', () => muteBtn.click());
 
+  listen('skip-current-flight', () => {
+    stopLoopSound();
+    clearFlightQueue();
+    if (activeFlightJob) {
+      activeFlightJob = null;
+    }
+    invoke('close_flight_windows').catch(() => {});
+    showToast('已跳过');
+  });
+
+  listen('cancel-post-flight', () => {
+    if (pendingPfCancel) { pendingPfCancel(); pendingPfCancel = null; }
+    closePostFlightNotify();
+    showToast('已取消飞行后操作');
+  });
+
+  listen('pf-notify-clicked', () => {
+    if (pendingPfCancel) { pendingPfCancel(); pendingPfCancel = null; }
+    closePostFlightNotify();
+    showToast('已取消飞行后操作');
+  });
+
   listen('emergency-landing', () => {
     void triggerEmergencyLanding();
   });
@@ -2982,6 +3317,7 @@ if (isTauriRuntime) {
     }
 
     releaseFlightQueue();
+    closePostFlightNotify();
     if (continued) return;
 
     if (inLoop && loopState) {
@@ -3023,17 +3359,41 @@ window.addEventListener('beforeunload', async () => {
 
 // --- Theme ---
 
+let themeCheckInterval = null;
+
 function applyTheme(theme) {
   currentTheme = theme;
   document.documentElement.setAttribute('data-theme', theme);
   themeButtons.forEach(btn => {
     btn.classList.toggle('is-active', btn.dataset.theme === theme);
   });
-  if (theme === 'system' && systemThemeMedia) {
-    const isDark = systemThemeMedia.matches;
-    document.documentElement.setAttribute('data-active-theme', isDark ? 'dark' : 'light');
-  } else {
-    document.documentElement.setAttribute('data-active-theme', theme);
+
+  const updateActive = () => {
+    let activeTheme;
+    if (theme === 'system' && systemThemeMedia) {
+      activeTheme = systemThemeMedia.matches ? 'dark' : 'light';
+    } else if (theme === 'auto-time') {
+      const h = new Date().getHours();
+      activeTheme = (h >= 6 && h < 18) ? 'light' : 'dark';
+    } else {
+      activeTheme = theme;
+    }
+    document.documentElement.setAttribute('data-active-theme', activeTheme);
+  };
+  updateActive();
+
+  if (themeCheckInterval) clearInterval(themeCheckInterval);
+  if (theme === 'auto-time') {
+    themeCheckInterval = setInterval(() => {
+      const h = new Date().getHours();
+      const isDark = h < 6 || h >= 18;
+      const currentActive = document.documentElement.getAttribute('data-active-theme');
+      if (isDark && currentActive === 'light') {
+        document.documentElement.setAttribute('data-active-theme', 'dark');
+      } else if (!isDark && currentActive === 'dark') {
+        document.documentElement.setAttribute('data-active-theme', 'light');
+      }
+    }, 60000);
   }
 }
 
@@ -3243,6 +3603,33 @@ async function renderStats() {
       statsTypesEl.appendChild(row);
     }
   }
+
+  renderAchievements(stats);
+}
+
+function computeAchievements(stats) {
+  const badges = [];
+  if (stats.totalCount >= 1) badges.push({ icon: '🛫', name: '首次起飞', desc: '完成第 1 次飞行' });
+  if (stats.totalCount >= 10) badges.push({ icon: '✈️', name: '飞行新星', desc: '累计飞行 10 次' });
+  if (stats.totalCount >= 100) badges.push({ icon: '🚀', name: '百次飞行', desc: '累计飞行 100 次' });
+  if (stats.totalCount >= 500) badges.push({ icon: '👑', name: '飞行达人', desc: '累计飞行 500 次' });
+  if (stats.last7Total >= 7) badges.push({ icon: '🔥', name: '周活跃', desc: '本周飞行 7 次以上' });
+  if (stats.last7Total >= 21) badges.push({ icon: '💪', name: '高频飞行', desc: '本周飞行 21 次以上' });
+  if (stats.byType && Object.values(stats.byType).filter(v => v > 0).length >= 4) {
+    badges.push({ icon: '🌟', name: '全能机长', desc: '使用过全部 4 种任务类型' });
+  }
+  return badges;
+}
+
+function renderAchievements(stats) {
+  const el = document.getElementById('achievementBadges');
+  if (!el) return;
+  const badges = computeAchievements(stats);
+  if (badges.length === 0) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = badges.slice(-5).map(b =>
+    `<span class="achievement-badge" title="${b.name}: ${b.desc}">${b.icon} ${b.name}</span>`
+  ).join(' ');
 }
 
 function initSystemThemeWatcher() {
