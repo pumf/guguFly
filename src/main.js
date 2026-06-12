@@ -1143,6 +1143,46 @@ function getTaskStatusLabel(task) {
 }
 
 let miniWindow = null;
+const MINI_POSITIONS = {
+  'top-left': { x: 12, y: 12 },
+  'top-center': { x: 'center-x', y: 12 },
+  'top-right': { x: 'right-12', y: 12 },
+  'bottom-left': { x: 12, y: 'bottom-12' },
+  'bottom-center': { x: 'center-x', y: 'bottom-12' },
+  'bottom-right': { x: 'right-12', y: 'bottom-12' },
+};
+const MINI_WIN_WIDTH = 240;
+const MINI_WIN_HEIGHT = 48;
+
+async function computeMiniPos(posKey) {
+  const pos = MINI_POSITIONS[posKey] || MINI_POSITIONS['top-right'];
+  let screenX = 0, screenY = 0, screenW = 1440, screenH = 900;
+  try {
+    const { currentMonitor, primaryMonitor } = await import('@tauri-apps/api/window');
+    const m = (await currentMonitor()) || (await primaryMonitor());
+    if (m) {
+      screenX = m.position.x;
+      screenY = m.position.y;
+      screenW = m.size.width;
+      screenH = m.size.height;
+    }
+  } catch (e) {}
+  const margin = 12;
+  const maxX = screenX + screenW - MINI_WIN_WIDTH - margin;
+  const maxY = screenY + screenH - MINI_WIN_HEIGHT - margin;
+  let x = screenX + margin;
+  let y = screenY + margin;
+  if (pos.x === 'center-x') x = screenX + Math.round((screenW - MINI_WIN_WIDTH) / 2);
+  else if (pos.x === 'right-12') x = maxX;
+  else if (typeof pos.x === 'number') x = screenX + pos.x;
+  if (pos.y === 'bottom-12') y = maxY;
+  else if (typeof pos.y === 'number') y = screenY + pos.y;
+  if (x < screenX) x = screenX;
+  if (y < screenY) y = screenY;
+  if (x > maxX) x = maxX;
+  if (y > maxY) y = maxY;
+  return { x, y };
+}
 
 async function createMiniWindow() {
   if (!isTauriRuntime) return;
@@ -1151,10 +1191,11 @@ async function createMiniWindow() {
     return;
   }
   try {
+    const pos = await computeMiniPos(await get('miniWindowPosition') || 'top-right');
     miniWindow = new WebviewWindow('gugufly-mini', {
       url: '/mini.html',
-      width: 420, height: 56,
-      x: 10, y: 10,
+      width: MINI_WIN_WIDTH, height: MINI_WIN_HEIGHT,
+      x: pos.x, y: pos.y,
       transparent: true, decorations: false,
       alwaysOnTop: true, skipTaskbar: true,
       resizable: false, focus: false, visible: true,
@@ -1163,12 +1204,25 @@ async function createMiniWindow() {
   } catch (e) { console.error('mini create failed:', e); miniWindow = null; }
 }
 
-async function positionMiniWindow() {
+async function positionMiniWindow(posKey) {
   if (!miniWindow) return;
   try {
-    const m = await appWindow.currentMonitor();
-    if (m) await miniWindow.setPosition({ x: m.position.x + m.size.width - 270, y: m.position.y + 12 });
+    const key = posKey || (await get('miniWindowPosition')) || 'top-right';
+    const p = await computeMiniPos(key);
+    await miniWindow.setPosition({ x: p.x, y: p.y });
   } catch (e) {}
+}
+
+function formatUpcomingTime(sec) {
+  if (sec < 60) return sec + '秒后';
+  if (sec < 3600) return Math.floor(sec / 60) + '分钟后';
+  if (sec < 86400) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return m > 0 ? h + '小时' + m + '分钟后' : h + '小时后';
+  }
+  const d = Math.floor(sec / 86400);
+  return d + '天后';
 }
 
 async function updateMiniWindow() {
@@ -1176,11 +1230,10 @@ async function updateMiniWindow() {
   const upcoming = await getNextUpcomingTask();
   try {
     const { emit } = await import('@tauri-apps/api/event');
-    if (upcoming && upcoming.minutes <= 1440) {
+    if (upcoming && upcoming.seconds <= 86400) {
       const icon = upcoming.task.type === 'alarm' ? '⏰' : upcoming.task.type === 'countdown' ? '⏱' : '📅';
       const label = upcoming.task.label || '提醒';
-      const m = upcoming.minutes;
-      const time = m < 1 ? '即将' : m < 60 ? m + 'min后' : Math.floor(m/60) + 'h后';
+      const time = formatUpcomingTime(upcoming.seconds);
       await emit('mini-set-content', { icon: icon, text: label, detail: time });
     } else {
       await emit('mini-set-content', { icon: '📋', text: '暂无提醒', detail: '' });
@@ -1766,28 +1819,27 @@ let alarmInterval = null;
 
 async function getNextUpcomingTask() {
   const now = new Date();
-  let bestTask = null, bestTime = Infinity;
+  let bestTask = null, bestSec = Infinity;
   for (const task of tasks) {
     if (!task.enabled) continue;
     if (task.type === 'alarm') {
       const today = now.toDateString();
       if (task._lastTriggeredDate === today) continue;
-      const tMin = task.hour * 60 + task.minute;
-      const nMin = now.getHours() * 60 + now.getMinutes();
-      let wait = tMin - nMin;
-      if (wait <= 0) wait += 1440;
-      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), task.hour, task.minute, 0, 0);
+      let diff = Math.round((target - now) / 1000);
+      if (diff <= 0) diff += 86400;
+      if (diff < bestSec) { bestSec = diff; bestTask = task; }
     } else if (task.type === 'holiday' || task.type === 'anniversary') {
-      const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
+      const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute, 0, 0);
       if (target <= now) target.setFullYear(target.getFullYear() + 1);
-      const wait = Math.ceil((target - now) / 60000);
-      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+      const diff = Math.round((target - now) / 1000);
+      if (diff < bestSec) { bestSec = diff; bestTask = task; }
     } else if (task.type === 'countdown' && task._status === 'running') {
-      const wait = Math.ceil(task._remaining / 60);
-      if (wait < bestTime) { bestTime = wait; bestTask = task; }
+      const diff = Math.max(0, Math.round(task._remaining || 0));
+      if (diff < bestSec) { bestSec = diff; bestTask = task; }
     }
   }
-  return bestTask ? { task: bestTask, minutes: bestTime } : null;
+  return bestTask ? { task: bestTask, seconds: bestSec, minutes: Math.floor(bestSec / 60) } : null;
 }
 
 const previewedTasks = new Set();
@@ -2586,6 +2638,7 @@ async function init() {
   if (quietStartHour) quietStartHour.value = cfg.quietStartHour || 22;
   if (quietEndHour) quietEndHour.value = cfg.quietEndHour || 8;
   if (miniWindowToggle) miniWindowToggle.checked = !!cfg.miniWindowEnabled;
+  if (cfg.miniWindowPosition) updateMiniPosGridActive(cfg.miniWindowPosition);
 
   renderTasks();
   startAlarmChecker();
@@ -2984,6 +3037,35 @@ miniWindowToggle?.addEventListener('change', () => {
     try { miniWindow.hide(); } catch (e) {}
   }
 });
+
+const miniPosGrid = document.getElementById('miniPosGrid');
+if (miniPosGrid) {
+  miniPosGrid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.mini-pos-cell');
+    if (!btn) return;
+    const pos = btn.dataset.pos;
+    if (!pos || !MINI_POSITIONS[pos]) return;
+    await persistSetting('miniWindowPosition', pos);
+    updateMiniPosGridActive(pos);
+    if (miniWindow) {
+      try {
+        const p = await computeMiniPos(pos);
+        const { emit } = await import('@tauri-apps/api/event');
+        await emit('mini-set-position', { x: p.x, y: p.y });
+      } catch (err) {
+        console.error('set mini position failed:', err);
+      }
+    }
+  });
+}
+
+function updateMiniPosGridActive(posKey) {
+  const grid = document.getElementById('miniPosGrid');
+  if (!grid) return;
+  grid.querySelectorAll('.mini-pos-cell').forEach(c => {
+    c.classList.toggle('active', c.dataset.pos === posKey);
+  });
+}
 
 speedSelect.addEventListener('change', () => persistSetting('speed', speedSelect.value));
 heightSelect.addEventListener('change', () => persistSetting('height', heightSelect.value));

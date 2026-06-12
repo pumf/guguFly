@@ -69,6 +69,13 @@ fn close_flight_windows(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn mini_start_dragging(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("gugufly-mini") {
+        let _ = w.start_dragging();
+    }
+}
+
+#[tauri::command]
 fn open_app(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -395,7 +402,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

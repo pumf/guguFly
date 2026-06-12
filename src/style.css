@@ -1437,6 +1437,50 @@ body {
   color: var(--text);
 }
 
+.mini-pos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 156px;
+}
+.mini-pos-cell {
+  position: relative;
+  width: 48px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(129, 149, 182, 0.18);
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.mini-pos-cell:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.08);
+}
+.mini-pos-cell.active {
+  border-color: rgba(102, 126, 234, 0.7);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.18);
+}
+.mini-pos-dot {
+  position: absolute;
+  width: 14px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 1px 3px rgba(102, 126, 234, 0.4);
+}
+.dot-tl { top: 4px; left: 4px; }
+.dot-tc { top: 4px; left: 50%; transform: translateX(-50%); }
+.dot-tr { top: 4px; right: 4px; }
+.dot-bl { bottom: 4px; left: 4px; }
+.dot-bc { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.dot-br { bottom: 4px; right: 4px; }
+
 .settings-list {
   display: grid;
   gap: 8px;

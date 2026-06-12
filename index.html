@@ -637,12 +637,23 @@
               </div>
               <div class="settings-block">
                 <div class="settings-block-title">迷你悬浮窗</div>
-                <p class="settings-hint">在屏幕右上角显示下次提醒倒计时。</p>
+                <p class="settings-hint">在屏幕角落显示下次提醒倒计时，位置可拖动。</p>
                 <div class="form-row" style="margin-top:6px">
                   <label class="img-toggle">
                     <input type="checkbox" id="miniWindowToggle" />
                     <span>启用</span>
                   </label>
+                </div>
+                <div class="form-row" style="margin-top:10px;align-items:flex-start">
+                  <label style="white-space:nowrap;padding-top:6px">位置</label>
+                  <div class="mini-pos-grid" id="miniPosGrid">
+                    <button type="button" class="mini-pos-cell" data-pos="top-left" title="左上角"><span class="mini-pos-dot dot-tl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-center" title="顶部居中"><span class="mini-pos-dot dot-tc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-right" title="右上角"><span class="mini-pos-dot dot-tr"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-left" title="左下角"><span class="mini-pos-dot dot-bl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-center" title="底部居中"><span class="mini-pos-dot dot-bc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-right" title="右下角"><span class="mini-pos-dot dot-br"></span></button>
+                  </div>
                 </div>
               </div>
               <div class="settings-block">

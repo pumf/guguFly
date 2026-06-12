@@ -9,7 +9,7 @@ background:linear-gradient(135deg,#667eea,#764ba2);
 color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4)}
 #i{font-size:18px}#t{font-weight:700;font-size:14px}#d{opacity:.8;font-size:13px;margin-left:2px}
 </style></head><body>
-<div id="m"><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
+<div id="m" data-tauri-drag-region><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
 <script>
 (async function(){
   function setContent(icon, text, detail) {
@@ -19,6 +19,10 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
       if (detail !== undefined) document.getElementById('d').textContent = detail;
     } catch(e) {}
   }
+  function getWin() {
+    try { return window.__TAURI__ && window.__TAURI__.webviewWindow ? window.__TAURI__.webviewWindow.getCurrentWebviewWindow() : null; } catch(e){ return null; }
+  }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   try {
     if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
       await window.__TAURI__.event.listen('mini-set-content', function(event){
@@ -26,56 +30,71 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
         if (!p) return;
         setContent(p.icon, p.text, p.detail);
       });
+      await window.__TAURI__.event.listen('mini-set-position', function(event){
+        var p = event && event.payload;
+        if (!p) return;
+        var w = getWin();
+        if (w && w.setPosition && typeof p.x === 'number' && typeof p.y === 'number') {
+          try { w.setPosition({ type: 'Physical', x: Math.round(p.x), y: Math.round(p.y) }); } catch(e){}
+        }
+      });
     }
   } catch(e) {}
 
   var dragging = false;
-  var startX = 0, startY = 0;
-  var winStartX = 0, winStartY = 0;
+  var startMouseX = 0, startMouseY = 0;
+  var curWinX = 0, curWinY = 0;
+  var winInit = false;
   var rafId = 0;
   var pendingX = 0, pendingY = 0;
-  function getWin() {
-    try { return window.__TAURI__ && window.__TAURI__.webviewWindow ? window.__TAURI__.webviewWindow.getCurrentWebviewWindow() : null; } catch(e){ return null; }
-  }
-  function setWinPos(x, y) {
+  var screenW = 0, screenH = 0;
+  var winW = 240, winH = 48;
+
+  function applyPos() {
+    rafId = 0;
     var w = getWin();
     if (w && w.setPosition) {
-      try { w.setPosition({ type: 'Physical', x: Math.round(x), y: Math.round(y) }); } catch(e){}
+      try { w.setPosition({ type: 'Physical', x: Math.round(pendingX), y: Math.round(pendingY) }); } catch(e){}
     }
+    curWinX = pendingX; curWinY = pendingY;
   }
-  function scheduleMove(x, y) {
+  function schedule(x, y) {
     pendingX = x; pendingY = y;
     if (rafId) return;
-    rafId = requestAnimationFrame(function(){
-      rafId = 0;
-      setWinPos(pendingX, pendingY);
-    });
+    rafId = requestAnimationFrame(applyPos);
   }
-  function getCurrentWinPos() {
+  function getScreen() {
     try {
-      var w = getWin();
-      if (w && w.outerPosition) {
-        return w.outerPosition().then(function(p){ return { x: p.x, y: p.y }; }).catch(function(){ return null; });
+      if (window.__TAURI__ && window.__TAURI__.window) {
+        return window.__TAURI__.window.currentMonitor().then(function(m){
+          if (m) return m;
+          return window.__TAURI__.window.primaryMonitor();
+        }).then(function(m){
+          if (m) { screenW = m.size.width; screenH = m.size.height; }
+        }).catch(function(){});
       }
-    } catch(e){}
-    return Promise.resolve(null);
+    } catch(e) {}
+    screenW = window.screen ? window.screen.width : 1440;
+    screenH = window.screen ? window.screen.height : 900;
+    return Promise.resolve();
   }
-  function onMouseDown(e) {
-    e.preventDefault();
-    dragging = true;
-    document.body.classList.add('dragging');
-    startX = e.screenX || e.clientX;
-    startY = e.screenY || e.clientY;
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+  function syncWin() {
+    var w = getWin();
+    if (!w) return Promise.resolve();
+    return Promise.all([
+      w.outerPosition().then(function(p){ if (p) { curWinX = p.x; curWinY = p.y; winInit = true; } }).catch(function(){}),
+      w.outerSize().then(function(s){ if (s) { winW = s.width; winH = s.height; } }).catch(function(){}),
+      getScreen()
+    ]);
   }
+
   function onMouseMove(e) {
     if (!dragging) return;
-    var curX = e.screenX || e.clientX;
-    var curY = e.screenY || e.clientY;
-    var dx = curX - startX;
-    var dy = curY - startY;
-    scheduleMove(winStartX + dx, winStartY + dy);
+    var dx = e.clientX - startMouseX;
+    var dy = e.clientY - startMouseY;
+    var maxX = Math.max(0, screenW - winW);
+    var maxY = Math.max(0, screenH - winH);
+    schedule(clamp(curWinX + dx, 0, maxX), clamp(curWinY + dy, 0, maxY));
   }
   function onMouseUp() {
     dragging = false;
@@ -83,36 +102,34 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   }
-  document.body.addEventListener('mousedown', function(e){
-    if (e.button !== undefined && e.button !== 0) return;
-    getCurrentWinPos().then(function(p){
-      if (p) { winStartX = p.x; winStartY = p.y; } else { winStartX = 10; winStartY = 10; }
-    });
-    onMouseDown(e);
-  });
-  document.body.addEventListener('touchstart', function(e){
-    if (e.touches && e.touches[0]) {
-      var t = e.touches[0];
-      getCurrentWinPos().then(function(p){
-        if (p) { winStartX = p.x; winStartY = p.y; } else { winStartX = 10; winStartY = 10; }
-      });
-      dragging = true;
-      document.body.classList.add('dragging');
-      startX = t.screenX || t.clientX;
-      startY = t.screenY || t.clientY;
-      document.addEventListener('touchmove', onTouchMove, { passive: false });
-      document.addEventListener('touchend', onTouchEnd);
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+    var t = e.target;
+    while (t && t !== document.body) {
+      var tag = t.tagName;
+      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      t = t.parentNode;
     }
-  }, { passive: false });
+    e.preventDefault();
+    startMouseX = e.clientX;
+    startMouseY = e.clientY;
+    dragging = true;
+    document.body.classList.add('dragging');
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    syncWin();
+  }
+  document.addEventListener('mousedown', onMouseDown);
+
   function onTouchMove(e) {
     if (!dragging || !e.touches[0]) return;
     e.preventDefault();
     var t = e.touches[0];
-    var curX = t.screenX || t.clientX;
-    var curY = t.screenY || t.clientY;
-    var dx = curX - startX;
-    var dy = curY - startY;
-    scheduleMove(winStartX + dx, winStartY + dy);
+    var dx = t.clientX - startMouseX;
+    var dy = t.clientY - startMouseY;
+    var maxX = Math.max(0, screenW - winW);
+    var maxY = Math.max(0, screenH - winH);
+    schedule(clamp(curWinX + dx, 0, maxX), clamp(curWinY + dy, 0, maxY));
   }
   function onTouchEnd() {
     dragging = false;
@@ -120,6 +137,26 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
     document.removeEventListener('touchmove', onTouchMove);
     document.removeEventListener('touchend', onTouchEnd);
   }
+  function onTouchStart(e) {
+    if (!e.touches || !e.touches[0]) return;
+    var t = e.target;
+    while (t && t !== document.body) {
+      var tag = t.tagName;
+      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      t = t.parentNode;
+    }
+    e.preventDefault();
+    startMouseX = e.touches[0].clientX;
+    startMouseY = e.touches[0].clientY;
+    dragging = true;
+    document.body.classList.add('dragging');
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    syncWin();
+  }
+  document.addEventListener('touchstart', onTouchStart, { passive: false });
+
+  setTimeout(syncWin, 200);
 })();
 </script>
 </body></html>
