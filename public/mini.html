@@ -9,7 +9,7 @@ background:linear-gradient(135deg,#667eea,#764ba2);
 color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4)}
 #i{font-size:18px}#t{font-weight:700;font-size:14px}#d{opacity:.8;font-size:13px;margin-left:2px}
 </style></head><body>
-<div id="m" data-tauri-drag-region><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
+<div id="m"><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
 <script>
 (async function(){
   function setContent(icon, text, detail) {
@@ -44,10 +44,9 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
   var dragging = false;
   var startMouseX = 0, startMouseY = 0;
   var curWinX = 0, curWinY = 0;
-  var winInit = false;
   var rafId = 0;
   var pendingX = 0, pendingY = 0;
-  var screenW = 0, screenH = 0;
+  var screenW = 1440, screenH = 900;
   var winW = 240, winH = 48;
 
   function applyPos() {
@@ -63,29 +62,19 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
     if (rafId) return;
     rafId = requestAnimationFrame(applyPos);
   }
-  function getScreen() {
-    try {
-      if (window.__TAURI__ && window.__TAURI__.window) {
-        return window.__TAURI__.window.currentMonitor().then(function(m){
-          if (m) return m;
-          return window.__TAURI__.window.primaryMonitor();
-        }).then(function(m){
-          if (m) { screenW = m.size.width; screenH = m.size.height; }
-        }).catch(function(){});
-      }
-    } catch(e) {}
-    screenW = window.screen ? window.screen.width : 1440;
-    screenH = window.screen ? window.screen.height : 900;
-    return Promise.resolve();
-  }
   function syncWin() {
     var w = getWin();
-    if (!w) return Promise.resolve();
-    return Promise.all([
-      w.outerPosition().then(function(p){ if (p) { curWinX = p.x; curWinY = p.y; winInit = true; } }).catch(function(){}),
-      w.outerSize().then(function(s){ if (s) { winW = s.width; winH = s.height; } }).catch(function(){}),
-      getScreen()
-    ]);
+    if (!w) return;
+    if (window.__TAURI__ && window.__TAURI__.window) {
+      window.__TAURI__.window.currentMonitor().then(function(m){
+        if (!m) return window.__TAURI__.window.primaryMonitor();
+        return m;
+      }).then(function(m){
+        if (m) { screenW = m.size.width; screenH = m.size.height; }
+      }).catch(function(){});
+    }
+    w.outerPosition().then(function(p){ if (p) { curWinX = p.x; curWinY = p.y; } }).catch(function(){});
+    w.outerSize().then(function(s){ if (s) { winW = s.width; winH = s.height; } }).catch(function(){});
   }
 
   function onMouseMove(e) {
@@ -104,12 +93,6 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
   }
   function onMouseDown(e) {
     if (e.button !== 0) return;
-    var t = e.target;
-    while (t && t !== document.body) {
-      var tag = t.tagName;
-      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      t = t.parentNode;
-    }
     e.preventDefault();
     startMouseX = e.clientX;
     startMouseY = e.clientY;
@@ -139,12 +122,6 @@ color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,
   }
   function onTouchStart(e) {
     if (!e.touches || !e.touches[0]) return;
-    var t = e.target;
-    while (t && t !== document.body) {
-      var tag = t.tagName;
-      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      t = t.parentNode;
-    }
     e.preventDefault();
     startMouseX = e.touches[0].clientX;
     startMouseY = e.touches[0].clientY;
