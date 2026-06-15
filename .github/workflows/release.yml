@@ -42,6 +42,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-macos-intel:
+    runs-on: macos-13
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Tauri
+        run: npm run tauri build -- --target x86_64-apple-darwin
+
+      - name: Upload
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          tag_name: v${{ inputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-linux:
     runs-on: ubuntu-24.04
     permissions:
