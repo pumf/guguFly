@@ -1,6 +1,24 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { emit } from '@tauri-apps/api/event';
 
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
+    const r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+    const clamped = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + clamped, y);
+    this.lineTo(x + w - clamped, y);
+    this.arcTo(x + w, y, x + w, y + clamped, clamped);
+    this.lineTo(x + w, y + h - clamped);
+    this.arcTo(x + w, y + h, x + w - clamped, y + h, clamped);
+    this.lineTo(x + clamped, y + h);
+    this.arcTo(x, y + h, x, y + h - clamped, clamped);
+    this.lineTo(x, y + clamped);
+    this.arcTo(x, y, x + clamped, y, clamped);
+    this.closePath();
+    return this;
+  };
+}
+
 let appWindow;
 try {
   appWindow = getCurrentWebviewWindow();
