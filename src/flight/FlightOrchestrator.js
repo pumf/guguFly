@@ -434,13 +434,20 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'lock') {
       const confirmed = await ask('即将锁屏，是否继续？', { title: '咕咕机长', kind: 'warning' });
       if (!confirmed) return;
-      await invoke('run_script', { script: 'pmset displaysleepnow' });
+      const lockScript = navigator.platform.includes('Win')
+        ? 'rundll32.exe user32.dll,LockWorkStation'
+        : 'pmset displaysleepnow';
+      await invoke('run_script', { script: lockScript });
     } else if (postFlight.action === 'folder' && postFlight.folder) {
       await invoke('open_app', { path: postFlight.folder });
     } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
       const confirmed = await ask('将执行语音播报，是否继续？', { title: '咕咕机长', kind: 'warning' });
       if (!confirmed) return;
-      await invoke('run_script', { script: `say "${(postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"')}"` });
+      const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
+      const ttsScript = navigator.platform.includes('Win')
+        ? `powershell -Command "Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.Speak(\\"${ttsText}\\")"`
+        : `say "${ttsText}"`;
+      await invoke('run_script', { script: ttsScript });
     } else if (postFlight.action === 'script' && postFlight.script) {
       const confirmed = await ask('将执行自定义脚本，是否继续？', { title: '咕咕机长', kind: 'warning' });
       if (!confirmed) return;

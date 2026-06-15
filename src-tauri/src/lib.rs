@@ -35,11 +35,21 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
 
 #[tauri::command]
 fn run_script(script: String) -> Result<(), String> {
-    std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&script)
-        .spawn()
-        .map_err(|e| format!("执行失败: {}", e))?;
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", &script])
+            .spawn()
+            .map_err(|e| format!("执行失败: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("执行失败: {}", e))?;
+    }
     Ok(())
 }
 
