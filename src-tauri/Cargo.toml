@@ -1,6 +1,6 @@
 [package]
 name = "gugufly"
-version = "0.4.0"
+version = "0.5.0"
 description = "咕咕机长 - 桌面定时提醒小工具"
 authors = ["you"]
 license = "MIT"

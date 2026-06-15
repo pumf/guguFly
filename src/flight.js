@@ -13,8 +13,8 @@ const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');
 
 const params = new URLSearchParams(window.location.search);
-const W = parseInt(params.get('w')) || 1920;
-const H = parseInt(params.get('h')) || 1080;
+const W = parseInt(params.get('w') || localStorage.getItem('_flightW')) || 1920;
+const H = parseInt(params.get('h') || localStorage.getItem('_flightH')) || 1080;
 
 const speedMap = { vslow: 0.1, slow: 0.2, normal: 0.35, fast: 0.6 };
 const heightMap = { top: 0.25, center: 0.5, bottom: 0.75 };
@@ -26,19 +26,19 @@ const effectMap = {
   playful: { durationBase: 3100, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 78, floatAmount: 8, travelMid: 0.18, fadeIn: 0.14, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 1.35, path: 'sine', pathAmplitude: 70 },
 };
 
-const speedFactor = speedMap[params.get('speed')] || 0.35;
-const heightPos = heightMap[params.get('height')] || 0.5;
-const effectStyle = params.get('effect') || 'steady';
+const speedFactor = speedMap[params.get('speed') || localStorage.getItem('_flightSpeed')] || 0.35;
+const heightPos = heightMap[params.get('height') || localStorage.getItem('_flightHeight')] || 0.5;
+const effectStyle = params.get('effect') || localStorage.getItem('_flightEffect') || 'steady';
 const effectConfig = effectMap[effectStyle] || effectMap.steady;
-const customMsg = params.get('msg') || '';
-const planeStyle = params.get('plane') || 'classic';
-const particleStyle = params.get('particle') || 'classic';
-const bubbleStyle = params.get('bubble') || 'classic';
-const bubblePosition = params.get('bubblePosition') || 'top';
+const customMsg = params.get('msg') || localStorage.getItem('_flightMsg') || '';
+const planeStyle = params.get('plane') || localStorage.getItem('_flightPlane') || 'classic';
+const particleStyle = params.get('particle') || localStorage.getItem('_flightParticle') || 'classic';
+const bubbleStyle = params.get('bubble') || localStorage.getItem('_flightBubble') || 'classic';
+const bubblePosition = params.get('bubblePosition') || localStorage.getItem('_flightBubblePos') || 'top';
 const imageData = localStorage.getItem('_flightImage') || '';
 const useImage = localStorage.getItem('_flightUseImage') === '1';
-const direction = params.get('dir') || 'ltr';
-const sequenceId = params.get('seq') || '';
+const direction = params.get('dir') || localStorage.getItem('_flightDir') || 'ltr';
+const sequenceId = params.get('seq') || localStorage.getItem('_flightSeq') || '';
 
 const isRtl = direction === 'rtl';
 let flightDirection = isRtl ? -1 : 1;

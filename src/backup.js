@@ -12,7 +12,7 @@ function formatDateForFile(date = new Date()) {
   return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}-${pad2(date.getHours())}${pad2(date.getMinutes())}`;
 }
 
-function buildBackupPayload(tasks, settingsMap) {
+function buildBackupPayload(tasks, settingsMap, appVersion) {
   const exportedSettings = {};
   for (const key of EXPORTABLE_KEYS) {
     if (settingsMap[key] !== undefined) {
@@ -23,7 +23,7 @@ function buildBackupPayload(tasks, settingsMap) {
     kind: BACKUP_KIND,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    appVersion: '0.1.0',
+    appVersion: appVersion || '0.0.0',
     tasks,
     settings: exportedSettings,
   };
@@ -43,8 +43,8 @@ function validateBackup(data) {
   return null;
 }
 
-export function exportTasksAsJson(tasks, settingsMap = {}) {
-  const payload = buildBackupPayload(tasks, settingsMap);
+export function exportTasksAsJson(tasks, settingsMap = {}, appVersion) {
+  const payload = buildBackupPayload(tasks, settingsMap, appVersion);
   const json = JSON.stringify(payload, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);

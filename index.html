@@ -84,6 +84,13 @@
             </div>
             <div id="weeklySummary" class="weekly-summary-stats hidden"></div>
             <div id="achievementBadges" class="achievement-badges hidden"></div>
+            <div class="stats-block">
+              <div class="stats-block-head">
+                <strong>📋 任务触发历史</strong>
+                <span style="font-size:12px;color:#b2bec3">近 7 天</span>
+              </div>
+              <div id="taskHistoryPanel"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -402,6 +409,15 @@
               </div>
               <div class="form-row">
                 <label>重复</label>
+                <select id="editRepeatType" class="edit-input" style="flex:1;max-width:200px">
+                  <option value="weekly">每周特定日期</option>
+                  <option value="monthly_date">每月某号</option>
+                  <option value="monthly_weekday">每月第几个周X</option>
+                  <option value="interval">每N天</option>
+                </select>
+              </div>
+              <div id="repeatWeeklyFields" class="form-row">
+                <label>星期</label>
                 <div class="repeat-days">
                   <button class="day-btn" data-day="1">一</button>
                   <button class="day-btn" data-day="2">二</button>
@@ -411,6 +427,36 @@
                   <button class="day-btn" data-day="6">六</button>
                   <button class="day-btn" data-day="0">日</button>
                 </div>
+              </div>
+              <div id="repeatMonthlyDateFields" class="form-row hidden">
+                <label>日期</label>
+                <input type="number" id="editRepeatMonthDay" class="time-input" min="1" max="31" value="15" style="width:80px" />
+                <span style="font-size:12px;color:#b2bec3;margin-left:8px">号</span>
+              </div>
+              <div id="repeatMonthlyWeekdayFields" class="form-row hidden">
+                <label>第</label>
+                <select id="editRepeatWeek" class="edit-input" style="width:100px">
+                  <option value="1">第一个</option>
+                  <option value="2">第二个</option>
+                  <option value="3">第三个</option>
+                  <option value="4">第四个</option>
+                  <option value="5">最后一个</option>
+                </select>
+                <span style="margin:0 6px;color:#b2bec3">个</span>
+                <select id="editRepeatWeekday" class="edit-input" style="width:80px">
+                  <option value="1">周一</option>
+                  <option value="2">周二</option>
+                  <option value="3">周三</option>
+                  <option value="4">周四</option>
+                  <option value="5">周五</option>
+                  <option value="6">周六</option>
+                  <option value="0">周日</option>
+                </select>
+              </div>
+              <div id="repeatIntervalFields" class="form-row hidden">
+                <label>间隔</label>
+                <input type="number" id="editRepeatInterval" class="time-input" min="1" max="999" value="3" style="width:80px" />
+                <span style="font-size:12px;color:#b2bec3;margin-left:8px">天</span>
               </div>
             </div>
             <div id="countdownFields" class="form-group hidden">

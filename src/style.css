@@ -376,6 +376,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 .stats-cards {
@@ -1749,6 +1751,23 @@ body {
   color: var(--soft-muted);
 }
 
+#editRepeatType {
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(135, 151, 184, 0.22);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+[data-active-theme="dark"] #editRepeatType {
+  background: rgba(20, 26, 38, 0.72);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
 .repeat-days {
   display: flex;
   gap: 6px;
@@ -2388,4 +2407,97 @@ body {
 [data-active-theme="dark"] .update-badge--current {
   background: rgba(255,255,255,0.08);
   color: #b2bec3;
+}
+
+/* --- Task History Panel --- */
+.hist-task-row {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.hist-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hist-task-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.hist-task-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #2d3436);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hist-task-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent, #2d7ff9);
+  flex-shrink: 0;
+}
+
+.hist-daily-row {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hist-daily-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 36px;
+}
+
+.hist-bar {
+  flex: 1;
+  background: linear-gradient(180deg, #2d7ff9, #57a7ff);
+  border-radius: 3px 3px 0 0;
+  min-width: 8px;
+  transition: height 0.2s ease;
+}
+
+.hist-bar.is-empty {
+  background: rgba(135, 151, 184, 0.12);
+  height: 2px;
+}
+
+.hist-day-labels {
+  display: flex;
+  gap: 3px;
+}
+
+.hist-day-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted, #b2bec3);
+}
+
+.hist-day-label.is-empty {
+  color: rgba(135, 151, 184, 0.3);
+}
+
+[data-active-theme="dark"] .hist-task-row {
+  background: rgba(20, 26, 38, 0.72);
+  border-color: var(--border-strong);
+}
+
+[data-active-theme="dark"] .hist-bar {
+  background: linear-gradient(180deg, #4a8af4, #7bb7ff);
+}
+
+[data-active-theme="dark"] .hist-bar.is-empty {
+  background: rgba(255, 255, 255, 0.06);
 }

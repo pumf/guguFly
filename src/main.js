@@ -2,77 +2,57 @@ import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewW
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { AccurateTimer } from './timer.js';
-import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak } from './storage.js';
+import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog } from './storage.js';
 import { getRandomQuote } from './quotes.js';
-import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
-import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
-import { recordFlightTrigger, computeFlightStats } from './storage.js';
-import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { exportTasksAsJson, readBackupFromFile } from './backup.js';
+import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
-let appWindow;
-try {
-  appWindow = getCurrentWebviewWindow();
-} catch (e) {
-  appWindow = null;
-}
-const isTauriRuntime = !!appWindow;
+import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
+import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';
+import { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from './tasks/TaskUtils.js';
+import { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from './flight/FlightPresets.js';
+import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl } from './flight/FlightOrchestrator.js';
+import { renderTasks, updateCountdownTaskUI } from './ui/TaskRenderer.js';
+import { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from './tasks/CountdownTimer.js';
+import { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from './tasks/AlarmChecker.js';
+import { openEditModal, openNewModal, closeModal, saveModal, deleteTask, validateUpload, initHolidayChecklist } from './ui/ModalController.js';
+import { renderStats, setStatsTasks } from './ui/StatsPanel.js';
+import { renderTaskHistory, setHistoryTasks } from './ui/HistoryPanel.js';
+import { initAudioSystem, unlockAudioIfNeeded, revokeCustomAudioObjectUrl, stopLoopSoundLocal, updateSoundMeta, previewCustomSound, resetAudioPreview, syncAudioObjectUrlTo } from './ui/AudioSystem.js';
+import { createMiniWindow, closeMiniWindow, positionMiniWindow, updateMiniWindow, updateMiniPosGridActive, getMiniPositions } from './ui/MiniWindow.js';
+import { applyTheme, initSystemThemeWatcher } from './settings/ThemeManager.js';
+import { loadSettings, persistSetting, persistFlightSettings, isInQuietHours } from './settings/SettingsManager.js';
+import { getCurrentVersion, autoCheckForUpdate, checkForUpdate, openReleasePage, openFeedbackPage, setUpdateStatusEl } from './settings/UpdateManager.js';
+import { initNotificationPermission, notifyFlightTriggered } from './ui/NotificationManager.js';
+import { parseDeepLinkUrl, buildTaskFromDeepLink } from './flight/DeepLink.js';
+import { initEmergency, triggerEmergencyLanding } from './flight/Emergency.js';
+import { initFlightSync, syncEffectPicker, syncPresetButtons, applyPreset } from './settings/FlightSync.js';
+import { initColorPicker as initColorPickerModule, getSelectedEditColor, selectColor } from './ui/ColorPicker.js';
+import { initHeroSection, updateHeroStatus, updateNextUpcoming } from './ui/HeroSection.js';
+import { initFlightTrigger, registerFlightTrigger, clearFlightStreak, doTriggerFlight } from './flight/FlightTrigger.js';
+import { initFlightPreview, previewFlight, resetFlightSettings } from './ui/FlightPreview.js';
+import { initLogo, updateTitleLogo, syncMuteToTray, closeSettingsModal } from './ui/Logo.js';
+import { initTauriListeners } from './flight/TauriListeners.js';
+import { initToast, showToast } from './ui/Toast.js';
+import { initMediaUpload } from './ui/MediaUpload.js';
+import { initTaskFilter } from './ui/TaskFilter.js';
+import { initSettingsPanel } from './ui/SettingsPanel.js';
+import { initModalEvents } from './ui/ModalEvents.js';
+import { initWindowEvents } from './ui/WindowEvents.js';
 
-const GITHUB_REPO = 'pumf/guguFly';
-const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
-const GITHUB_DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
-const GITHUB_ISSUES_URL = `https://github.com/${GITHUB_REPO}/issues/new/choose`;
+const isTauriRuntime = (() => {
+  try {
+    getCurrentWebviewWindow();
+    return true;
+  } catch (e) {
+    return false;
+  }
+})();
 
-const HOLIDAY_PRESETS = {
-  // Solar holidays
-  new_year: { label: '元旦', month: 1, day: 1 },
-  valentine: { label: '情人节', month: 2, day: 14 },
-  women_day: { label: '妇女节', month: 3, day: 8 },
-  qingming: { label: '清明节', month: 4, day: 5 },
-  labour_day: { label: '劳动节', month: 5, day: 1 },
-  youth_day: { label: '青年节', month: 5, day: 4 },
-  children_day: { label: '儿童节', month: 6, day: 1 },
-  party_day: { label: '建党节', month: 7, day: 1 },
-  army_day: { label: '建军节', month: 8, day: 1 },
-  teacher_day: { label: '教师节', month: 9, day: 10 },
-  national_day: { label: '国庆节', month: 10, day: 1 },
-  christmas: { label: '圣诞节', month: 12, day: 25 },
-  // 24 Solar terms
-  lichun: { label: '立春', month: 2, day: 4, approximate: true },
-  yushui: { label: '雨水', month: 2, day: 19, approximate: true },
-  jingzhe: { label: '惊蛰', month: 3, day: 6, approximate: true },
-  chunfen: { label: '春分', month: 3, day: 21, approximate: true },
-  qingming_jieqi: { label: '清明', month: 4, day: 5, approximate: true },
-  guyu: { label: '谷雨', month: 4, day: 20, approximate: true },
-  lixia: { label: '立夏', month: 5, day: 6, approximate: true },
-  xiaoman: { label: '小满', month: 5, day: 21, approximate: true },
-  mangzhong: { label: '芒种', month: 6, day: 6, approximate: true },
-  xiazhi: { label: '夏至', month: 6, day: 21, approximate: true },
-  xiaoshu: { label: '小暑', month: 7, day: 7, approximate: true },
-  dashu: { label: '大暑', month: 7, day: 23, approximate: true },
-  liqiu: { label: '立秋', month: 8, day: 7, approximate: true },
-  chushu: { label: '处暑', month: 8, day: 23, approximate: true },
-  bailu: { label: '白露', month: 9, day: 8, approximate: true },
-  qiufen: { label: '秋分', month: 9, day: 23, approximate: true },
-  hanlu: { label: '寒露', month: 10, day: 8, approximate: true },
-  shuangjiang: { label: '霜降', month: 10, day: 23, approximate: true },
-  lidong: { label: '立冬', month: 11, day: 7, approximate: true },
-  xiaoxue: { label: '小雪', month: 11, day: 22, approximate: true },
-  daxue: { label: '大雪', month: 12, day: 7, approximate: true },
-  dongzhi: { label: '冬至', month: 12, day: 22, approximate: true },
-  xiaohan: { label: '小寒', month: 1, day: 6, approximate: true },
-  dahan: { label: '大寒', month: 1, day: 20, approximate: true },
-};
-
-// DOM refs
+// --- DOM refs ---
 const taskListEl = document.getElementById('taskList');
-const taskSearchInput = document.getElementById('taskSearchInput');
-const taskSearchClear = document.getElementById('taskSearchClear');
-const taskTypeChips = document.querySelectorAll('.task-type-chip');
-const statsToggle = document.getElementById('statsToggle');
-const statsArrow = document.getElementById('statsArrow');
-const statsPanel = document.getElementById('statsPanel');
 const statsTotalEl = document.getElementById('statsTotal');
 const statsWeekEl = document.getElementById('statsWeek');
 const statsTrendEl = document.getElementById('statsTrend');
@@ -91,8 +71,8 @@ const modalTitle = document.getElementById('modalTitle');
 const modalError = document.getElementById('modalError');
 const modalCloseBtn = document.getElementById('modalCloseBtn');
 const editLabel = document.getElementById('editLabel');
-const editGroup = document.getElementById('editGroup');
 const editMsg = document.getElementById('editMsg');
+const editGroup = document.getElementById('editGroup');
 const alarmFields = document.getElementById('alarmFields');
 const countdownFields = document.getElementById('countdownFields');
 const holidayFields = document.getElementById('holidayFields');
@@ -124,9 +104,7 @@ const postFlightUrlField = document.getElementById('postFlightUrlField');
 const postFlightFolderField = document.getElementById('postFlightFolderField');
 const postFlightScriptField = document.getElementById('postFlightScriptField');
 const selectAppBtn = document.getElementById('selectAppBtn');
-const selectAppInput = document.getElementById('selectAppInput');
 const selectFolderBtn = document.getElementById('selectFolderBtn');
-const selectFolderInput = document.getElementById('selectFolderInput');
 const deleteTaskBtn = document.getElementById('deleteTaskBtn');
 const saveTaskBtn = document.getElementById('saveTaskBtn');
 const todayCountEl = document.getElementById('todayCount');
@@ -134,52 +112,16 @@ const heroStatusEl = document.getElementById('heroStatus');
 const toastEl = document.getElementById('toast');
 const muteBtn = document.getElementById('muteBtn');
 const emergencyBtn = document.getElementById('emergencyBtn');
-const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
-const settingsOverlay = document.getElementById('settingsOverlay');
-const settingsCloseBtn = document.getElementById('settingsCloseBtn');
-const settingsUpdateDot = document.getElementById('settingsUpdateDot');
-const updateSectionDot = document.getElementById('updateSectionDot');
 const autostartToggle = document.getElementById('autostartToggle');
 const quietHoursToggle = document.getElementById('quietHoursToggle');
 const quietStartHour = document.getElementById('quietStartHour');
 const quietEndHour = document.getElementById('quietEndHour');
 const miniWindowToggle = document.getElementById('miniWindowToggle');
-const themeButtons = document.querySelectorAll('.theme-btn');
-const exportTasksBtn = document.getElementById('exportTasksBtn');
-const importTasksBtn = document.getElementById('importTasksBtn');
-const importTasksInput = document.getElementById('importTasksInput');
-const appVersionDisplay = document.getElementById('appVersionDisplay');
-const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 const updateStatus = document.getElementById('updateStatus');
-const feedbackBtn = document.getElementById('feedbackBtn');
-const repoLink = document.getElementById('repoLink');
-const updateModal = document.getElementById('updateModal');
-const updateOverlay = document.getElementById('updateOverlay');
-const updateCloseBtn = document.getElementById('updateCloseBtn');
-const updateModalTitle = document.getElementById('updateModalTitle');
-const updateCurrentVersion = document.getElementById('updateCurrentVersion');
-const updateLatestVersion = document.getElementById('updateLatestVersion');
-const updateReleaseNotes = document.getElementById('updateReleaseNotes');
-const updateInfo = document.getElementById('updateInfo');
-const updateLoading = document.getElementById('updateLoading');
-const updateNoUpdate = document.getElementById('updateNoUpdate');
-const updateError = document.getElementById('updateError');
-const updateErrorMsg = document.getElementById('updateErrorMsg');
-const updateDownloadBtn = document.getElementById('updateDownloadBtn');
-const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
-const updateCloseActionBtn = document.getElementById('updateCloseActionBtn');
-const speedSelect = document.getElementById('speedSelect');
-const heightSelect = document.getElementById('heightSelect');
 const displaySelect = document.getElementById('displaySelect');
-const effectSelect = document.getElementById('effectSelect');
-const previewFlightBtn = document.getElementById('previewFlightBtn');
-const resetFlightBtn = document.getElementById('resetFlightBtn');
-const effectPicker = document.getElementById('effectPicker');
-const effectCards = effectPicker ? effectPicker.querySelectorAll('.effect-card') : [];
-const presetButtons = document.querySelectorAll('.preset-btn');
-const configToggle = document.getElementById('configToggle');
 const configPanel = document.getElementById('configPanel');
+const effectSelect = document.getElementById('effectSelect');
 const configArrow = document.getElementById('configArrow');
 const planeSelect = document.getElementById('planeSelect');
 const particleSelect = document.getElementById('particleSelect');
@@ -205,11 +147,9 @@ const useSoundCheckbox = document.getElementById('useSoundCheckbox');
 const soundMeta = document.getElementById('soundMeta');
 const soundNameEl = document.getElementById('soundName');
 const previewSoundBtn = document.getElementById('previewSoundBtn');
-const validationFields = [editAnniMonth, editAnniDay, imageInput, soundInput];
 
-// State
+// --- State ---
 let tasks = [];
-let nextId = 1;
 let editingId = null;
 let expandedTaskId = null;
 let isMuted = false;
@@ -218,2386 +158,186 @@ let customImageData = '';
 let editImageData = '';
 let customAudioData = '';
 let customAudioName = '';
-let loopAudio = null;
-let loopOscInterval = null;
-let sharedAudioCtx = null;
-let audioUnlocked = false;
-let customAudioProbe = null;
-let customAudioObjectUrl = '';
-let previewAudioHandle = null;
-let toastTimer = null;
-let activeFlightJob = null;
-let currentTheme = 'system';
 let isStatsOpen = false;
-let cachedStats = null;
-let cachedTasksForStats = [];
-let systemThemeMedia = null;
-let taskSearchKeyword = '';
-let taskTypeFilter = 'all';
-let taskGroupFilter = 'all';
-const flightQueue = [];
-const flightSequences = new Map();
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
-const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
-const VALID_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif']);
-const VALID_AUDIO_TYPES = new Set(['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg']);
-const VALID_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif']);
-const VALID_AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'mpeg']);
-const DEFAULT_FLIGHT_SETTINGS = {
-  speed: 'normal',
-  height: 'center',
-  effect: 'steady',
-  plane: 'classic',
-  particle: 'classic',
-  bubble: 'classic',
-  bubblePosition: 'top',
-  sound: 'whoosh',
-  soundMode: 'once',
-  useSound: false,
-};
-
-const FLIGHT_PRESETS = {
-  work: {
-    label: '工作模式',
-    speed: 'normal', height: 'center', effect: 'steady',
-    plane: 'classic', particle: 'classic', bubble: 'classic', bubblePosition: 'top',
-    sound: 'dingdong', soundMode: 'once',
-  },
-  quick: {
-    label: '速战速决',
-    speed: 'fast', height: 'center', effect: 'swift',
-    plane: 'jet', particle: 'jet', bubble: 'jet', bubblePosition: 'top',
-    sound: 'whoosh', soundMode: 'once',
-  },
-  festive: {
-    label: '节日氛围',
-    speed: 'slow', height: 'top', effect: 'playful',
-    plane: 'butterfly', particle: 'spark', bubble: 'butterfly', bubblePosition: 'top',
-    sound: 'bird', soundMode: 'once',
-  },
-  anniversary: {
-    label: '纪念日',
-    speed: 'normal', height: 'center', effect: 'ceremony',
-    plane: 'paper', particle: 'cloud', bubble: 'glass', bubblePosition: 'top',
-    sound: 'bell', soundMode: 'once',
-  },
-  night: {
-    label: '夜间低调',
-    speed: 'vslow', height: 'bottom', effect: 'linear',
-    plane: 'paper', particle: 'cloud', bubble: 'jet', bubblePosition: 'bottom',
-    sound: 'soft', soundMode: 'once',
-  },
-};
-
-const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
+let getTaskFilterState = null;
 
 const MUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
 const UNMUTED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>';
 
-const TASK_COLORS = [
-  { id: 'red',    label: '红', value: '#e74c3c' },
-  { id: 'orange', label: '橙', value: '#ff9560' },
-  { id: 'yellow', label: '黄', value: '#f1c40f' },
-  { id: 'green',  label: '绿', value: '#62bf82' },
-  { id: 'cyan',   label: '青', value: '#4ecdc4' },
-  { id: 'blue',   label: '蓝', value: '#2d7ff9' },
-  { id: 'purple', label: '紫', value: '#9775fa' },
-  { id: 'pink',   label: '粉', value: '#f783ac' },
-];
-const TASK_COLOR_VALUES = Object.fromEntries(TASK_COLORS.map(c => [c.id, c.value]));
-const TASK_COLOR_IDS = TASK_COLORS.map(c => c.id);
-let selectedEditColor = null;
-
-function syncMuteToTray() {
-  if (!isTauriRuntime) return;
-  void invoke('set_tray_mute_label', { muted: !!isMuted }).catch(() => {});
-}
-
-function compareVersions(a, b) {
-  const pa = a.replace('v', '').split('.').map(Number);
-  const pb = b.replace('v', '').split('.').map(Number);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const na = pa[i] || 0;
-    const nb = pb[i] || 0;
-    if (na > nb) return 1;
-    if (na < nb) return -1;
-  }
-  return 0;
-}
-
-async function getCurrentVersion() {
-  if (isTauriRuntime) {
-    try {
-      return await invoke('get_app_version');
-    } catch (e) {
-      return '0.0.0';
-    }
-  }
-  return '0.0.0';
-}
-
-function showUpdateModal() {
-  updateModal.classList.remove('hidden');
-  updateInfo.classList.add('hidden');
-  updateLoading.classList.add('hidden');
-  updateNoUpdate.classList.add('hidden');
-  updateError.classList.add('hidden');
-  updateDownloadBtn.classList.add('hidden');
-  updateOpenReleaseBtn.classList.add('hidden');
-}
-
-const UPDATE_CACHE_KEY = '_updateCache';
-
-function getCachedUpdate() {
-  try {
-    const raw = localStorage.getItem(UPDATE_CACHE_KEY);
-    if (!raw) return null;
-    const cache = JSON.parse(raw);
-    if (Date.now() - cache.timestamp > 86400000) return null;
-    return cache;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedUpdate(data) {
-  try {
-    localStorage.setItem(UPDATE_CACHE_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
-  } catch {}
-}
-
-function openReleasePage() {
-  if (isTauriRuntime) {
-    invoke('open_url_in_browser', { url: GITHUB_DOWNLOAD_URL }).catch(() => {});
-  } else {
-    window.open(GITHUB_DOWNLOAD_URL, '_blank');
-  }
-}
-
-function showUpdateIndicator(show) {
-  settingsUpdateDot?.classList.toggle('hidden', !show);
-  updateSectionDot?.classList.toggle('hidden', !show);
-}
-
-async function autoCheckForUpdate() {
-  if (!isTauriRuntime) return;
-  const currentVer = await getCurrentVersion();
-  const cached = getCachedUpdate();
-
-  if (cached && cached.version === currentVer) return;
-
-  if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
-    updateStatus.textContent = `发现 v${cached.version}`;
-    showUpdateIndicator(true);
-  }
-
-  try {
-    const release = await invoke('check_latest_release');
-    const latestVer = release.version || '';
-    if (!latestVer || compareVersions('v' + latestVer, 'v' + currentVer) <= 0) {
-      updateStatus.textContent = '已是最新';
-      return;
-    }
-    setCachedUpdate({ version: latestVer, url: release.html_url || GITHUB_DOWNLOAD_URL, notes: release.notes || '' });
-    updateStatus.textContent = `发现 v${latestVer}`;
-    showUpdateIndicator(true);
-    checkForUpdate();
-  } catch {
-    updateStatus.textContent = '检查暂不可用';
-  }
-}
-
-async function checkForUpdate() {
-  if (updateStatus) updateStatus.textContent = '检查中...';
-  showUpdateModal();
-  updateLoading.classList.remove('hidden');
-
-  const currentVer = await getCurrentVersion();
-  const cached = getCachedUpdate();
-
-  if (cached && cached.version === currentVer) {
-    updateLoading.classList.add('hidden');
-    updateNoUpdate.classList.remove('hidden');
-    updateModalTitle.textContent = '已是最新版本';
-    if (updateStatus) updateStatus.textContent = '已是最新';
-    return;
-  }
-
-  if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
-    updateLoading.classList.add('hidden');
-    updateInfo.classList.remove('hidden');
-    updateModalTitle.textContent = '发现新版本';
-    updateCurrentVersion.textContent = `v${currentVer}`;
-    updateLatestVersion.textContent = `v${cached.version}`;
-    updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-    updateDownloadBtn.classList.remove('hidden');
-    updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
-    if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
-    return;
-  }
-
-  let latestVer = '';
-  let htmlUrl = GITHUB_DOWNLOAD_URL;
-  let notes = '';
-
-  try {
-    if (isTauriRuntime) {
-      const release = await invoke('check_latest_release');
-      latestVer = release.version || '';
-      htmlUrl = release.html_url || GITHUB_DOWNLOAD_URL;
-      notes = release.notes || '';
-    } else {
-      const resp = await fetch(GITHUB_RELEASES_URL, {
-        headers: { Accept: 'application/vnd.github.v3+json', 'User-Agent': 'guguFly-desktop' },
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      latestVer = (data.tag_name || '').replace(/^v/, '');
-      htmlUrl = data.html_url || GITHUB_DOWNLOAD_URL;
-      notes = data.body || '';
-    }
-  } catch (e) {
-    updateLoading.classList.add('hidden');
-    if (cached) {
-    updateInfo.classList.remove('hidden');
-    updateModalTitle.textContent = '发现新版本（缓存）';
-    updateCurrentVersion.textContent = `v${currentVer}`;
-    updateLatestVersion.textContent = `v${cached.version}`;
-    updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-    updateDownloadBtn.classList.remove('hidden');
-    updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
-    if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
-    showUpdateIndicator(false);
-    return;
-    }
-    updateNoUpdate.classList.remove('hidden');
-    updateModalTitle.textContent = '检查更新';
-    document.getElementById('updateNoUpdateIcon').textContent = '🌐';
-    document.getElementById('updateNoUpdateText').textContent = '无法连接 GitHub，请前往发布页面查看';
-    updateOpenReleaseBtn.classList.remove('hidden');
-    if (updateStatus) updateStatus.textContent = '检查暂不可用';
-    return;
-  }
-
-  if (!latestVer) {
-    updateLoading.classList.add('hidden');
-    updateNoUpdate.classList.remove('hidden');
-    updateModalTitle.textContent = '检查更新';
-    document.getElementById('updateNoUpdateIcon').textContent = '📭';
-    document.getElementById('updateNoUpdateText').textContent = '暂未发现发布版本';
-    updateOpenReleaseBtn.classList.remove('hidden');
-    if (updateStatus) updateStatus.textContent = '检查暂不可用';
-    return;
-  }
-
-  setCachedUpdate({ version: latestVer, url: htmlUrl, notes });
-  updateLoading.classList.add('hidden');
-
-  if (compareVersions('v' + latestVer, 'v' + currentVer) > 0) {
-    showUpdateIndicator(false);
-    updateInfo.classList.remove('hidden');
-    updateModalTitle.textContent = '发现新版本';
-    updateCurrentVersion.textContent = `v${currentVer}`;
-    updateLatestVersion.textContent = `v${latestVer}`;
-    updateReleaseNotes.innerHTML = notes.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-    updateDownloadBtn.classList.remove('hidden');
-    updateDownloadBtn.dataset.url = htmlUrl;
-    if (updateStatus) updateStatus.textContent = `发现 v${latestVer}`;
-  } else {
-    updateNoUpdate.classList.remove('hidden');
-    updateModalTitle.textContent = '已是最新版本';
-    if (updateStatus) updateStatus.textContent = '已是最新';
-  }
-}
-
-async function openFeedbackPage() {
-  if (isTauriRuntime) {
-    try {
-      await invoke('open_url_in_browser', { url: GITHUB_ISSUES_URL });
-    } catch (e) {
-      window.open(GITHUB_ISSUES_URL, '_blank');
-    }
-  } else {
-    window.open(GITHUB_ISSUES_URL, '_blank');
-  }
-}
-
-function createSequenceId(taskId) {
-  return `seq-${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getSequence(sequenceId) {
-  if (!sequenceId) return null;
-  return flightSequences.get(sequenceId) || null;
-}
-
-function clearSequence(sequenceId) {
-  const state = getSequence(sequenceId);
-  if (!state) return;
-  if (state.intervalId) clearTimeout(state.intervalId);
-  if (state.timeoutId) clearTimeout(state.timeoutId);
-  flightSequences.delete(sequenceId);
-}
-
-function clearAllSequences() {
-  for (const [sequenceId, state] of flightSequences.entries()) {
-    if (state.intervalId) clearTimeout(state.intervalId);
-    if (state.timeoutId) clearTimeout(state.timeoutId);
-    flightSequences.delete(sequenceId);
-  }
-}
-
-function clearFlightQueue() {
-  flightQueue.length = 0;
-  activeFlightJob = null;
-}
-
-function hasActiveSequences() {
-  return flightSequences.size > 0;
-}
-
-let pfNotifyWin = null;
-let pendingPfCancel = null;
-let pfAutoClosing = false;
-let pfUnlistenClick = null;
-
-async function showPostFlightNotify(action) {
-  if (!isTauriRuntime) return;
-  try {
-    if (pfNotifyWin) {
-      try { await pfNotifyWin.close(); } catch (e) {}
-      pfNotifyWin = null;
-    }
-    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
-
-    const sw = screen.availWidth || 1440;
-    const sh = screen.availHeight || 900;
-    pfNotifyWin = new WebviewWindow('gugufly-pfnotify', {
-      url: '/postflight-notify.html',
-      width: 380, height: 80,
-      x: Math.round((sw - 380) / 2), y: Math.round(sh * 0.65),
-      transparent: true, decorations: false,
-      alwaysOnTop: true, skipTaskbar: true,
-      resizable: false, focus: false, visible: true,
-    });
-
-    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本' };
-    const label = labels[action] || action;
-    const fullText = '飞行后' + label;
-
-    pfNotifyWin.once('tauri://created', async () => {
-      try {
-        const { emit } = await import('@tauri-apps/api/event');
-        await new Promise(r => setTimeout(r, 150));
-        await emit('pf-notify-set-label', { label: fullText });
-      } catch (e) {}
-    });
-
-    pfNotifyWin.onCloseRequested(() => {
-      if (!pfAutoClosing && pendingPfCancel) {
-        pendingPfCancel();
-        pendingPfCancel = null;
-      }
-    });
-    pfNotifyWin.once('tauri://error', () => {});
-
-    const { listen } = await import('@tauri-apps/api/event');
-    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
-    const unlisten = await listen('pf-notify-clicked', async () => {
-      if (pendingPfCancel) {
-        pendingPfCancel();
-        pendingPfCancel = null;
-      }
-      await closePostFlightNotify();
-      showToast('已取消飞行后操作');
-    });
-    pfUnlistenClick = unlisten;
-  } catch (e) { console.error('showPostFlightNotify failed:', e); }
-}
-
-async function closePostFlightNotify() {
-  if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
-  try { if (pfNotifyWin) { pfAutoClosing = true; await pfNotifyWin.close(); pfNotifyWin = null; } } catch (e) {}
-  pfAutoClosing = false;
-}
-
-async function processFlightQueue() {
-  if (activeFlightJob || !flightQueue.length) return;
-  const nextJob = flightQueue.shift();
-  activeFlightJob = nextJob;
-  if (nextJob.playSound && !isMuted) await playSound();
-  await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
-  if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
-    pendingPfCancel = () => { nextJob.postFlight.action = 'none'; };
-    showPostFlightNotify(nextJob.postFlight.action);
-  }
-}
-
-function queueFlight(job) {
-  flightQueue.push(job);
-  void processFlightQueue();
-}
-
-function releaseFlightQueue() {
-  activeFlightJob = null;
-  void processFlightQueue();
-}
-
-async function persistSetting(key, value) {
-  await set(key, value);
-}
-
-async function persistFlightSettings() {
-  await Promise.all([
-    persistSetting('speed', speedSelect.value),
-    persistSetting('height', heightSelect.value),
-    persistSetting('effect', effectSelect.value),
-    persistSetting('plane', planeSelect.value),
-    persistSetting('particle', particleSelect.value),
-    persistSetting('bubble', bubbleSelect.value),
-    persistSetting('bubblePosition', bubblePositionSelect.value),
-    persistSetting('sound', soundSelect.value),
-    persistSetting('soundMode', soundModeSelect.value),
-    persistSetting('useSound', useSoundCheckbox.checked),
-    persistSetting('useImage', useImageCheckbox.checked),
-  ]);
-}
-
-function getDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function dayDiff(fromKey, toKey) {
-  if (!fromKey || !toKey) return null;
-  const [fromY, fromM, fromD] = fromKey.split('-').map(Number);
-  const [toY, toM, toD] = toKey.split('-').map(Number);
-  const from = new Date(fromY, fromM - 1, fromD);
-  const to = new Date(toY, toM - 1, toD);
-  return Math.round((to - from) / 86400000);
-}
-
-function getMaxDayForMonth(month) {
-  return [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] || 31;
-}
-
-function parseAnniversaryValues() {
-  const month = Math.min(12, Math.max(1, parseInt(editAnniMonth.value) || 1));
-  const day = Math.min(31, Math.max(1, parseInt(editAnniDay.value) || 1));
-  const hour = Math.min(23, Math.max(0, parseInt(editAnniHour.value) || 0));
-  const minute = Math.min(59, Math.max(0, parseInt(editAnniMinute.value) || 0));
-  return { month, day, hour, minute };
-}
-
-function validateAnniversaryValues({ month, day }) {
-  if (day > getMaxDayForMonth(month)) {
-    markFieldError([editAnniMonth, editAnniDay]);
-    showModalError(`该日期不存在：${month} 月最多只有 ${getMaxDayForMonth(month)} 天`);
-    return false;
-  }
-  return true;
-}
-
-function validateUpload(file, validTypes, maxSize, kindLabel) {
-  if (!file) return false;
-  const fileName = file.name || '';
-  const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
-  const validExtensions = kindLabel === '图片' ? VALID_IMAGE_EXTENSIONS : VALID_AUDIO_EXTENSIONS;
-  const typeOk = !!file.type && validTypes.has(file.type);
-  const extOk = !!ext && validExtensions.has(ext);
-  if (!typeOk && !extOk) {
-    markFieldError([kindLabel === '图片' ? imageBtn : soundBtn]);
-    showModalError(`${kindLabel}格式不支持，请选择应用允许的文件类型。`);
-    showToast(`${kindLabel}格式不支持`);
-    return false;
-  }
-  if (file.size > maxSize) {
-    markFieldError([kindLabel === '图片' ? imageBtn : soundBtn]);
-    showModalError(`${kindLabel}过大，请控制在 ${Math.round(maxSize / 1024 / 1024)}MB 以内。`);
-    showToast(`${kindLabel}过大，请控制在 ${Math.round(maxSize / 1024 / 1024)}MB 以内`);
-    return false;
-  }
-  return true;
-}
-
-function isApproximatePreset(key) {
-  return !!HOLIDAY_PRESETS[key]?.approximate;
-}
-
-function formatHolidayLabel(preset) {
-  if (!preset) return '节日';
-  return preset.approximate ? `${preset.label}（按常用日期）` : preset.label;
-}
-
-async function getAudioContext() {
-  if (!sharedAudioCtx) {
-    sharedAudioCtx = new AudioContext();
-  }
-  if (sharedAudioCtx.state === 'suspended') {
-    try {
-      await sharedAudioCtx.resume();
-    } catch (e) {}
-  }
-  return sharedAudioCtx;
-}
-
-async function unlockAudioIfNeeded() {
-  if (audioUnlocked) return true;
-  try {
-    const audioCtx = await getAudioContext();
-    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    audioUnlocked = true;
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function dataUrlToArrayBuffer(dataUrl) {
-  const base64 = dataUrl.split(',')[1] || '';
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function revokeCustomAudioObjectUrl() {
-  if (!customAudioObjectUrl) return;
-  URL.revokeObjectURL(customAudioObjectUrl);
-  customAudioObjectUrl = '';
-}
-
-function updateSoundMeta() {
-  const hasAudio = !!customAudioData;
-  if (soundNameEl) {
-    soundNameEl.textContent = hasAudio ? (customAudioName || '已选择自定义音频') : '未选择音频';
-    soundNameEl.title = customAudioName || '';
-  }
-  if (previewSoundBtn) {
-    previewSoundBtn.disabled = !hasAudio;
-    previewSoundBtn.textContent = hasAudio ? (previewAudioHandle ? '结束试听' : '试听') : '未选择';
-  }
-}
-
-function buildCustomAudioObjectUrl() {
-  revokeCustomAudioObjectUrl();
-  if (!customAudioData) return '';
-  const mimeMatch = customAudioData.match(/^data:([^;]+);base64,/);
-  const mimeType = mimeMatch?.[1] || 'audio/mpeg';
-  const bytes = new Uint8Array(dataUrlToArrayBuffer(customAudioData));
-  const blob = new Blob([bytes], { type: mimeType });
-  customAudioObjectUrl = URL.createObjectURL(blob);
-  return customAudioObjectUrl;
-}
-
-async function playCustomAudio(loopMode) {
-  const objectUrl = customAudioObjectUrl || buildCustomAudioObjectUrl();
-  const audio = new Audio(objectUrl || customAudioData);
-  audio.loop = loopMode;
-  audio.volume = 0.58;
-  audio.preload = 'auto';
-  audio.currentTime = 0;
-
-  try {
-    await audio.play();
-    if (loopMode) {
-      loopAudio = audio;
-    } else {
-      audio.addEventListener('ended', () => {
-        audio.src = '';
-      }, { once: true });
-    }
-    return audio;
-  } catch (htmlAudioError) {
-    const audioCtx = await getAudioContext();
-    const decoded = await audioCtx.decodeAudioData(dataUrlToArrayBuffer(customAudioData));
-    const source = audioCtx.createBufferSource();
-    const gain = audioCtx.createGain();
-    source.buffer = decoded;
-    source.loop = loopMode;
-    gain.gain.setValueAtTime(0.52, audioCtx.currentTime);
-    source.connect(gain);
-    gain.connect(audioCtx.destination);
-    source.start();
-    if (loopMode) {
-      loopAudio = {
-        pause() {
-          try {
-            source.stop();
-          } catch (e) {}
-        },
-      };
-    }
-    return {
-      pause() {
-        try {
-          source.stop();
-        } catch (e) {}
-      },
-    };
-  }
-}
-
-function stopPreviewAudio() {
-  if (!previewAudioHandle) return;
-  try {
-    previewAudioHandle.pause();
-  } catch (e) {}
-  previewAudioHandle = null;
-  updateSoundMeta();
-}
-
-async function validateCustomAudioPreview() {
-  if (!customAudioData) return true;
-  try {
-    if (customAudioProbe) {
-      customAudioProbe.pause();
-      customAudioProbe.src = '';
-      customAudioProbe = null;
-    }
-    const objectUrl = customAudioObjectUrl || buildCustomAudioObjectUrl();
-    const probe = new Audio(objectUrl || customAudioData);
-    probe.preload = 'auto';
-    customAudioProbe = probe;
-    await new Promise((resolve, reject) => {
-      const cleanup = () => {
-        probe.removeEventListener('canplaythrough', onReady);
-        probe.removeEventListener('error', onError);
-      };
-      const onReady = () => {
-        cleanup();
-        resolve();
-      };
-      const onError = () => {
-        cleanup();
-        reject(new Error('audio_load_failed'));
-      };
-      probe.addEventListener('canplaythrough', onReady, { once: true });
-      probe.addEventListener('error', onError, { once: true });
-      probe.load();
-      setTimeout(() => {
-        cleanup();
-        resolve();
-      }, 1200);
-    });
-    return true;
-  } catch (e) {
-    showToast('这段自定义音频当前无法播放，请换一个 mp3 或 wav 文件试试');
-    return false;
-  }
-}
-
-async function registerFlightTrigger() {
-  const count = await incrementTodayCount();
-  todayCountEl.textContent = count;
-
-  const today = getDateKey();
-  const lastStreakDate = await get('streakLastDate');
-  let streak = await get('streak');
-
-  if (!lastStreakDate) {
-    streak = 1;
-  } else {
-    const diff = dayDiff(lastStreakDate, today);
-    if (diff === 0 || diff === 1) {
-      streak += 1;
-    } else {
-      streak = 1;
-    }
-  }
-
-  await set('streak', streak);
-  await set('streakLastDate', today);
-}
-
-async function clearFlightStreak() {
-  await resetStreak();
-  await set('streakLastDate', null);
-}
-
-function updateTitleLogo() {
-  const el = document.getElementById('titleLogo');
-  if (customImageData) {
-    el.innerHTML = `<img src="${customImageData}" style="width:18px;height:18px;border-radius:4px;object-fit:cover;vertical-align:middle">`;
-  } else {
-    el.innerHTML = `<img src="/logo.png" style="width:18px;height:18px;border-radius:4px;object-fit:cover;vertical-align:middle">`;
-  }
-}
-
-// --- Task data model ---
-
-function createBaseTask(type) {
-  return {
-    id: nextId++,
-    type,
-    label: '',
-    msg: '',
-    enabled: true,
-    flightMode: 'once',
-    loopCount: 3,
-    loopInterval: 5,
-    intervalCount: 10,
-    postFlightAction: 'none',
-    postFlightAppPath: '',
-    postFlightUrl: '',
-    postFlightFolder: '',
-    postFlightScript: '',
-    group: '',
-    imageData: null,
-    useImage: false,
-    color: null,
-  };
-}
-
-function createAlarmTask() {
-  return {
-    ...createBaseTask('alarm'),
-    hour: 12,
-    minute: 0,
-    repeat: [],
-    _lastTriggeredDate: null,
-  };
-}
-
-function createCountdownTask() {
-  return {
-    ...createBaseTask('countdown'),
-    duration: 1800,
-    _remaining: 1800,
-    _status: 'idle',
-    _timer: null,
-  };
-}
-
-function createHolidayTask() {
-  return {
-    ...createBaseTask('holiday'),
-    label: '元旦',
-    holidayKey: 'new_year',
-    month: 1,
-    day: 1,
-    hour: 9,
-    minute: 0,
-    _lastTriggeredDate: null,
-  };
-}
-
-function createAnniversaryTask() {
-  return {
-    ...createBaseTask('anniversary'),
-    month: new Date().getMonth() + 1,
-    day: new Date().getDate(),
-    hour: 9,
-    minute: 0,
-    _lastTriggeredDate: null,
-  };
-}
-
-function cloneTask(t) {
-  return {
-    ...t,
-    postFlightAction: t.postFlightAction || 'none',
-    postFlightAppPath: t.postFlightAppPath || '',
-    postFlightUrl: t.postFlightUrl || '',
-    postFlightFolder: t.postFlightFolder || '',
-    postFlightScript: t.postFlightScript || '',
-    _remaining: t.duration,
-    _status: 'idle',
-    _timer: null,
-  };
-}
-
-function nextTriggerText(task) {
-  if (task._lastTriggeredDate) {
-    const today = new Date().toDateString();
-    if (task._lastTriggeredDate === today) return '今天已触发';
-  }
-  const now = new Date();
-  const todayMin = now.getHours() * 60 + now.getMinutes();
-  const taskMin = task.hour * 60 + task.minute;
-
-  if (task.repeat.length === 0) {
-    if (taskMin > todayMin) {
-      return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-    }
-    return '已过期';
-  }
-
-  if (task.repeat.includes(now.getDay()) && taskMin > todayMin) {
-    return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-  }
-
-  for (let i = 1; i <= 7; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + i);
-    if (task.repeat.includes(d.getDay())) {
-      return `${['日','一','二','三','四','五','六'][d.getDay()]} ${pad2(task.hour)}:${pad2(task.minute)}`;
-    }
-  }
-  return '';
-}
-
-function repeatSummary(task) {
-  const r = task.repeat;
-  if (!r || r.length === 0) return '仅一次';
-  if (r.length === 7) return '每天';
-  if (r.length === 5 && r.every(d => d >= 1 && d <= 5)) return '工作日';
-  if (r.length === 2 && r.includes(6) && r.includes(0)) return '周末';
-  return r.sort().map(d => ['日','一','二','三','四','五','六'][d]).join('');
-}
-
-// --- Render ---
-
-function pad2(n) { return String(n).padStart(2, '0'); }
-
-function showModalError(message) {
-  modalError.textContent = message;
-  modalError.classList.remove('hidden');
-}
-
-function clearModalError() {
-  modalError.textContent = '';
-  modalError.classList.add('hidden');
-  clearFieldErrors();
-}
-
-function markFieldError(elements) {
-  elements.filter(Boolean).forEach(el => el.classList.add('field-error'));
-}
-
-function clearFieldErrors() {
-  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
-}
-
-function showToast(message, duration, onClick) {
-  if (!toastEl) return;
-  toastEl.textContent = message;
-  toastEl.classList.remove('hidden');
-  toastEl.classList.add('visible');
-  toastEl.style.cursor = onClick ? 'pointer' : 'default';
-  toastEl.onclick = onClick || null;
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toastEl.classList.remove('visible');
-    toastEl.onclick = null;
-    setTimeout(() => toastEl.classList.add('hidden'), 220);
-  }, duration || 1800);
-}
-
-function getTaskTypeMeta(task) {
-  const meta = {
-    alarm: { label: '定时', className: 'alarm' },
-    countdown: { label: '倒计时', className: 'countdown' },
-    holiday: { label: '节假日', className: 'holiday' },
-    anniversary: { label: '纪念日', className: 'anniversary' },
-  };
-  return meta[task.type] || { label: '任务', className: 'generic' };
-}
-
-function daysUntilMonthDay(m, d) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let target = new Date(now.getFullYear(), m - 1, d);
-  if (target <= today) {
-    target = new Date(now.getFullYear() + 1, m - 1, d);
-  }
-  return Math.ceil((target - today) / 86400000);
-}
-
-function getTaskStatusLabel(task) {
-  if (!task.enabled) return '已停用';
-  if (task._status === 'running') return '进行中';
-  if (task._status === 'paused') return '已暂停';
-  if (task._status === 'completed') return '刚完成';
-  if (task.type === 'alarm') return nextTriggerText(task) || '等待触发';
-  if (task.type === 'holiday' || task.type === 'anniversary') {
-    const today = new Date().toDateString();
-    if (task._lastTriggeredDate === today) return '今天已触发';
-    const now = new Date();
-    const targetDate = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
-    const isToday = now.getFullYear() === targetDate.getFullYear()
-      && now.getMonth() === targetDate.getMonth()
-      && now.getDate() === targetDate.getDate();
-    if (isToday) {
-      const diffMs = targetDate - now;
-      if (diffMs <= 0) {
-        const days = daysUntilMonthDay(task.month, task.day);
-        return `还有 ${days} 天`;
-      }
-      return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-    }
-    const days = daysUntilMonthDay(task.month, task.day);
-    if (days === 0) return '今天';
-    return `还有 ${days} 天`;
-  }
-  return '待命';
-}
-
-let miniWindow = null;
-const MINI_POSITIONS = {
-  'top-left': { x: 12, y: 12 },
-  'top-center': { x: 'center-x', y: 12 },
-  'top-right': { x: 'right-12', y: 12 },
-  'bottom-left': { x: 12, y: 'bottom-12' },
-  'bottom-center': { x: 'center-x', y: 'bottom-12' },
-  'bottom-right': { x: 'right-12', y: 'bottom-12' },
-};
-const MINI_WIN_WIDTH = 240;
-const MINI_WIN_HEIGHT = 48;
-
-async function computeMiniPos(posKey) {
-  const pos = MINI_POSITIONS[posKey] || MINI_POSITIONS['top-right'];
-  let screenX = 0, screenY = 0, screenW = 1440, screenH = 900;
-  try {
-    const { currentMonitor, primaryMonitor } = await import('@tauri-apps/api/window');
-    const m = (await currentMonitor()) || (await primaryMonitor());
-    if (m) {
-      screenX = m.position.x;
-      screenY = m.position.y;
-      screenW = m.size.width;
-      screenH = m.size.height;
-    }
-  } catch (e) {}
-  const margin = 12;
-  const maxX = screenX + screenW - MINI_WIN_WIDTH - margin;
-  const maxY = screenY + screenH - MINI_WIN_HEIGHT - margin;
-  let x = screenX + margin;
-  let y = screenY + margin;
-  if (pos.x === 'center-x') x = screenX + Math.round((screenW - MINI_WIN_WIDTH) / 2);
-  else if (pos.x === 'right-12') x = maxX;
-  else if (typeof pos.x === 'number') x = screenX + pos.x;
-  if (pos.y === 'bottom-12') y = maxY;
-  else if (typeof pos.y === 'number') y = screenY + pos.y;
-  if (x < screenX) x = screenX;
-  if (y < screenY) y = screenY;
-  if (x > maxX) x = maxX;
-  if (y > maxY) y = maxY;
-  return { x, y };
-}
-
-async function createMiniWindow() {
-  if (!isTauriRuntime) return;
-  if (miniWindow) {
-    try { await miniWindow.show(); } catch (e) {}
-    return;
-  }
-  try {
-    const pos = await computeMiniPos(await get('miniWindowPosition') || 'top-right');
-    miniWindow = new WebviewWindow('gugufly-mini', {
-      url: '/mini.html',
-      width: MINI_WIN_WIDTH, height: MINI_WIN_HEIGHT,
-      x: pos.x, y: pos.y,
-      transparent: true, decorations: false,
-      alwaysOnTop: true, skipTaskbar: true,
-      resizable: false, focus: false, visible: true,
-    });
-    miniWindow.once('tauri://error', (e) => console.error('mini error:', e));
-  } catch (e) { console.error('mini create failed:', e); miniWindow = null; }
-}
-
-async function positionMiniWindow(posKey) {
-  if (!miniWindow) return;
-  try {
-    const key = posKey || (await get('miniWindowPosition')) || 'top-right';
-    const p = await computeMiniPos(key);
-    await miniWindow.setPosition({ x: p.x, y: p.y });
-  } catch (e) {}
-}
-
-function formatUpcomingTime(sec) {
-  if (sec < 60) return sec + '秒后';
-  if (sec < 3600) return Math.floor(sec / 60) + '分钟后';
-  if (sec < 86400) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    return m > 0 ? h + '小时' + m + '分钟后' : h + '小时后';
-  }
-  const d = Math.floor(sec / 86400);
-  return d + '天后';
-}
-
-async function updateMiniWindow() {
-  if (!miniWindow) return;
-  const upcoming = await getNextUpcomingTask();
-  try {
-    const { emit } = await import('@tauri-apps/api/event');
-    if (upcoming && upcoming.seconds <= 86400) {
-      const icon = upcoming.task.type === 'alarm' ? '⏰' : upcoming.task.type === 'countdown' ? '⏱' : '📅';
-      const label = upcoming.task.label || '提醒';
-      const time = formatUpcomingTime(upcoming.seconds);
-      await emit('mini-set-content', { icon: icon, text: label, detail: time });
-    } else {
-      await emit('mini-set-content', { icon: '📋', text: '暂无提醒', detail: '' });
-    }
-  } catch (e) {}
-}
-
-function updateHeroStatus() {
-  const runningCountdown = tasks.find(task => task.type === 'countdown' && task._status === 'running');
-  if (runningCountdown) {
-    heroStatusEl.textContent = `倒计时进行中 · ${runningCountdown.label || '未命名任务'}`;
-  } else {
-    const enabledCount = tasks.filter(task => task.enabled).length;
-    if (enabledCount === 0) {
-      heroStatusEl.textContent = '还没有航线，先创建一条提醒吧';
-    } else {
-      heroStatusEl.textContent = `已启用 ${enabledCount} 条航线，等待下一次起飞`;
-    }
-  }
-
-  updateNextUpcoming();
-}
-
-async function updateNextUpcoming() {
-  const el = document.getElementById('nextUpcoming');
-  if (!el) return;
-  const upcoming = await getNextUpcomingTask();
-  if (upcoming && upcoming.minutes <= 1440) {
-    const { task, minutes } = upcoming;
-    const label = task.label || '提醒';
-    const typeIcon = task.type === 'alarm' ? '⏰' : task.type === 'countdown' ? '⏱' : '📅';
-    if (minutes < 1) {
-      el.textContent = `${typeIcon} ${label} · 即将起飞`;
-    } else if (minutes < 60) {
-      el.textContent = `${typeIcon} ${label} · ${minutes} 分钟后`;
-    } else {
-      const h = Math.floor(minutes / 60);
-      const m = minutes % 60;
-      el.textContent = `${typeIcon} ${label} · ${h} 小时${m > 0 ? m + ' 分钟' : ''}后`;
-    }
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
-  }
-}
-
-function getCountdownInfoText(task) {
-  if (task._status === 'running') return `剩余 ${formatDuration(task._remaining)}`;
-  if (task._status === 'paused') return `暂停于 ${formatDuration(task._remaining)}`;
-  return `时长 ${formatDuration(task.duration)}`;
-}
-
-function getTaskInfoText(task) {
-  let infoText = '';
-
-  if (task.type === 'alarm') {
-    infoText = `${pad2(task.hour)}:${pad2(task.minute)} · ${repeatSummary(task)}`;
-  } else if (task.type === 'countdown') {
-    infoText = getCountdownInfoText(task);
-  } else if (task.type === 'holiday') {
-    const preset = HOLIDAY_PRESETS[task.holidayKey];
-    infoText = `${formatHolidayLabel(preset)} ${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
-  } else if (task.type === 'anniversary') {
-    infoText = `${task.month}月${task.day}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
-  }
-
-  const modeLabel = { once: '', loop_times: ' 🔁循环', loop_interval: ' ⏰间隔' };
-  if (task.flightMode !== 'once') infoText += modeLabel[task.flightMode];
-  if (task.msg) infoText += ` 💬${task.msg}`;
-  return infoText;
-}
-
-function updateCountdownActionUI(task, actionsEl) {
-  if (!actionsEl) return;
-
-  const statusEl = actionsEl.querySelector('.task-countdown-status');
-  const playBtn = actionsEl.querySelector('.task-play-btn');
-  const stopBtn = actionsEl.querySelector('.task-stop-btn');
-
-  if (statusEl) {
-    statusEl.classList.remove('running');
-    if (task._status === 'running') {
-      statusEl.textContent = formatDuration(task._remaining);
-      statusEl.classList.add('running');
-    } else if (task._status === 'paused') {
-      statusEl.textContent = `暂停 ${formatDuration(task._remaining)}`;
-    } else {
-      statusEl.textContent = '';
-    }
-  }
-
-  if (playBtn) {
-    playBtn.classList.remove('active');
-    if (task._status === 'running') {
-      playBtn.classList.add('active');
-      playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-      playBtn.title = '暂停';
-    } else {
-      playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-      playBtn.title = task._status === 'paused' ? '继续' : '开始';
-    }
-  }
-
-  if (stopBtn) {
-    const canStop = task._status === 'running' || task._status === 'paused';
-    stopBtn.classList.toggle('hidden', !canStop);
-    stopBtn.disabled = !canStop;
-    stopBtn.title = '停止';
-  }
-}
-
-function updateCountdownTaskUI(task) {
-  if (task.type !== 'countdown') return;
-
-  const card = taskListEl.querySelector(`[data-task-id="${task.id}"]`);
-  if (!card) return;
-
-  card.classList.toggle('active', task._status === 'running');
-  card.classList.toggle('completed', task._status === 'completed');
-
-  const infoEl = card.querySelector('.task-info');
-  const statusBadge = card.querySelector('.task-status-badge');
-
-  if (infoEl) infoEl.textContent = getTaskInfoText(task);
-  if (statusBadge) statusBadge.textContent = getTaskStatusLabel(task);
-
-  updateCountdownActionUI(task, card.querySelector('.task-actions'));
-}
-
-function getTaskSortScore(task) {
-  let base = 0;
-  if (!task.enabled) base += 4000;
-  if (task._status === 'running') base -= 2000;
-  if (task._status === 'paused') base -= 1200;
-  if (task.type === 'countdown') base -= 500;
-  if (task.type === 'alarm') base -= 200;
-  return base;
-}
-
-function getTaskTimeAnchor(task) {
-  if (task.type === 'alarm') return task.hour * 60 + task.minute;
-  if (task.type === 'countdown') return task._remaining ?? task.duration;
-  if (task.type === 'holiday' || task.type === 'anniversary') return ((task.month || 1) * 100 + (task.day || 1));
-  return 999999;
-}
-
-function getTaskGroupKey(task) {
-  if (!task.enabled) return 'disabled';
-  if (task._status === 'running' || task._status === 'paused') return 'in_progress';
-  if (task.type === 'holiday' || task.type === 'anniversary') return 'special_dates';
-  return 'upcoming';
-}
-
-function getTaskGroupMeta(groupKey, count) {
-  const labels = {
-    in_progress: { title: '正在进行', subtitle: `需要你现在关注的 ${count} 条任务` },
-    upcoming: { title: '近期提醒', subtitle: `按触发顺序排好的 ${count} 条航线` },
-    special_dates: { title: '特殊日期', subtitle: `节日与纪念日共 ${count} 条` },
-    disabled: { title: '已停用', subtitle: `当前关闭的 ${count} 条任务` },
-  };
-  return labels[groupKey];
-}
-
-function getTaskDetailLines(task) {
-  const lines = [];
-  if (task.type === 'alarm') {
-    lines.push(`重复：${repeatSummary(task)}`);
-    lines.push(`下次：${nextTriggerText(task) || '等待触发'}`);
-  } else if (task.type === 'countdown') {
-    lines.push(`默认时长：${formatDuration(task.duration)}`);
-    lines.push(`当前状态：${getTaskStatusLabel(task)}`);
-  } else if (task.type === 'holiday') {
-    lines.push(`日期：${task.month}月${task.day}日`);
-    lines.push(`说明：${HOLIDAY_PRESETS[task.holidayKey]?.approximate ? '按常用日期提醒' : '固定阳历日期提醒'}`);
-  } else if (task.type === 'anniversary') {
-    lines.push(`日期：${task.month}月${task.day}日`);
-    lines.push(`提醒时间：${pad2(task.hour)}:${pad2(task.minute)}`);
-  }
-  lines.push(`飞行：${task.flightMode === 'once' ? '一次性' : task.flightMode === 'loop_times' ? `连续 ${task.loopCount} 次` : `每 ${task.loopInterval} 分钟，共 ${task.intervalCount} 次`}`);
-  if (task.msg) {
-    lines.push(`文案：${task.msg}`);
-  }
-  return lines;
-}
-
-function toggleTaskExpanded(taskId) {
-  expandedTaskId = expandedTaskId === taskId ? null : taskId;
-  renderTasks();
-}
-
-function setGroupEnabled(groupTasks, enabled) {
-  groupTasks.forEach(task => {
-    task.enabled = enabled;
-    if (!enabled && task.type === 'countdown' && (task._status === 'running' || task._status === 'paused')) {
-      stopCountdown(task);
-    }
-  });
-  saveTasks(getCleanTasks());
-  renderTasks();
-  showToast(enabled ? `已启用 ${groupTasks.length} 条任务` : `已停用 ${groupTasks.length} 条任务`);
-}
-
-function matchesFilter(task) {
-  if (taskTypeFilter !== 'all' && task.type !== taskTypeFilter) return false;
-  if (taskGroupFilter !== 'all') {
-    if (taskGroupFilter === 'none' && task.group) return false;
-    if (taskGroupFilter !== 'none' && task.group !== taskGroupFilter) return false;
-  }
-  if (taskSearchKeyword) {
-    const haystack = `${task.label || ''} ${task.msg || ''}`.toLowerCase();
-    if (!haystack.includes(taskSearchKeyword)) return false;
-  }
-  return true;
-}
-
-function renderTasks() {
-  taskListEl.innerHTML = '';
-
-  if (tasks.length === 0) {
-    taskListEl.innerHTML = '<div class="empty-hint"><span class="big-icon">🛩</span><strong>任务列表会展示在这里</strong><span>暂无任务，点击「新建任务」开始添加提醒。</span></div>';
-    updateHeroStatus();
-    return;
-  }
-
-  const filteredTasks = tasks.filter(matchesFilter);
-  if (filteredTasks.length === 0) {
-    taskListEl.innerHTML = '<div class="empty-hint"><span class="big-icon">🔍</span><strong>没有匹配的任务</strong><span>试试别的关键词，或清除筛选条件。</span></div>';
-    updateHeroStatus();
-    return;
-  }
-
-  const orderedTasks = filteredTasks.sort((a, b) => {
-    const scoreDiff = getTaskSortScore(a) - getTaskSortScore(b);
-    if (scoreDiff !== 0) return scoreDiff;
-    const timeDiff = getTaskTimeAnchor(a) - getTaskTimeAnchor(b);
-    if (timeDiff !== 0) return timeDiff;
-    return a.id - b.id;
-  });
-
-  const grouped = orderedTasks.reduce((acc, task) => {
-    const key = getTaskGroupKey(task);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(task);
-    return acc;
-  }, {});
-
-  ['in_progress', 'upcoming', 'special_dates', 'disabled'].forEach(groupKey => {
-    const groupTasks = grouped[groupKey];
-    if (!groupTasks?.length) return;
-
-    const groupMeta = getTaskGroupMeta(groupKey, groupTasks.length);
-    const section = document.createElement('section');
-    section.className = `task-group task-group--${groupKey}`;
-
-    const header = document.createElement('div');
-    header.className = 'task-group-head';
-
-    const titleWrap = document.createElement('div');
-    titleWrap.className = 'task-group-copy';
-
-    const title = document.createElement('h3');
-    title.className = 'task-group-title';
-    title.textContent = groupMeta.title;
-
-    const subtitle = document.createElement('p');
-    subtitle.className = 'task-group-subtitle';
-    subtitle.textContent = groupMeta.subtitle;
-
-    titleWrap.appendChild(title);
-    titleWrap.appendChild(subtitle);
-
-    const actions = document.createElement('div');
-    actions.className = 'task-group-actions';
-
-    const enableBtn = document.createElement('button');
-    enableBtn.className = 'task-group-btn';
-    enableBtn.textContent = '全部启用';
-    enableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, true));
-
-    const disableBtn = document.createElement('button');
-    disableBtn.className = 'task-group-btn';
-    disableBtn.textContent = '全部停用';
-    disableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, false));
-
-    actions.appendChild(enableBtn);
-    actions.appendChild(disableBtn);
-
-    header.appendChild(titleWrap);
-    header.appendChild(actions);
-    section.appendChild(header);
-
-    groupTasks.forEach(task => {
-    const typeMeta = getTaskTypeMeta(task);
-    const card = document.createElement('div');
-    card.className = `task-card task-card--${typeMeta.className}`;
-    card.dataset.taskId = String(task.id);
-    if (task._status === 'running') card.classList.add('active');
-    if (task._status === 'completed') card.classList.add('completed');
-    if (task.color && TASK_COLOR_VALUES[task.color]) {
-      const bar = document.createElement('div');
-      bar.className = 'task-color-bar';
-      bar.style.background = TASK_COLOR_VALUES[task.color];
-      card.appendChild(bar);
-    }
-
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.className = 'task-toggle';
-    toggle.checked = task.enabled;
-    toggle.addEventListener('change', (e) => {
-      task.enabled = e.target.checked;
-      saveTasks(getCleanTasks());
-      renderTasks();
-    });
-    toggle.addEventListener('click', (e) => e.stopPropagation());
-
-    const icon = document.createElement('span');
-    icon.className = 'task-icon';
-    const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-    const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
-    const svgCal = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-    const svgHeart = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
-    icon.innerHTML = task.type === 'alarm' ? svgClock : task.type === 'countdown' ? svgTimer : task.type === 'holiday' ? svgCal : svgHeart;
-
-    const body = document.createElement('div');
-    body.className = 'task-body';
-
-    const metaRow = document.createElement('div');
-    metaRow.className = 'task-meta-row';
-
-    const typeBadge = document.createElement('span');
-    typeBadge.className = `task-badge task-badge--${typeMeta.className}`;
-    typeBadge.textContent = typeMeta.label;
-
-    const statusBadge = document.createElement('span');
-    statusBadge.className = 'task-status-badge';
-    statusBadge.textContent = getTaskStatusLabel(task);
-
-    metaRow.appendChild(typeBadge);
-    if (task.group) {
-      const groupMap = { work: '💼', health: '💚', life: '🏠', other: '📌' };
-      const groupNames = { work: '工作', health: '健康', life: '生活', other: '其他' };
-      const groupBadge = document.createElement('span');
-      groupBadge.className = 'task-badge task-badge--group';
-      groupBadge.textContent = `${groupMap[task.group] || ''} ${groupNames[task.group] || task.group}`;
-      metaRow.appendChild(groupBadge);
-    }
-    metaRow.appendChild(statusBadge);
-
-    const label = document.createElement('div');
-    label.className = 'task-label';
-    label.textContent = task.label || (task.type === 'alarm' ? '闹钟' : task.type === 'countdown' ? '倒计时' : task.type === 'holiday' ? '节日' : '纪念日');
-    if (task.imageData && task.useImage) {
-      const imgBadge = document.createElement('span');
-      imgBadge.className = 'task-image-badge';
-      imgBadge.title = '此任务使用自定义图片';
-      imgBadge.textContent = '🖼';
-      label.appendChild(imgBadge);
-    }
-
-    const info = document.createElement('div');
-    info.className = 'task-info';
-    info.textContent = getTaskInfoText(task);
-    body.appendChild(metaRow);
-    body.appendChild(label);
-    body.appendChild(info);
-
-    if (expandedTaskId === task.id) {
-      const details = document.createElement('div');
-      details.className = 'task-details';
-      getTaskDetailLines(task).forEach(line => {
-        const detail = document.createElement('div');
-        detail.className = 'task-detail-line';
-        detail.textContent = line;
-        details.appendChild(detail);
-      });
-
-      const detailActions = document.createElement('div');
-      detailActions.className = 'task-detail-actions';
-
-      const quickEditBtn = document.createElement('button');
-      quickEditBtn.className = 'task-detail-btn';
-      quickEditBtn.textContent = '快速编辑';
-      quickEditBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openEditModal(task);
-      });
-
-      detailActions.appendChild(quickEditBtn);
-      details.appendChild(detailActions);
-      body.appendChild(details);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'task-actions';
-
-    const expandBtn = document.createElement('button');
-    expandBtn.className = 'task-expand-btn';
-    expandBtn.title = expandedTaskId === task.id ? '收起详情' : '展开详情';
-    expandBtn.textContent = expandedTaskId === task.id ? '收起' : '详情';
-    expandBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleTaskExpanded(task.id);
-    });
-    actions.appendChild(expandBtn);
-
-    if (task.type === 'countdown') {
-      const statusEl = document.createElement('span');
-      statusEl.className = 'task-countdown-status';
-      actions.appendChild(statusEl);
-
-      const playBtn = document.createElement('button');
-      playBtn.className = 'task-play-btn';
-      playBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (task._status === 'running') {
-          pauseCountdown(task);
-        } else {
-          startCountdown(task);
-        }
-      });
-      actions.appendChild(playBtn);
-
-      const stopBtn = document.createElement('button');
-      stopBtn.className = 'task-stop-btn';
-      stopBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
-      stopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        stopCountdown(task);
-      });
-      actions.appendChild(stopBtn);
-
-      updateCountdownActionUI(task, actions);
-    }
-
-    // Takeoff button
-    const takeoffBtn = document.createElement('button');
-    takeoffBtn.className = 'task-takeoff-btn';
-    takeoffBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>';
-    takeoffBtn.title = '马上起飞';
-    takeoffBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!task.enabled) {
-        task.enabled = true;
-        saveTasks(getCleanTasks());
-      }
-      if (task.type === 'countdown') {
-        if (task._status === 'running' || task._status === 'paused') stopCountdown(task);
-        task._status = 'completed';
-      }
-      renderTasks();
-      triggerFlightWithMode(task);
-    });
-    actions.appendChild(takeoffBtn);
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'task-del-btn';
-    delBtn.textContent = '✕';
-    delBtn.title = '删除';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteTask(task);
-    });
-    actions.appendChild(delBtn);
-
-    card.appendChild(toggle);
-    card.appendChild(icon);
-    card.appendChild(body);
-    card.appendChild(actions);
-
-    card.addEventListener('click', () => {
-      toggleTaskExpanded(task.id);
-    });
-    card.addEventListener('dblclick', (e) => {
-      openEditModal(task);
-    });
-    card.draggable = true;
-    card.setAttribute('data-task-id', task.id);
-    card.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', String(task.id));
-      e.dataTransfer.effectAllowed = 'move';
-      card.style.opacity = '0.5';
-    });
-    card.addEventListener('dragend', () => { card.style.opacity = ''; });
-    card.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
-    card.addEventListener('drop', (e) => {
-      e.preventDefault();
-      card.style.opacity = '';
-      const fromId = e.dataTransfer.getData('text/plain');
-      if (!fromId || fromId === String(task.id)) return;
-      const fromIdx = tasks.findIndex(t => String(t.id) === fromId);
-      const toIdx = tasks.findIndex(t => t === task);
-      if (fromIdx < 0 || toIdx < 0) return;
-      const [moved] = tasks.splice(fromIdx, 1);
-      tasks.splice(toIdx, 0, moved);
-      saveTasks(getCleanTasks());
-      renderTasks();
-    });
-
-      section.appendChild(card);
-    });
-
-    taskListEl.appendChild(section);
-  });
-
-  updateHeroStatus();
-}
-
-function formatDuration(s) {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${pad2(m)}:${pad2(sec)}`;
-}
+// --- Toast ---
+// extracted to ./ui/Toast.js
+
+// --- Audio helpers ---
+// extracted to ./ui/AudioSystem.js
 
 // --- Countdown ---
-
-function startCountdown(task) {
-  let enabledChanged = false;
-  if (!task.enabled) {
-    task.enabled = true;
-    enabledChanged = true;
-  }
-
-  if (task._status === 'paused' && task._timer) {
-    task._status = 'running';
-    if (enabledChanged) saveTasks(getCleanTasks());
-    task._timer.resume();
-    renderTasks();
-    return;
-  }
-
-  const duration = (task._remaining || task.duration) * 1000;
-
-  task._status = 'running';
-  task._remaining = task._remaining || task.duration;
-
-  task._timer = new AccurateTimer(
-    duration,
-    (remaining) => {
-      const secs = Math.ceil(remaining / 1000);
-      if (secs === task._remaining) return;
-      task._remaining = secs;
-      updateCountdownTaskUI(task);
-    },
-    () => onCountdownComplete(task)
-  );
-  task._timer.start();
-  if (enabledChanged) saveTasks(getCleanTasks());
-  renderTasks();
-}
-
-function pauseCountdown(task) {
-  if (!task._timer || task._status !== 'running') return;
-  task._timer.pause();
-  task._status = 'paused';
-  task._remaining = Math.ceil(task._timer.remaining / 1000);
-  renderTasks();
-}
-
-function stopCountdown(task) {
-  if (task._timer) {
-    task._timer.stop();
-    task._timer = null;
-  }
-  task._status = 'idle';
-  task._remaining = task.duration;
-  renderTasks();
-}
-
-async function onCountdownComplete(task) {
-  task._status = 'completed';
-  renderTasks();
-
-  await triggerFlightWithMode(task);
-  task._status = 'idle';
-  task._remaining = task.duration;
-  renderTasks();
-}
+// extracted to ./tasks/CountdownTimer.js
 
 // --- Alarm checker ---
+// extracted to ./tasks/AlarmChecker.js
 
-let alarmInterval = null;
+// --- Hero / next upcoming ---
+// extracted to ./ui/HeroSection.js
 
-async function getNextUpcomingTask() {
-  const now = new Date();
-  let bestTask = null, bestSec = Infinity;
-  for (const task of tasks) {
-    if (!task.enabled) continue;
-    if (task.type === 'alarm') {
-      const today = now.toDateString();
-      if (task._lastTriggeredDate === today) continue;
-      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), task.hour, task.minute, 0, 0);
-      let diff = Math.round((target - now) / 1000);
-      if (diff <= 0) diff += 86400;
-      if (diff < bestSec) { bestSec = diff; bestTask = task; }
-    } else if (task.type === 'holiday' || task.type === 'anniversary') {
-      const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute, 0, 0);
-      if (target <= now) target.setFullYear(target.getFullYear() + 1);
-      const diff = Math.round((target - now) / 1000);
-      if (diff < bestSec) { bestSec = diff; bestTask = task; }
-    } else if (task.type === 'countdown' && task._status === 'running') {
-      const diff = Math.max(0, Math.round(task._remaining || 0));
-      if (diff < bestSec) { bestSec = diff; bestTask = task; }
-    }
-  }
-  return bestTask ? { task: bestTask, seconds: bestSec, minutes: Math.floor(bestSec / 60) } : null;
+// --- Flight trigger ---
+// extracted to ./flight/FlightTrigger.js
+
+// --- Render task list ---
+// see functions: renderTaskView, toggleTaskExpandedFn, openEditModalFn, deleteTaskFn
+function renderTaskView() {
+  const filters = getTaskFilterState ? getTaskFilterState() : {};
+  const ctx = {
+    tasks,
+    taskListEl,
+    holidayPresets: HOLIDAY_PRESETS,
+    expandedTaskId,
+    toggleTaskExpandedFn,
+    openEditModalFn,
+    deleteTaskFn,
+    saveTasks,
+    getCleanTasksFn: (ts) => getCleanTasks(ts),
+    startCountdownFn: startCountdown,
+    pauseCountdownFn: pauseCountdown,
+    stopCountdownFn: stopCountdown,
+    triggerFlightWithModeFn: doTriggerFlight,
+    updateHeroStatusFn: updateHeroStatus,
+    filterType: filters.taskTypeFilter || 'all',
+    filterGroup: filters.taskGroupFilter || 'all',
+    filterKeyword: filters.taskSearchKeyword || '',
+  };
+  renderTasks(ctx);
+  setStatsTasks(tasks);
+  setHistoryTasks(tasks);
 }
 
-const previewedTasks = new Set();
-function checkPreTrigger() {
-  const now = new Date();
-  const h = now.getHours(), m = now.getMinutes(), today = now.toDateString();
-  const currentMinutes = h * 60 + m;
-  const todayMonth = now.getMonth() + 1, todayDate = now.getDate();
-
-  tasks.forEach(task => {
-    if (!task.enabled) return;
-    if ((task.type === 'alarm' || task.type === 'holiday' || task.type === 'anniversary') && task._lastTriggeredDate === today) return;
-    let triggerMin = null, previewKey = null;
-
-    if (task.type === 'alarm') {
-      if (task.repeat.length === 0) return;
-      if (!task.repeat.includes(now.getDay())) return;
-      triggerMin = task.hour * 60 + task.minute;
-    } else if (task.type === 'holiday' || task.type === 'anniversary') {
-      if (task.month !== todayMonth || task.day !== todayDate) return;
-      triggerMin = task.hour * 60 + task.minute;
-    }
-    if (triggerMin == null) return;
-    const diff = triggerMin - currentMinutes;
-    if (diff <= 0 || diff > 5) return;
-
-    previewKey = `${task.id}-${today}-${triggerMin}`;
-    if (previewedTasks.has(previewKey)) return;
-    previewedTasks.add(previewKey);
-
-    const label = task.label || (task.type === 'holiday' ? '节日' : '提醒');
-    showToast(`⏰ ${label} · ${diff} 分钟后起飞`, 3000);
-  });
+function toggleTaskExpandedFn(taskId) {
+  expandedTaskId = expandedTaskId === taskId ? null : taskId;
+  renderTaskView();
 }
 
-function startAlarmChecker() {
-  if (alarmInterval) return;
-  checkPreTrigger();
-  alarmInterval = setInterval(() => {
-    const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
-    const today = now.toDateString();
-    const day = now.getDay();
-    const todayMonth = now.getMonth() + 1;
-    const todayDate = now.getDate();
-
-    tasks.forEach(task => {
-      if (!task.enabled) return;
-      if (task._lastTriggeredDate === today) return;
-
-      if (task.type === 'alarm') {
-        const hasRepeat = task.repeat.length > 0;
-        if (hasRepeat && !task.repeat.includes(day)) return;
-        if (task.hour === h && task.minute === m) {
-          task._lastTriggeredDate = today;
-          saveTasks(getCleanTasks());
-          triggerFlightWithMode(task);
-        }
-      } else if (task.type === 'holiday') {
-        if (task.month === todayMonth && task.day === todayDate && task.hour === h && task.minute === m) {
-          task._lastTriggeredDate = today;
-          saveTasks(getCleanTasks());
-          triggerFlightWithMode(task);
-        }
-      } else if (task.type === 'anniversary') {
-        if (task.month === todayMonth && task.day === todayDate && task.hour === h && task.minute === m) {
-          task._lastTriggeredDate = today;
-          saveTasks(getCleanTasks());
-          triggerFlightWithMode(task);
-        }
-      }
-    });
-    checkPreTrigger();
-    updateNextUpcoming();
-    updateMiniWindow();
-  }, 1000);
-}
-
-// --- Flight ---
-
-async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskImageData = null, taskUseImage = null) {
-  if (!isTauriRuntime) {
-    return;
-  }
-  const speed = speedSelect.value;
-  const height = heightSelect.value;
-  const effect = effectSelect.value;
-  const plane = planeSelect.value;
-  const particle = particleSelect.value;
-  const bubble = bubbleSelect.value;
-  const bubblePosition = bubblePositionSelect.value;
-
-  const effectiveImage = taskImageData !== null ? taskImageData : customImageData;
-  const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckbox.checked;
-
-  localStorage.setItem('_flightImage', effectiveImage || '');
-  localStorage.setItem('_flightUseImage', effectiveUseImage ? '1' : '0');
-
-  try {
-    let sw = screen.width, sh = screen.height, x = 0, y = 0;
-    if (displaySelect.value === 'active') {
-      try {
-        const monitor = await appWindow.currentMonitor();
-        if (monitor) {
-          x = monitor.position.x;
-          y = monitor.position.y;
-          sw = monitor.size.width;
-          sh = monitor.size.height;
-        }
-      } catch (e) {}
-    }
-    const params = new URLSearchParams({ w: sw, h: sh, speed, height, effect, plane, particle, bubble, bubblePosition, msg, dir: direction, seq: sequenceId });
-    const flightWin = new WebviewWindow(`flight-${Date.now()}`, {
-      url: `/flight.html?${params}`,
-      width: sw, height: sh, x, y,
-      transparent: true, decorations: false,
-      alwaysOnTop: true, skipTaskbar: true,
-      resizable: false, visible: true, focus: false,
-    });
-    flightWin.once('tauri://error', (e) => console.error('flight error:', e));
-  } catch (e) {
-    console.error('flight error:', e);
-  }
-  await new Promise(r => setTimeout(r, 200));
-}
-
-async function previewFlight() {
-  if (!isTauriRuntime) {
-    showToast('预览仅在桌面应用内可用');
-    return;
-  }
-  await unlockAudioIfNeeded();
-  if (useSoundCheckbox.checked && !(await validateCustomAudioPreview())) {
-    return;
-  }
-  await persistFlightSettings();
-  queueFlight({ msg: '预览当前飞行效果', direction: 'ltr', sequenceId: '', playSound: true });
-}
-
-async function previewCustomSound() {
-  if (!customAudioData) {
-    showToast('请先选择一段自定义音频');
-    return;
-  }
-  if (previewAudioHandle) {
-    stopPreviewAudio();
-    showToast('已结束试听');
-    return;
-  }
-  stopLoopSound();
-  await unlockAudioIfNeeded();
-  try {
-    previewAudioHandle = await playCustomAudio(false);
-    if (previewAudioHandle && 'addEventListener' in previewAudioHandle) {
-      previewAudioHandle.addEventListener('ended', () => {
-        previewAudioHandle = null;
-        updateSoundMeta();
-      }, { once: true });
-    }
-    updateSoundMeta();
-    showToast('正在试听自定义音频');
-  } catch (e) {
-    previewAudioHandle = null;
-    updateSoundMeta();
-    showToast('这段自定义音频试听失败，请换一个 mp3 或 wav 文件试试');
-  }
-}
-
-async function resetFlightSettings() {
-  speedSelect.value = DEFAULT_FLIGHT_SETTINGS.speed;
-  heightSelect.value = DEFAULT_FLIGHT_SETTINGS.height;
-  effectSelect.value = DEFAULT_FLIGHT_SETTINGS.effect;
-  planeSelect.value = DEFAULT_FLIGHT_SETTINGS.plane;
-  particleSelect.value = DEFAULT_FLIGHT_SETTINGS.particle;
-  bubbleSelect.value = DEFAULT_FLIGHT_SETTINGS.bubble;
-  bubblePositionSelect.value = DEFAULT_FLIGHT_SETTINGS.bubblePosition;
-  soundSelect.value = DEFAULT_FLIGHT_SETTINGS.sound;
-  soundModeSelect.value = DEFAULT_FLIGHT_SETTINGS.soundMode;
-  useSoundCheckbox.checked = DEFAULT_FLIGHT_SETTINGS.useSound;
-  customImageData = '';
-  customAudioName = '';
-  useImageCheckbox.checked = false;
-  imagePreview.src = '';
-  imagePreview.classList.add('hidden');
-  clearImageBtn.classList.add('hidden');
-  useImageCheckbox.closest('.img-toggle').classList.add('hidden');
-  imageInput.value = '';
-  updateTitleLogo();
-  await persistSetting('customImage', '');
-  await persistFlightSettings();
-  await persistSetting('customAudioName', '');
-  updateSoundMeta();
-  showToast('已恢复推荐飞行设置');
-}
-
-function isInQuietHours() {
-  if (!quietHoursToggle?.checked) return false;
-  const now = new Date();
-  const h = now.getHours();
-  const start = parseInt(quietStartHour?.value) || 22;
-  const end = parseInt(quietEndHour?.value) || 8;
-  if (start <= end) {
-    return h >= start && h < end;
-  }
-  return h >= start || h < end;
-}
-
-async function triggerFlightWithMode(task) {
-  if (isInQuietHours()) return;
-  const msg = task.msg || getRandomQuote();
-  const taskImage = task.imageData || null;
-  const taskUseImage = task.imageData ? !!task.useImage : null;
-  const postFlight = { action: task.postFlightAction || 'none', appPath: task.postFlightAppPath || '', url: task.postFlightUrl || '', folder: task.postFlightFolder || '', script: task.postFlightScript || '', taskMsg: msg };
-
-  await registerFlightTrigger();
-  await recordFlightTrigger(task);
-  notifyFlightTriggered(task.label, msg);
-  await renderStats();
-
-  const mode = task.flightMode || 'once';
-
-  if (mode === 'once') {
-    queueFlight({ msg, direction: 'ltr', sequenceId: '', playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
-    return;
-  }
-
-  if (mode === 'loop_times') {
-    const sequenceId = createSequenceId(task.id);
-    const totalLoopMs = task.loopCount * 10000 + 60000;
-    flightSequences.set(sequenceId, {
-      active: true,
-      sequenceId,
-      taskId: task.id,
-      taskMsg: msg,
-      taskImage,
-      taskUseImage,
-      postFlight,
-      remaining: (task.loopCount || 3),
-      direction: 'ltr',
-      mode: 'loop_times',
-      intervalId: null,
-      timeoutId: setTimeout(() => {
-        const state = getSequence(sequenceId);
-        if (state) {
-          state.active = false;
-          clearSequence(sequenceId);
-          if (!hasActiveSequences()) stopLoopSound();
-        }
-      }, totalLoopMs),
-    });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
-    return;
-  }
-
-  if (mode === 'loop_interval') {
-    const sequenceId = createSequenceId(task.id);
-    const totalIntervalMs = (task.intervalCount - 1) * task.loopInterval * 60 * 1000 + 60000;
-    flightSequences.set(sequenceId, {
-      active: true,
-      sequenceId,
-      taskId: task.id,
-      taskMsg: msg,
-      taskImage,
-      taskUseImage,
-      postFlight,
-      remaining: (task.intervalCount || 10),
-      mode: 'loop_interval',
-      intervalMs: (task.loopInterval || 5) * 60 * 1000,
-      lastStart: Date.now(),
-      intervalId: null,
-      timeoutId: setTimeout(() => {
-        const state = getSequence(sequenceId);
-        if (state) {
-          state.active = false;
-          clearSequence(sequenceId);
-          if (!hasActiveSequences()) stopLoopSound();
-        }
-      }, totalIntervalMs),
-    });
-    queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
-    return;
-  }
-}
-
-async function executePostFlightAction(postFlight) {
-  if (!postFlight || postFlight.action === 'none') return;
-  if (!isTauriRuntime) return;
-  try {
-    if (postFlight.action === 'app' && postFlight.appPath) {
-      await invoke('open_app', { path: postFlight.appPath });
-    } else if (postFlight.action === 'url' && postFlight.url) {
-      await invoke('open_url_in_browser', { url: postFlight.url });
-    } else if (postFlight.action === 'lock') {
-      await invoke('run_script', { script: 'pmset displaysleepnow' });
-    } else if (postFlight.action === 'folder' && postFlight.folder) {
-      await invoke('open_app', { path: postFlight.folder });
-    } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
-      await invoke('run_script', { script: `say "${(postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"')}"` });
-    } else if (postFlight.action === 'script' && postFlight.script) {
-      await invoke('run_script', { script: postFlight.script });
-    }
-  } catch (e) {
-    console.error('Post-flight action failed:', e);
-  }
-}
-
-async function playSound() {
-  if (isMuted) return;
-  stopLoopSound();
-
-  await unlockAudioIfNeeded();
-
-  const sound = soundSelect.value;
-  const loopMode = soundModeSelect.value === 'loop';
-  const useCustomSound = useSoundCheckbox.checked && customAudioData;
-
-  if (useCustomSound) {
-    void playCustomAudio(loopMode).catch(() => {
-      showToast('自定义音频播放失败，已回退到内置提示音');
-      void playOscillator(sound);
-      if (loopMode) {
-        loopOscInterval = setInterval(() => { void playOscillator(sound); }, 800);
-      }
-    });
-    return;
-  }
-
-  void playOscillator(sound);
-
-  if (loopMode) {
-    loopOscInterval = setInterval(() => { void playOscillator(sound); }, 800);
-  }
-}
-
-function stopLoopSound() {
-  if (loopAudio) {
-    loopAudio.pause();
-    loopAudio = null;
-  }
-  if (loopOscInterval) {
-    clearInterval(loopOscInterval);
-    loopOscInterval = null;
-  }
-}
-
-async function playOscillator(sound) {
-  try {
-    if (!KNOWN_SOUND_VALUES.has(sound)) sound = 'whoosh';
-    const audioCtx = await getAudioContext();
-    await playPresetSound(audioCtx, sound);
-  } catch (e) {}
-}
-
-// --- Modal ---
-
-function openEditModal(task) {
+function openEditModalFn(task) {
   editingId = task.id;
-  clearModalError();
-  modalTitle.textContent = '编辑任务';
-
-  editLabel.value = task.label;
-  editMsg.value = task.msg || '';
-  editGroup.value = task.group || '';
-
-  editFlightMode.value = task.flightMode || 'once';
-  editLoopCount.value = task.loopCount || 3;
-  editLoopInterval.value = task.loopInterval || 5;
-  editIntervalCount.value = task.intervalCount || 10;
-  loopTimesField.classList.toggle('hidden', editFlightMode.value !== 'loop_times');
-  loopIntervalField.classList.toggle('hidden', editFlightMode.value !== 'loop_interval');
-
-  editPostFlightAction.value = task.postFlightAction || 'none';
-  editPostFlightAppPath.value = task.postFlightAppPath || '';
-  editPostFlightUrl.value = task.postFlightUrl || '';
-  editPostFlightFolder.value = task.postFlightFolder || '';
-  editPostFlightScript.value = task.postFlightScript || '';
-  postFlightAppField.classList.toggle('hidden', editPostFlightAction.value !== 'app');
-  postFlightUrlField.classList.toggle('hidden', editPostFlightAction.value !== 'url');
-  postFlightFolderField.classList.toggle('hidden', editPostFlightAction.value !== 'folder');
-  postFlightScriptField.classList.toggle('hidden', editPostFlightAction.value !== 'script' && editPostFlightAction.value !== 'lock');
-
-  document.querySelectorAll('.type-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === task.type);
-  });
-  alarmFields.classList.add('hidden');
-  countdownFields.classList.add('hidden');
-  holidayFields.classList.add('hidden');
-  anniversaryFields.classList.add('hidden');
-
-  if (task.type === 'alarm') {
-    alarmFields.classList.remove('hidden');
-    editHour.value = task.hour;
-    editMinute.value = task.minute;
-    document.querySelectorAll('.day-btn').forEach(b => {
-      b.classList.toggle('active', task.repeat.includes(parseInt(b.dataset.day)));
-    });
-  } else if (task.type === 'countdown') {
-    countdownFields.classList.remove('hidden');
-    editMinutes.value = Math.floor(task.duration / 60);
-    editSeconds.value = task.duration % 60;
-  } else if (task.type === 'holiday') {
-    holidayFields.classList.remove('hidden');
-    holidayChecklist.querySelectorAll('input').forEach(cb => {
-      cb.checked = cb.value === task.holidayKey;
-    });
-    editHolidayHour.value = task.hour;
-    editHolidayMinute.value = task.minute;
-  } else   if (task.type === 'anniversary') {
-    anniversaryFields.classList.remove('hidden');
-    editAnniMonth.value = task.month;
-    editAnniDay.value = task.day;
-    editAnniHour.value = task.hour;
-    editAnniMinute.value = task.minute;
-  }
-
-  editImageData = task.imageData || '';
-  if (editImagePreview) {
-    if (editImageData) {
-      editImagePreview.src = editImageData;
-      editImagePreview.classList.remove('hidden');
-    } else {
-      editImagePreview.src = '';
-      editImagePreview.classList.add('hidden');
-    }
-  }
-  if (editClearImageBtn) editClearImageBtn.hidden = !editImageData;
-  if (editUseImageCheckbox) editUseImageCheckbox.checked = !!task.useImage;
-  if (editImageInput) editImageInput.value = '';
-
-  setSelectedColor(task.color || null);
-
-  deleteTaskBtn.classList.remove('hidden');
-  modal.classList.remove('hidden');
+  const ctx = {
+    modal, modalTitle, modalError, editLabel, editMsg, editGroup,
+    editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
+    loopTimesField, loopIntervalField,
+    editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
+    editPostFlightFolder, editPostFlightScript, postFlightAppField,
+    postFlightUrlField, postFlightFolderField, postFlightScriptField,
+    alarmFields, countdownFields, holidayFields, anniversaryFields,
+    editHour, editMinute, editMinutes, editSeconds,
+    editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
+    editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
+    editImagePreview, editClearImageBtn, editUseImageCheckbox, editImageInput,
+    deleteTaskBtn, editImageData, editingId, selectedEditColor: getSelectedEditColor(),
+  };
+  openEditModal(task, editingId, selectColor, ctx);
 }
 
-function openNewModal() {
+function deleteTaskFn(task) {
+  deleteTask(task, tasks, () => closeModal(modal, modalError), saveTasks, (ts) => getCleanTasks(ts), renderTaskView, stopCountdown);
+}
+
+// --- Modal save ---
+function saveModalHandler() {
+  const ctx = {
+    modal, modalError, tasks, saveTasks, getCleanTasksFn: (ts) => getCleanTasks(ts), renderTasksFn: renderTaskView,
+    editLabel, editMsg, editGroup, editingId,
+    editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
+    editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
+    editPostFlightFolder, editPostFlightScript,
+    editHour, editMinute, editMinutes, editSeconds,
+    editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
+    editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
+    editImagePreview, editUseImageCheckbox, selectedEditColor: getSelectedEditColor(), editImageData,
+    stopCountdownFn: stopCountdown,
+  };
+  saveModal(editingId, ctx);
   editingId = null;
-  clearModalError();
-  modalTitle.textContent = '新建任务';
-
-  editLabel.value = '';
-  editMsg.value = '';
-  editGroup.value = '';
-
-  editFlightMode.value = 'once';
-  editLoopCount.value = 3;
-  editLoopInterval.value = 5;
-  editIntervalCount.value = 10;
-  loopTimesField.classList.add('hidden');
-  loopIntervalField.classList.add('hidden');
-
-  editPostFlightAction.value = 'none';
-  editPostFlightAppPath.value = '';
-  editPostFlightUrl.value = '';
-  editPostFlightFolder.value = '';
-  editPostFlightScript.value = '';
-  postFlightAppField.classList.add('hidden');
-  postFlightUrlField.classList.add('hidden');
-  postFlightFolderField.classList.add('hidden');
-  postFlightScriptField.classList.add('hidden');
-
-  document.querySelectorAll('.type-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === 'alarm');
-  });
-  alarmFields.classList.remove('hidden');
-  countdownFields.classList.add('hidden');
-  holidayFields.classList.add('hidden');
-  anniversaryFields.classList.add('hidden');
-  editHour.value = '12';
-  editMinute.value = '0';
-  editMinutes.value = '25';
-  editSeconds.value = '0';
-  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
-
-  editHolidayHour.value = '9';
-  editHolidayMinute.value = '0';
-  editAnniMonth.value = '1';
-  editAnniDay.value = '1';
-  editAnniHour.value = '9';
-  editAnniMinute.value = '0';
-
-  editImageData = '';
-  if (editImagePreview) {
-    editImagePreview.src = '';
-    editImagePreview.classList.add('hidden');
-  }
-  if (editClearImageBtn) editClearImageBtn.hidden = true;
-  if (editUseImageCheckbox) editUseImageCheckbox.checked = false;
-  if (editImageInput) editImageInput.value = '';
-  setSelectedColor(null);
-
-  deleteTaskBtn.classList.add('hidden');
-  modal.classList.remove('hidden');
+  saveModal(editingId, ctx);
 }
 
-function openNewModalForType(type) {
-  openNewModal();
-  const target = document.querySelector(`.type-btn[data-type="${type}"]`);
-  if (target) target.click();
+// --- Color picker ---
+// extracted to ./ui/ColorPicker.js
+
+// --- Stats ---
+async function renderStatsPanel() {
+  const stats = await computeFlightStats();
+  await renderStats(async () => stats);
+  const flightLog = await loadFlightLog();
+  renderTaskHistory(stats, flightLog);
 }
 
-function closeModal() {
-  clearModalError();
-  modal.classList.add('hidden');
-}
+// --- Preview / Reset flight ---
+// extracted to ./ui/FlightPreview.js
 
-function openSettingsModal() {
-  modal.classList.add('hidden');
-  settingsModal.classList.remove('hidden');
-}
+// --- Logo ---
+// extracted to ./ui/Logo.js
 
-function closeSettingsModal() {
-  settingsModal.classList.add('hidden');
-}
-
-function saveModal() {
-  clearModalError();
-  const type = document.querySelector('.type-btn.active').dataset.type;
-
-  const flightMode = editFlightMode.value;
-  const loopCount = parseInt(editLoopCount.value) || 3;
-  const loopInterval = parseInt(editLoopInterval.value) || 5;
-  const intervalCount = parseInt(editIntervalCount.value) || 10;
-
-  if (editingId) {
-    const task = tasks.find(t => t.id === editingId);
-    if (!task) return;
-
-    if (task._status === 'running') stopCountdown(task);
-
-    task.label = editLabel.value.trim();
-    task.msg = editMsg.value.trim();
-    task.group = editGroup.value;
-    task.type = type;
-    task.flightMode = flightMode;
-    task.loopCount = loopCount;
-    task.loopInterval = loopInterval;
-    task.intervalCount = intervalCount;
-    task.imageData = editImageData || null;
-    task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
-    task.color = selectedEditColor;
-    task.group = editGroup.value;
-    task.postFlightAction = editPostFlightAction.value;
-    task.postFlightAppPath = editPostFlightAppPath.value.trim();
-    task.postFlightUrl = editPostFlightUrl.value.trim();
-    task.postFlightFolder = editPostFlightFolder.value.trim();
-    task.postFlightScript = editPostFlightScript.value.trim();
-
-    if (type === 'alarm') {
-      task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
-      task.minute = Math.min(59, Math.max(0, parseInt(editMinute.value) || 0));
-      task.repeat = [];
-      document.querySelectorAll('.day-btn.active').forEach(b => {
-        task.repeat.push(parseInt(b.dataset.day));
-      });
-      task._lastTriggeredDate = null;
-    } else if (type === 'countdown') {
-      const mins = parseInt(editMinutes.value) || 0;
-      const secs = Math.min(59, Math.max(0, parseInt(editSeconds.value) || 0));
-      task.duration = mins * 60 + secs;
-      if (task.duration <= 0) task.duration = 60;
-      task._remaining = task.duration;
-    } else if (type === 'holiday') {
-      // Edit: single holiday
-      const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
-      if (checkedBoxes.length === 0) {
-        showToast('请至少选择一个节假日');
-        return;
-      }
-      const useKey = checkedBoxes[0].value;
-      const preset = HOLIDAY_PRESETS[useKey];
-      task.holidayKey = useKey;
-      task.month = preset ? preset.month : 1;
-      task.day = preset ? preset.day : 1;
-      task.hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
-      task.minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
-      task.label = task.label || formatHolidayLabel(preset);
-      task._lastTriggeredDate = null;
-    } else if (type === 'anniversary') {
-      const anniversary = parseAnniversaryValues();
-      if (!validateAnniversaryValues(anniversary)) return;
-      task.month = anniversary.month;
-      task.day = anniversary.day;
-      task.hour = anniversary.hour;
-      task.minute = anniversary.minute;
-      task._lastTriggeredDate = null;
-    }
-  } else {
-    let task;
-    if (type === 'alarm') {
-      task = createAlarmTask();
-      task.label = editLabel.value.trim();
-      task.msg = editMsg.value.trim();
-      task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
-      task.minute = Math.min(59, Math.max(0, parseInt(editMinute.value) || 0));
-      task.repeat = [];
-      document.querySelectorAll('.day-btn.active').forEach(b => {
-        task.repeat.push(parseInt(b.dataset.day));
-      });
-    } else if (type === 'countdown') {
-      task = createCountdownTask();
-      task.label = editLabel.value.trim();
-      task.msg = editMsg.value.trim();
-      const mins = parseInt(editMinutes.value) || 0;
-      const secs = Math.min(59, Math.max(0, parseInt(editSeconds.value) || 0));
-      task.duration = mins * 60 + secs;
-      if (task.duration <= 0) task.duration = 60;
-      task._remaining = task.duration;
-    } else if (type === 'holiday') {
-      const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
-      if (checkedBoxes.length === 0) {
-        showToast('请至少选择一个节假日');
-        return;
-      }
-      const hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
-      const minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
-      const msg = editMsg.value.trim();
-      let firstTask = null;
-      checkedBoxes.forEach(cb => {
-        const key = cb.value;
-        const preset = HOLIDAY_PRESETS[key];
-        const t = createHolidayTask();
-        t.holidayKey = key;
-        t.label = formatHolidayLabel(preset);
-        t.msg = msg;
-        t.flightMode = flightMode;
-        t.loopCount = loopCount;
-        t.loopInterval = loopInterval;
-        t.intervalCount = intervalCount;
-        t.postFlightAction = editPostFlightAction.value;
-        t.postFlightAppPath = editPostFlightAppPath.value.trim();
-        t.postFlightUrl = editPostFlightUrl.value.trim();
-        t.month = preset ? preset.month : 1;
-        t.day = preset ? preset.day : 1;
-        t.hour = hour;
-        t.minute = minute;
-        t.imageData = editImageData || null;
-        t.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
-        t.color = selectedEditColor;
-        tasks.push(t);
-        if (!firstTask) firstTask = t;
-      });
-      closeModal();
-      saveTasks(getCleanTasks());
-      renderTasks();
-      return;
-    } else if (type === 'anniversary') {
-      task = createAnniversaryTask();
-      task.label = editLabel.value.trim() || '纪念日';
-      task.msg = editMsg.value.trim();
-      task.flightMode = flightMode;
-      task.loopCount = loopCount;
-      task.loopInterval = loopInterval;
-      task.intervalCount = intervalCount;
-      const anniversary = parseAnniversaryValues();
-      if (!validateAnniversaryValues(anniversary)) return;
-      task.month = anniversary.month;
-      task.day = anniversary.day;
-      task.hour = anniversary.hour;
-      task.minute = anniversary.minute;
-    }
-    task.imageData = editImageData || null;
-    task.useImage = editImageData ? !!editUseImageCheckbox?.checked : false;
-    task.color = selectedEditColor;
-    task.group = editGroup.value;
-    task.postFlightAction = editPostFlightAction.value;
-    task.postFlightAppPath = editPostFlightAppPath.value.trim();
-    task.postFlightUrl = editPostFlightUrl.value.trim();
-    task.postFlightFolder = editPostFlightFolder.value.trim();
-    task.postFlightScript = editPostFlightScript.value.trim();
-    tasks.push(task);
-  }
-
-  closeModal();
-  saveTasks(getCleanTasks());
-  renderTasks();
-}
-
-function deleteTask(task) {
-  if (task._status === 'running') stopCountdown(task);
-  for (const [seqId, seq] of flightSequences) {
-    if (seq.taskId === task.id) {
-      if (seq.timeoutId) clearTimeout(seq.timeoutId);
-      if (seq.intervalId) clearTimeout(seq.intervalId);
-      flightSequences.delete(seqId);
-    }
-  }
-  tasks = tasks.filter(t => t.id !== task.id);
-  closeModal();
-  saveTasks(getCleanTasks());
-  renderTasks();
-}
-
-function getCleanTasks() {
-  return tasks.map(t => {
-    const base = { id: t.id, type: t.type, label: t.label, msg: t.msg, enabled: t.enabled, flightMode: t.flightMode || 'once', loopCount: t.loopCount || 3, loopInterval: t.loopInterval || 5, intervalCount: t.intervalCount || 10, postFlightAction: t.postFlightAction || 'none', postFlightAppPath: t.postFlightAppPath || '', postFlightUrl: t.postFlightUrl || '', postFlightFolder: t.postFlightFolder || '', postFlightScript: t.postFlightScript || '', group: t.group || '', imageData: t.imageData || null, useImage: !!t.useImage, color: t.color || null };
-    if (t.type === 'alarm') return { ...base, hour: t.hour, minute: t.minute, repeat: t.repeat, _lastTriggeredDate: t._lastTriggeredDate };
-    if (t.type === 'countdown') {
-      const persisted = t._status === 'paused' ? t._remaining : undefined;
-      return { ...base, duration: t.duration, _remaining: persisted, _status: t._status === 'paused' ? 'paused' : 'idle' };
-    }
-    if (t.type === 'holiday') return { ...base, holidayKey: t.holidayKey, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
-    if (t.type === 'anniversary') return { ...base, month: t.month, day: t.day, hour: t.hour, minute: t.minute, _lastTriggeredDate: t._lastTriggeredDate };
-    return base;
-  });
-}
+// --- Emergency ---
+// extracted to ./flight/Emergency.js
 
 // --- Init ---
-
 async function init() {
   // Load tasks
   const saved = await loadTasks();
-  tasks = saved.map(t => ({
-    ...t,
-    flightMode: t.flightMode || 'once',
-    loopCount: t.loopCount || 3,
-    loopInterval: t.loopInterval || 5,
-    intervalCount: t.intervalCount || 10,
-    postFlightAction: t.postFlightAction || 'none',
-    postFlightAppPath: t.postFlightAppPath || '',
-    postFlightUrl: t.postFlightUrl || '',
-    postFlightFolder: t.postFlightFolder || '',
-    postFlightScript: t.postFlightScript || '',
-    group: t.group || '',
-    imageData: t.imageData || null,
-    useImage: !!t.useImage,
-    color: t.color || null,
-    _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
-    _status: t.type === 'countdown' && t._status === 'paused' ? 'paused' : 'idle',
-    _timer: null,
-  }));
-  nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
+  const { tasks: hydrated, maxId } = hydrateTasks(saved);
+  tasks = hydrated;
+  setNextId(maxId);
 
   // Restore settings
   const cfg = await loadSettings();
 
   isMuted = cfg.muted;
   muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
+  setMuted(isMuted);
+  initLogo({
+    getCustomImageData: () => customImageData, isTauriRuntime, invoke, isMuted, settingsModal,
+  });
+  initFlightSync({
+    speedSelect, heightSelect, effectSelect,
+    planeSelect, particleSelect, bubbleSelect, bubblePositionSelect,
+    soundSelect, soundModeSelect, useSoundCheckbox, useImageCheckbox,
+    effectCards: (document.getElementById('effectPicker')?.querySelectorAll('.effect-card')) || [],
+    presetButtons: document.querySelectorAll('.preset-btn'),
+    presetWatchSelectors: [speedSelect, heightSelect, effectSelect, planeSelect, particleSelect, bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect],
+    FLIGHT_PRESETS, persistFlightSettings, persistSetting, showToast,
+  });
+  initFlightTrigger({
+    incrementTodayCount, todayCountEl, getDateKey, get, set,
+    resetStreak, dayDiff, isInQuietHours, quietHoursToggle, quietStartHour, quietEndHour,
+    getRandomQuote, recordFlightTrigger, notifyFlightTriggered,
+    renderStatsPanel: () => renderStatsPanel(),
+    triggerFlightWithMode,
+  });
+  initAudioSystem({
+    soundSelect, soundModeSelect, useSoundCheckbox,
+    soundMeta, soundNameEl, previewSoundBtn,
+    getCustomAudioData: () => customAudioData,
+    getCustomAudioName: () => customAudioName,
+    showToast,
+    SOUND_PRESETS, playPresetSound: playPresetSound,
+    buildCustomAudioObjectUrl,
+    stopPreviewAudio,
+  });
   syncMuteToTray();
   todayCountEl.textContent = cfg.todayCount;
   if (cfg.speed) speedSelect.value = cfg.speed;
   if (cfg.height) heightSelect.value = cfg.height;
   if (cfg.display) displaySelect.value = cfg.display;
-  if (cfg.effect) effectSelect.value = cfg.effect;
+  if (cfg.effect) { effectSelect.value = cfg.effect; syncEffectPicker(cfg.effect); }
   if (cfg.plane) planeSelect.value = cfg.plane;
   if (cfg.particle) particleSelect.value = cfg.particle;
   if (cfg.bubble) bubbleSelect.value = cfg.bubble;
   if (cfg.bubblePosition) bubblePositionSelect.value = cfg.bubblePosition;
   if (cfg.sound) soundSelect.value = cfg.sound;
   if (cfg.soundMode) soundModeSelect.value = cfg.soundMode;
-  if (cfg.effect) syncEffectPicker(cfg.effect);
   useSoundCheckbox.checked = !!cfg.useSound && !!cfg.customAudio;
   customImageData = cfg.customImage || '';
   customAudioData = cfg.customAudio || '';
   customAudioName = cfg.customAudioName || '';
   if (customAudioData) {
-    buildCustomAudioObjectUrl();
+    syncAudioObjectUrlTo(buildCustomAudioObjectUrl());
   } else {
     revokeCustomAudioObjectUrl();
   }
@@ -2605,33 +345,19 @@ async function init() {
   clearSoundBtn.classList.toggle('hidden', !customAudioData);
   updateSoundMeta();
   useImageCheckbox.checked = cfg.useImage === undefined ? !!customImageData : cfg.useImage;
-  if (customImageData) {
-    imagePreview.src = customImageData;
-    imagePreview.classList.remove('hidden');
-  }
+  if (customImageData) { imagePreview.src = customImageData; imagePreview.classList.remove('hidden'); }
   useImageCheckbox.closest('.img-toggle').classList.toggle('hidden', !customImageData);
   updateTitleLogo();
 
   const date = new Date().toDateString();
-  if (cfg.lastDate !== date) {
-    await set('todayCount', 0);
-    todayCountEl.textContent = '0';
-  }
+  if (cfg.lastDate !== date) { await set('todayCount', 0); todayCountEl.textContent = '0'; }
   const streakLastDate = await get('streakLastDate');
   const streakGap = dayDiff(streakLastDate, getDateKey());
-  if (streakLastDate && streakGap !== null && streakGap > 1) {
-    await clearFlightStreak();
-  }
+  if (streakLastDate && streakGap !== null && streakGap > 1) await clearFlightStreak();
 
-  // Load autostart state
   try {
-    if (isTauriRuntime) {
-      const auto = await isAutostartEnabled();
-      autostartToggle.checked = auto;
-    } else {
-      autostartToggle.checked = false;
-      autostartToggle.disabled = true;
-    }
+    if (isTauriRuntime) { autostartToggle.checked = await isAutostartEnabled(); }
+    else { autostartToggle.checked = false; autostartToggle.disabled = true; }
   } catch (e) {}
 
   if (quietHoursToggle) quietHoursToggle.checked = !!cfg.quietHoursEnabled;
@@ -2640,1308 +366,193 @@ async function init() {
   if (miniWindowToggle) miniWindowToggle.checked = !!cfg.miniWindowEnabled;
   if (cfg.miniWindowPosition) updateMiniPosGridActive(cfg.miniWindowPosition);
 
-  renderTasks();
+  initToast(toastEl);
+
+  // Init FlightOrchestrator
+  initFlightOrchestrator({
+    soundSelect, soundModeSelect, useSoundCheckbox,
+    speedSelect, heightSelect, effectSelect, planeSelect,
+    particleSelect, bubbleSelect, bubblePositionSelect, displaySelect,
+    useImageCheckbox,
+  });
+  setCustomImageData(customImageData);
+  setCustomAudioData(customAudioData);
+  setToastFn(showToast);
+
+  initCountdownTimer({
+    AccurateTimer, renderTaskView, saveTasks, getCleanTasks,
+    getTasks: () => tasks, updateCountdownTaskUI, taskListEl,
+    holidayPresets: HOLIDAY_PRESETS, doTriggerFlight,
+  });
+  initAlarmChecker({
+    getTasks: () => tasks, saveTasks,
+    getCleanTasks: (ts) => getCleanTasks(ts),
+    doTriggerFlight,
+    showToast,
+    updateNextUpcoming,
+    updateMiniWindow,
+    isInQuietHours,
+    getQuietHoursConfig: () => ({ quietHoursToggle, quietStartHour, quietEndHour }),
+    normalizeRepeat,
+    isAlarmDueToday,
+  });
+  initEmergency({
+    getModal: () => modal,
+    getSettingsModal: () => settingsModal,
+    stopLoopSoundLocal, stopPreviewAudio,
+    clearAllSequences, clearFlightQueue,
+    clearFlightStreak: () => clearFlightStreak(),
+    stopAllCountdowns: (ts) => stopAllCountdowns(ts),
+    getWebviewWindows: () => WebviewWindow.getAll(),
+    showToast,
+    emergencyBtn,
+    tasksRef: () => tasks,
+  });
+
+  initHeroSection({
+    tasksRef: { get: () => tasks },
+    heroStatusEl,
+    getNextUpcomingTask,
+  });
+
+  initFlightPreview({
+    isTauriRuntime, showToast, unlockAudioIfNeeded, useSoundCheckbox,
+    validateCustomAudioPreview, persistFlightSettings,
+    speedSelect, heightSelect, effectSelect, planeSelect, particleSelect,
+    bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
+    useImageCheckbox, queueFlight,
+    DEFAULT_FLIGHT_SETTINGS,
+    customImageDataRef: { get: () => customImageData, set: (v) => { customImageData = v; } },
+    customAudioNameRef: { get: () => customAudioName, set: (v) => { customAudioName = v; } },
+    imagePreview, clearImageBtn, imageInput,
+    updateTitleLogo, persistSetting, updateSoundMeta,
+  });
+
+  renderTaskView();
   startAlarmChecker();
-  initHolidayChecklist();
+  initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS);
   initSystemThemeWatcher();
   setTimeout(() => {
     if (miniWindowToggle?.checked) void createMiniWindow();
   }, 2000);
   applyTheme(cfg.theme || 'system');
   initNotificationPermission();
-  initColorPicker();
+  initColorPickerModule({ editColorPicker });
 
-  // Apply config panel state
   configPanel.classList.toggle('hidden', !isConfigOpen);
   configArrow.classList.toggle('collapsed', !isConfigOpen);
 
   syncPresetButtons();
-  await renderStats();
-}
+  await renderStatsPanel();
 
-function initHolidayChecklist() {
-  holidayChecklist.innerHTML = '';
-  for (const [key, preset] of Object.entries(HOLIDAY_PRESETS)) {
-    const label = document.createElement('label');
-    label.className = 'holiday-item';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = key;
-    label.appendChild(cb);
-    const suffix = preset.approximate ? '，按常用日期' : '';
-    label.appendChild(document.createTextNode(`${preset.label} (${preset.month}月${preset.day}日${suffix})`));
-    holidayChecklist.appendChild(label);
-  }
-}
-
-async function loadSettings() {
-  return {
-    muted: await get('muted'),
-    todayCount: await get('todayCount'),
-    streak: await get('streak'),
-    lastDate: await get('lastDate'),
-    speed: await get('speed'),
-    height: await get('height'),
-    effect: await get('effect'),
-    plane: await get('plane'),
-    particle: await get('particle'),
-    bubble: await get('bubble'),
-    bubblePosition: await get('bubblePosition'),
-    sound: await get('sound'),
-    soundMode: await get('soundMode'),
-    useSound: await get('useSound'),
-    customImage: await get('customImage'),
-    customAudio: await get('customAudio'),
-    customAudioName: await get('customAudioName'),
-    useImage: await get('useImage'),
-    theme: await get('theme'),
-  };
-}
-
-// --- Events ---
-
-addTaskBtn.addEventListener('click', openNewModal);
-
-templateBtn?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  templateMenu.classList.toggle('hidden');
-});
-document.addEventListener('click', (e) => {
-  if (!templateBtn?.contains(e.target) && !templateMenu?.contains(e.target)) {
-    templateMenu?.classList.add('hidden');
-  }
-});
-templateMenu?.querySelectorAll('.template-item').forEach(item => {
-  item.addEventListener('click', () => {
-    const tpl = item.dataset.template;
-    let task;
-    if (tpl === 'pomodoro') {
-      task = createCountdownTask();
-      task.label = '番茄钟';
-      task.duration = 1500;
-      task._remaining = 1500;
-    } else if (tpl === 'drink') {
-      task = createAlarmTask();
-      task.label = '喝水提醒';
-      task.hour = Math.floor(Math.random() * 14) + 8;
-      task.minute = 0;
-      task.repeat = [1,2,3,4,5,6,0];
-    } else if (tpl === 'standup') {
-      task = createAlarmTask();
-      task.label = '每日站会';
-      task.hour = 9;
-      task.minute = 30;
-      task.repeat = [1,2,3,4,5];
-    } else if (tpl === 'lunch') {
-      task = createAlarmTask();
-      task.label = '午休结束';
-      task.hour = 13;
-      task.minute = 30;
-      task.repeat = [1,2,3,4,5];
-    } else if (tpl === 'stretch') {
-      task = createAlarmTask();
-      task.label = '久坐拉伸';
-      task.hour = Math.floor(Math.random() * 6) + 9;
-      task.minute = 0;
-      task.repeat = [1,2,3,4,5,6,0];
-      task.flightMode = 'loop_interval';
-      task.loopInterval = 120;
-      task.intervalCount = 5;
-    }
-    tasks.push(task);
-    saveTasks(getCleanTasks());
-    renderTasks();
-    templateMenu.classList.add('hidden');
-    showToast(`已创建：${task.label}`);
-  });
-});
-validationFields.forEach(field => {
-  field?.addEventListener('input', () => {
-    field.classList.remove('field-error');
-    if (modalError.textContent) modalError.classList.add('hidden');
-  });
-  field?.addEventListener('change', () => {
-    field.classList.remove('field-error');
-    if (modalError.textContent) modalError.classList.add('hidden');
-  });
-});
-imageBtn.addEventListener('click', () => imageBtn.classList.remove('field-error'));
-soundBtn.addEventListener('click', () => soundBtn.classList.remove('field-error'));
-modalOverlay.addEventListener('click', closeModal);
-modalCloseBtn.addEventListener('click', closeModal);
-saveTaskBtn.addEventListener('click', saveModal);
-deleteTaskBtn.addEventListener('click', () => {
-  if (editingId !== null) {
-    const task = tasks.find(t => t.id === editingId);
-    if (task) deleteTask(task);
-  }
-});
-
-// Type toggle in modal
-document.querySelectorAll('.type-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const type = btn.dataset.type;
-    alarmFields.classList.toggle('hidden', type !== 'alarm');
-    countdownFields.classList.toggle('hidden', type !== 'countdown');
-    holidayFields.classList.toggle('hidden', type !== 'holiday');
-    anniversaryFields.classList.toggle('hidden', type !== 'anniversary');
-    if (type === 'holiday' && !editingId) {
-      const firstCb = holidayChecklist.querySelector('input');
-      if (firstCb) firstCb.checked = true;
-    }
-  });
-});
-
-// Flight mode change
-editFlightMode.addEventListener('change', () => {
-  const v = editFlightMode.value;
-  loopTimesField.classList.toggle('hidden', v !== 'loop_times');
-  loopIntervalField.classList.toggle('hidden', v !== 'loop_interval');
-});
-
-// Post-flight action mode change
-editPostFlightAction.addEventListener('change', () => {
-  const v = editPostFlightAction.value;
-  postFlightAppField.classList.toggle('hidden', v !== 'app');
-  postFlightUrlField.classList.toggle('hidden', v !== 'url');
-  postFlightFolderField.classList.toggle('hidden', v !== 'folder');
-  postFlightScriptField.classList.toggle('hidden', v !== 'script' && v !== 'lock');
-});
-
-// Select app button
-selectAppBtn.addEventListener('click', async () => {
-  if (!isTauriRuntime) return;
-  try {
-    const selected = await openDialog({
-      multiple: false,
-      title: '选择应用程序',
-    });
-    if (selected) {
-      editPostFlightAppPath.value = selected;
-    }
-  } catch (e) {
-    console.error('File dialog failed:', e);
-  }
-});
-
-selectFolderBtn?.addEventListener('click', async () => {
-  if (!isTauriRuntime) return;
-  try {
-    const selected = await openDialog({
-      multiple: false,
-      title: '选择文件夹',
-      directory: true,
-    });
-    if (selected) {
-      editPostFlightFolder.value = selected;
-    }
-  } catch (e) {
-    console.error('Folder dialog failed:', e);
-  }
-});
-
-// Day buttons
-document.querySelectorAll('.day-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    btn.classList.toggle('active');
-  });
-});
-
-// Config toggle
-configToggle.addEventListener('click', () => {
-  isConfigOpen = !isConfigOpen;
-  configPanel.classList.toggle('hidden', !isConfigOpen);
-  configArrow.classList.toggle('collapsed', !isConfigOpen);
-});
-
-// Task search & filter
-if (taskSearchInput) {
-  taskSearchInput.addEventListener('input', () => {
-    taskSearchKeyword = taskSearchInput.value.trim().toLowerCase();
-    if (taskSearchClear) taskSearchClear.hidden = !taskSearchKeyword;
-    renderTasks();
-  });
-  taskSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && taskSearchInput.value) {
-      e.stopPropagation();
-      taskSearchInput.value = '';
-      taskSearchKeyword = '';
-      if (taskSearchClear) taskSearchClear.hidden = true;
-      renderTasks();
-    }
-  });
-}
-if (taskSearchClear) {
-  taskSearchClear.addEventListener('click', () => {
-    if (!taskSearchInput) return;
-    taskSearchInput.value = '';
-    taskSearchKeyword = '';
-    taskSearchClear.hidden = true;
-    renderTasks();
-    taskSearchInput.focus();
-  });
-}
-taskTypeChips.forEach(chip => {
-  chip.addEventListener('click', () => {
-    taskTypeFilter = chip.dataset.type || 'all';
-    taskTypeChips.forEach(c => c.classList.toggle('is-active', c === chip));
-    renderTasks();
-  });
-});
-
-document.querySelectorAll('.task-type-chip[data-group]').forEach(chip => {
-  chip.addEventListener('click', () => {
-    taskGroupFilter = chip.dataset.group || 'all';
-    document.querySelectorAll('.task-type-chip[data-group]').forEach(c => c.classList.toggle('is-active', c === chip));
-    renderTasks();
-  });
-});
-
-// Mute
-muteBtn.addEventListener('click', async () => {
-  await unlockAudioIfNeeded();
-  isMuted = !isMuted;
-  muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
-  syncMuteToTray();
-  if (isMuted) {
-    stopLoopSound();
-    stopPreviewAudio();
-  }
-  await set('muted', isMuted);
-});
-
-// Emergency
-async function triggerEmergencyLanding() {
-  stopLoopSound();
-  stopPreviewAudio();
-  clearAllSequences();
-  clearFlightQueue();
-  await clearFlightStreak();
-  tasks.forEach(t => {
-    if (t.type === 'countdown' && (t._status === 'running' || t._status === 'paused')) {
-      stopCountdown(t);
-    }
-  });
-  try {
-    const all = await WebviewWindow.getAll();
-    for (const w of all) {
-      if (w.label.startsWith('flight-')) await w.close();
-    }
-  } catch (e) {}
-  showToast('已紧急降落');
-}
-
-let emergencyCooldownUntil = 0;
-function shouldHandleEmergencyShortcut(event) {
-  if (event.key !== 'Escape') return false;
-  if (Date.now() < emergencyCooldownUntil) return false;
-  const target = event.target;
-  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-    return false;
-  }
-  if (modal && !modal.classList.contains('hidden')) return false;
-  if (settingsModal && !settingsModal.classList.contains('hidden')) return false;
-  return true;
-}
-
-document.addEventListener('keydown', (event) => {
-  if (!shouldHandleEmergencyShortcut(event)) return;
-  emergencyCooldownUntil = Date.now() + 1500;
-  void triggerEmergencyLanding();
-});
-
-emergencyBtn.addEventListener('click', () => {
-  emergencyCooldownUntil = Date.now() + 1500;
-  void triggerEmergencyLanding();
-});
-
-// Settings
-settingsBtn.addEventListener('click', openSettingsModal);
-settingsOverlay.addEventListener('click', closeSettingsModal);
-settingsCloseBtn.addEventListener('click', closeSettingsModal);
-
-// Update & Feedback
-if (isTauriRuntime) {
-  getCurrentVersion().then(v => {
-    if (appVersionDisplay) appVersionDisplay.textContent = `v${v}`;
-  });
-}
-
-checkUpdateBtn?.addEventListener('click', () => {
-  void checkForUpdate();
-});
-
-feedbackBtn?.addEventListener('click', () => {
-  void openFeedbackPage();
-});
-
-repoLink?.addEventListener('click', (e) => {
-  e.preventDefault();
-  doOpenUrl('https://github.com/pumf/guguFly');
-});
-
-// Update dialog
-updateOverlay?.addEventListener('click', () => updateModal.classList.add('hidden'));
-updateCloseBtn?.addEventListener('click', () => updateModal.classList.add('hidden'));
-updateCloseActionBtn?.addEventListener('click', () => updateModal.classList.add('hidden'));
-function doOpenUrl(url) {
-  if (isTauriRuntime) {
-    invoke('open_url_in_browser', { url }).catch(() => window.open(url, '_blank'));
-  } else {
-    window.open(url, '_blank');
-  }
-}
-
-updateDownloadBtn?.addEventListener('click', () => {
-  doOpenUrl(updateDownloadBtn.dataset.url || GITHUB_DOWNLOAD_URL);
-  updateModal.classList.add('hidden');
-});
-updateOpenReleaseBtn?.addEventListener('click', () => {
-  doOpenUrl(GITHUB_DOWNLOAD_URL);
-  updateModal.classList.add('hidden');
-});
-
-autostartToggle.addEventListener('change', async () => {
-  if (!isTauriRuntime) {
-    autostartToggle.checked = false;
-    return;
-  }
-  try {
-    if (autostartToggle.checked) {
-      await enableAutostart();
-    } else {
-      await disableAutostart();
-    }
-  } catch (e) {
-    console.error('autostart error:', e);
-  }
-});
-
-quietHoursToggle?.addEventListener('change', () => {
-  persistSetting('quietHoursEnabled', quietHoursToggle.checked);
-});
-quietStartHour?.addEventListener('change', () => {
-  persistSetting('quietStartHour', parseInt(quietStartHour.value) || 22);
-});
-quietEndHour?.addEventListener('change', () => {
-  persistSetting('quietEndHour', parseInt(quietEndHour.value) || 8);
-});
-
-miniWindowToggle?.addEventListener('change', () => {
-  persistSetting('miniWindowEnabled', miniWindowToggle.checked);
-  if (miniWindowToggle.checked) {
-    void createMiniWindow();
-  } else if (miniWindow) {
-    try { miniWindow.hide(); } catch (e) {}
-  }
-});
-
-const miniPosGrid = document.getElementById('miniPosGrid');
-if (miniPosGrid) {
-  miniPosGrid.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.mini-pos-cell');
-    if (!btn) return;
-    const pos = btn.dataset.pos;
-    if (!pos || !MINI_POSITIONS[pos]) return;
-    await persistSetting('miniWindowPosition', pos);
-    updateMiniPosGridActive(pos);
-    if (miniWindow) {
-      try {
-        const p = await computeMiniPos(pos);
-        const { emit } = await import('@tauri-apps/api/event');
-        await emit('mini-set-position', { x: p.x, y: p.y });
-      } catch (err) {
-        console.error('set mini position failed:', err);
-      }
-    }
-  });
-}
-
-function updateMiniPosGridActive(posKey) {
-  const grid = document.getElementById('miniPosGrid');
-  if (!grid) return;
-  grid.querySelectorAll('.mini-pos-cell').forEach(c => {
-    c.classList.toggle('active', c.dataset.pos === posKey);
-  });
-}
-
-speedSelect.addEventListener('change', () => persistSetting('speed', speedSelect.value));
-heightSelect.addEventListener('change', () => persistSetting('height', heightSelect.value));
-displaySelect.addEventListener('change', () => persistSetting('display', displaySelect.value));
-effectSelect.addEventListener('change', () => persistSetting('effect', effectSelect.value));
-planeSelect.addEventListener('change', () => persistSetting('plane', planeSelect.value));
-particleSelect.addEventListener('change', () => persistSetting('particle', particleSelect.value));
-bubbleSelect.addEventListener('change', () => persistSetting('bubble', bubbleSelect.value));
-bubblePositionSelect.addEventListener('change', () => persistSetting('bubblePosition', bubblePositionSelect.value));
-soundSelect.addEventListener('change', () => persistSetting('sound', soundSelect.value));
-soundModeSelect.addEventListener('change', () => persistSetting('soundMode', soundModeSelect.value));
-useSoundCheckbox.addEventListener('change', () => persistSetting('useSound', useSoundCheckbox.checked));
-useImageCheckbox.addEventListener('change', () => persistSetting('useImage', useImageCheckbox.checked));
-previewSoundBtn?.addEventListener('click', () => {
-  void previewCustomSound();
-});
-previewFlightBtn?.addEventListener('click', () => {
-  void previewFlight();
-});
-resetFlightBtn?.addEventListener('click', () => {
-  resetFlightSettings();
-});
-
-// Effect picker (custom card-style)
-function syncEffectPicker(effect) {
-  if (!effectCards.length) return;
-  effectCards.forEach(c => {
-    c.classList.toggle('is-active', c.dataset.effect === effect);
-  });
-}
-
-effectCards.forEach(card => {
-  card.addEventListener('click', () => {
-    const effect = card.dataset.effect;
-    effectSelect.value = effect;
-    syncEffectPicker(effect);
-    void persistSetting('effect', effect);
-  });
-});
-
-// Scene presets
-function detectActivePreset() {
-  const current = {
-    speed: speedSelect.value,
-    height: heightSelect.value,
-    effect: effectSelect.value,
-    plane: planeSelect.value,
-    particle: particleSelect.value,
-    bubble: bubbleSelect.value,
-    bubblePosition: bubblePositionSelect.value,
-    sound: soundSelect.value,
-    soundMode: soundModeSelect.value,
-  };
-  for (const [key, preset] of Object.entries(FLIGHT_PRESETS)) {
-    const matches = ['speed', 'height', 'effect', 'plane', 'particle', 'bubble', 'bubblePosition', 'sound', 'soundMode']
-      .every(k => current[k] === preset[k]);
-    if (matches) return key;
-  }
-  return null;
-}
-
-function syncPresetButtons() {
-  const active = detectActivePreset();
-  presetButtons.forEach(btn => {
-    btn.classList.toggle('is-active', btn.dataset.preset === active);
-  });
-}
-
-function applyPreset(presetKey) {
-  const preset = FLIGHT_PRESETS[presetKey];
-  if (!preset) return;
-  speedSelect.value = preset.speed;
-  heightSelect.value = preset.height;
-  effectSelect.value = preset.effect;
-  planeSelect.value = preset.plane;
-  particleSelect.value = preset.particle;
-  bubbleSelect.value = preset.bubble;
-  bubblePositionSelect.value = preset.bubblePosition;
-  soundSelect.value = preset.sound;
-  soundModeSelect.value = preset.soundMode;
-  syncEffectPicker(preset.effect);
-  syncPresetButtons();
-  void persistFlightSettings();
-  showToast(`已应用预设：${preset.label}`);
-}
-
-presetButtons.forEach(btn => {
-  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
-});
-
-const presetWatchSelectors = [
-  speedSelect, heightSelect, effectSelect,
-  planeSelect, particleSelect, bubbleSelect, bubblePositionSelect,
-  soundSelect, soundModeSelect,
-];
-presetWatchSelectors.forEach(sel => {
-  sel.addEventListener('change', () => syncPresetButtons());
-});
-
-// Image upload
-imageBtn.addEventListener('click', () => imageInput.click());
-imageInput.addEventListener('change', () => {
-  const file = imageInput.files[0];
-  if (!file) return;
-  if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, '图片')) {
-    imageInput.value = '';
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    customImageData = e.target.result;
-    clearImageBtn.classList.remove('hidden');
-    imagePreview.src = customImageData;
-    imagePreview.classList.remove('hidden');
-    useImageCheckbox.closest('.img-toggle').classList.remove('hidden');
-    useImageCheckbox.checked = true;
-    updateTitleLogo();
-    persistSetting('customImage', customImageData);
-    persistSetting('useImage', true);
-  };
-  reader.readAsDataURL(file);
-});
-clearImageBtn.addEventListener('click', () => {
-  customImageData = '';
-  clearImageBtn.classList.add('hidden');
-  imagePreview.classList.add('hidden');
-  imagePreview.src = '';
-  useImageCheckbox.closest('.img-toggle').classList.add('hidden');
-  useImageCheckbox.checked = false;
-  imageInput.value = '';
-  updateTitleLogo();
-  persistSetting('customImage', '');
-  persistSetting('useImage', false);
-});
-
-// Edit-modal task image
-if (editImageBtn) {
-  editImageBtn.addEventListener('click', () => {
-    if (editImageInput) editImageInput.click();
-  });
-}
-if (editImageInput) {
-  editImageInput.addEventListener('change', () => {
-    const file = editImageInput.files[0];
-    if (!file) return;
-    if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, '图片')) {
-      editImageInput.value = '';
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      editImageData = e.target.result;
-      if (editImagePreview) {
-        editImagePreview.src = editImageData;
-        editImagePreview.classList.remove('hidden');
-      }
-      if (editClearImageBtn) editClearImageBtn.hidden = false;
-      if (editUseImageCheckbox) editUseImageCheckbox.checked = true;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-if (editClearImageBtn) {
-  editClearImageBtn.addEventListener('click', () => {
-    editImageData = '';
-    if (editImagePreview) {
-      editImagePreview.src = '';
-      editImagePreview.classList.add('hidden');
-    }
-    editClearImageBtn.hidden = true;
-    if (editUseImageCheckbox) editUseImageCheckbox.checked = false;
-    if (editImageInput) editImageInput.value = '';
-  });
-}
-
-// Sound upload
-soundBtn.addEventListener('click', () => soundInput.click());
-soundInput.addEventListener('change', () => {
-  const file = soundInput.files[0];
-  if (!file) return;
-  if (!validateUpload(file, VALID_AUDIO_TYPES, MAX_AUDIO_SIZE, '音频')) {
-    soundInput.value = '';
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    customAudioData = e.target.result;
-    customAudioName = file.name || '';
-    buildCustomAudioObjectUrl();
-    clearSoundBtn.classList.remove('hidden');
-    useSoundCheckbox.checked = true;
-    updateSoundMeta();
-    persistSetting('customAudio', customAudioData);
-    persistSetting('customAudioName', customAudioName);
-    persistSetting('useSound', true);
-    showToast(`已添加音频：${customAudioName}`);
-    void unlockAudioIfNeeded();
-    void validateCustomAudioPreview();
-  };
-  reader.readAsDataURL(file);
-});
-clearSoundBtn.addEventListener('click', () => {
-  stopPreviewAudio();
-  if (customAudioProbe) {
-    customAudioProbe.pause();
-    customAudioProbe.src = '';
-    customAudioProbe = null;
-  }
-  revokeCustomAudioObjectUrl();
-  customAudioData = '';
-  customAudioName = '';
-  clearSoundBtn.classList.add('hidden');
-  useSoundCheckbox.checked = false;
-  soundInput.value = '';
-  updateSoundMeta();
-  persistSetting('customAudio', '');
-  persistSetting('customAudioName', '');
-  persistSetting('useSound', false);
-});
-
-// Shortcuts
-if (isTauriRuntime) {
-  listen('timer-start', () => {
-    tasks.forEach(t => {
-      if (t.type === 'countdown' && t.enabled && (t._status === 'idle' || t._status === 'paused')) {
-        startCountdown(t);
-      }
-    });
-  });
-  listen('timer-pause', () => {
-    stopLoopSound();
-    tasks.forEach(t => {
-      if (t.type === 'countdown' && t._status === 'running') {
-        pauseCountdown(t);
-      }
-    });
-  });
-  listen('timer-stop', () => {
-    stopLoopSound();
-    clearAllSequences();
-    clearFlightQueue();
-    clearFlightStreak();
-    tasks.forEach(t => {
-      if (t.type === 'countdown' && (t._status === 'running' || t._status === 'paused')) {
-        stopCountdown(t);
-      }
-    });
-  });
-  listen('toggle-mute', () => muteBtn.click());
-
-  listen('skip-current-flight', () => {
-    stopLoopSound();
-    clearFlightQueue();
-    if (activeFlightJob) {
-      activeFlightJob = null;
-    }
-    invoke('close_flight_windows').catch(() => {});
-    showToast('已跳过');
+  // Init flight listeners
+  initFlightListeners({
+    saveTasks, getCleanTasks: () => getCleanTasks(tasks),
+    triggerLanding: () => triggerEmergencyLanding(tasks),
+    showToast,
   });
 
-  listen('cancel-post-flight', () => {
-    if (pendingPfCancel) { pendingPfCancel(); pendingPfCancel = null; }
-    closePostFlightNotify();
-    showToast('已取消飞行后操作');
+  // Tauri-specific listeners
+  initTauriListeners({
+    listen, isTauriRuntime, tasksRef: { get: () => tasks },
+    stopLoopSoundLocal, clearAllSequences, clearFlightQueue,
+    clearFlightStreak, pauseCountdown, stopCountdown, startCountdown,
+    muteBtn, invoke, showToast, createCountdownTask,
+    triggerEmergencyLanding, saveTasks, getCleanTasks: (ts) => getCleanTasks(ts ?? tasks), renderTaskView,
+    autoCheckForUpdate,
+    getCurrentWebviewWindow,
   });
 
-  listen('pf-notify-clicked', () => {
-    if (pendingPfCancel) { pendingPfCancel(); pendingPfCancel = null; }
-    closePostFlightNotify();
-    showToast('已取消飞行后操作');
+  initMediaUpload({
+    imageBtn, imageInput, clearImageBtn, imagePreview, useImageCheckbox,
+    editImageBtn, editImageInput, editClearImageBtn, editImagePreview, editUseImageCheckbox,
+    soundBtn, soundInput, clearSoundBtn, useSoundCheckbox,
+    updateTitleLogo, setCustomImageData, persistSetting, showToast,
+    buildCustomAudioObjectUrl, syncAudioObjectUrlTo, updateSoundMeta,
+    setCustomAudioData, setCustomAudioObjectUrl,
+    stopPreviewAudio, resetAudioPreview, revokeCustomAudioObjectUrl,
+    unlockAudioIfNeeded, validateCustomAudioPreview,
+    customImageDataRef: { get: () => customImageData, set: (v) => { customImageData = v; } },
+    editImageDataRef: { get: () => editImageData, set: (v) => { editImageData = v; } },
+    customAudioDataRef: { get: () => customAudioData, set: (v) => { customAudioData = v; } },
+    customAudioNameRef: { get: () => customAudioName, set: (v) => { customAudioName = v; } },
   });
 
-  listen('emergency-landing', () => {
-    void triggerEmergencyLanding();
+  initWindowEvents({
+    saveTasks, getCleanTasks, tasks, set,
+    speedSelect, heightSelect, effectSelect,
+    planeSelect, particleSelect, bubbleSelect, bubblePositionSelect,
+    soundSelect, soundModeSelect, useSoundCheckbox,
+    useImageCheckbox,
+    showToast,
+    getCustomImageData: () => customImageData,
+    getCustomAudioData: () => customAudioData,
+    getCustomAudioName: () => customAudioName,
   });
 
-  listen('quick-countdown', (event) => {
-    const duration = event.payload;
-    const task = createCountdownTask();
-    const mins = Math.floor(duration / 60);
-    task.label = `快速倒计时 ${mins} 分钟`;
-    task.duration = duration;
-    task._remaining = duration;
-    task._status = 'idle';
-    tasks.push(task);
-    saveTasks(getCleanTasks());
-    startCountdown(task);
-    renderTasks();
-    showToast(`已启动 ${mins} 分钟倒计时`);
+  getTaskFilterState = initTaskFilter({ renderTaskView });
+
+  initSettingsPanel({
+    isTauriRuntime, isMuted, MUTED_ICON, UNMUTED_ICON, setMuted,
+    syncMuteToTray, stopLoopSoundLocal, stopPreviewAudio, resetAudioPreview,
+    set, persistSetting, applyTheme,
+    enableAutostart, disableAutostart,
+    createMiniWindow, closeMiniWindow, positionMiniWindow, getMiniPositions, updateMiniPosGridActive,
+    exportTasksAsJson, getCleanTasks, saveTasks, readBackupFromFile,
+    hydrateTasks, setNextId, renderTaskView,
+    checkForUpdate, openFeedbackPage, openReleasePage, getCurrentVersion,
+    showToast, previewCustomSound, previewFlight, resetFlightSettings,
+    invoke, unlockAudioIfNeeded, persistFlightSettings,
+    speedSelect, heightSelect, effectSelect, planeSelect, particleSelect,
+    bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
+    useSoundCheckbox, useImageCheckbox,
+    muteBtn,
+    tasksRef: { get: () => tasks, set: (v) => { tasks = v; } },
+    isConfigOpenRef: { get: () => isConfigOpen, set: (v) => { isConfigOpen = v; } },
+    isMutedRef: { get: () => isMuted, set: (v) => { isMuted = v; } },
+    isStatsOpenRef: { get: () => isStatsOpen, set: (v) => { isStatsOpen = v; } },
   });
 
-  listen('flight-ended', async (event) => {
-    localStorage.removeItem('_flightImage');
-    localStorage.removeItem('_flightUseImage');
-    const sequenceId = event.payload?.sequenceId || '';
-    const loopState = getSequence(sequenceId);
-    const inLoop = !!(loopState && loopState.active);
-    const oncePostFlight = activeFlightJob?.postFlight || null;
-    let continued = false;
-
-    if (!inLoop) stopLoopSound();
-
-    if (inLoop && loopState.mode === 'loop_times') {
-      loopState.remaining--;
-      if (loopState.remaining > 0) {
-        loopState.direction = loopState.direction === 'ltr' ? 'rtl' : 'ltr';
-        continued = true;
-        queueFlight({ msg: loopState.taskMsg, direction: loopState.direction, sequenceId, playSound: false, imageData: loopState.taskImage, useImage: loopState.taskUseImage });
-      } else {
-        clearSequence(sequenceId);
-        if (!hasActiveSequences()) stopLoopSound();
-      }
-    } else if (inLoop && loopState.mode === 'loop_interval') {
-      loopState.remaining--;
-      if (loopState.remaining > 0) {
-        stopLoopSound();
-        const elapsed = Date.now() - loopState.lastStart;
-        let waitMs = loopState.intervalMs - elapsed;
-        if (waitMs < 0) waitMs = 0;
-        loopState.intervalId = setTimeout(() => {
-          const state = getSequence(sequenceId);
-          if (state && state.active) {
-            state.lastStart = Date.now();
-            queueFlight({ msg: state.taskMsg, direction: 'ltr', sequenceId, playSound: true, imageData: state.taskImage, useImage: state.taskUseImage });
-          }
-        }, waitMs);
-      } else {
-        clearSequence(sequenceId);
-        if (!hasActiveSequences()) stopLoopSound();
-      }
-    }
-
-    releaseFlightQueue();
-    closePostFlightNotify();
-    if (continued) return;
-
-    if (inLoop && loopState) {
-      await executePostFlightAction(loopState.postFlight);
-    } else {
-      await executePostFlightAction(oncePostFlight);
-    }
+  initModalEvents({
+    openNewModal, closeModal, openEditModal, selectColor,
+    createCountdownTask, createAlarmTask,
+    getCleanTasks, saveTasks, renderTaskView, showToast,
+    saveModalHandler, deleteTaskFn, openDialog,
+    isTauriRuntime,
+    tasksRef: { get: () => tasks },
+    editingIdRef: { get: () => editingId, set: (v) => { editingId = v; } },
   });
 
-  // Close to tray — save before hiding
-  appWindow.onCloseRequested(async (e) => {
-    e.preventDefault();
-    await saveTasks(getCleanTasks());
-    await appWindow.hide();
-  });
-
-  // Auto-check update on startup (silent)
-  setTimeout(() => { void autoCheckForUpdate(); }, 3000);
-}
-
-// Save settings on unload
-window.addEventListener('beforeunload', async () => {
-  await saveTasks(getCleanTasks());
-  await set('speed', speedSelect.value);
-  await set('height', heightSelect.value);
-  await set('effect', effectSelect.value);
-  await set('plane', planeSelect.value);
-  await set('particle', particleSelect.value);
-  await set('bubble', bubbleSelect.value);
-  await set('bubblePosition', bubblePositionSelect.value);
-  await set('sound', soundSelect.value);
-  await set('soundMode', soundModeSelect.value);
-  await set('useSound', useSoundCheckbox.checked);
-  await set('customImage', customImageData);
-  await set('customAudio', customAudioData);
-  await set('customAudioName', customAudioName);
-  await set('useImage', useImageCheckbox.checked);
-});
-
-// --- Theme ---
-
-let themeCheckInterval = null;
-
-function applyTheme(theme) {
-  currentTheme = theme;
-  document.documentElement.setAttribute('data-theme', theme);
-  themeButtons.forEach(btn => {
-    btn.classList.toggle('is-active', btn.dataset.theme === theme);
-  });
-
-  const updateActive = () => {
-    let activeTheme;
-    if (theme === 'system' && systemThemeMedia) {
-      activeTheme = systemThemeMedia.matches ? 'dark' : 'light';
-    } else if (theme === 'auto-time') {
-      const h = new Date().getHours();
-      activeTheme = (h >= 6 && h < 18) ? 'light' : 'dark';
-    } else {
-      activeTheme = theme;
-    }
-    document.documentElement.setAttribute('data-active-theme', activeTheme);
-  };
-  updateActive();
-
-  if (themeCheckInterval) clearInterval(themeCheckInterval);
-  if (theme === 'auto-time') {
-    themeCheckInterval = setInterval(() => {
-      const h = new Date().getHours();
-      const isDark = h < 6 || h >= 18;
-      const currentActive = document.documentElement.getAttribute('data-active-theme');
-      if (isDark && currentActive === 'light') {
-        document.documentElement.setAttribute('data-active-theme', 'dark');
-      } else if (!isDark && currentActive === 'dark') {
-        document.documentElement.setAttribute('data-active-theme', 'light');
-      }
-    }, 60000);
-  }
-}
-
-// --- System notifications ---
-
-let notificationPermissionGranted = false;
-
-async function initNotificationPermission() {
-  try {
-    notificationPermissionGranted = await isPermissionGranted();
-    if (!notificationPermissionGranted) {
-      const result = await requestPermission();
-      notificationPermissionGranted = result === 'granted';
-    }
-  } catch (e) {
-    notificationPermissionGranted = false;
-  }
-}
-
-function notifyFlightTriggered(taskLabel, msg) {
-  if (!notificationPermissionGranted) return;
-  try {
-    sendNotification({
-      title: taskLabel ? `✈ ${taskLabel}` : '✈ 咕咕机长',
-      body: msg || '该任务已触发',
-      icon: '🛩',
-    });
-  } catch (e) {}
-}
-
-// --- Color picker (edit modal) ---
-
-function applyColorPickerSelection() {
-  if (!editColorPicker) return;
-  editColorPicker.querySelectorAll('.color-swatch').forEach(swatch => {
-    const id = swatch.dataset.color;
-    const isActive = (id || '') === (selectedEditColor || '');
-    swatch.classList.toggle('is-active', isActive);
-  });
-}
-
-function setSelectedColor(colorId) {
-  if (colorId && !TASK_COLOR_VALUES[colorId]) {
-    selectedEditColor = null;
-  } else {
-    selectedEditColor = colorId || null;
-  }
-  applyColorPickerSelection();
-}
-
-function initColorPicker() {
-  if (!editColorPicker) return;
-  TASK_COLORS.forEach(c => {
-    const sw = document.createElement('button');
-    sw.type = 'button';
-    sw.className = 'color-swatch';
-    sw.dataset.color = c.id;
-    sw.title = c.label;
-    sw.style.background = c.value;
-    sw.setAttribute('aria-label', `选择颜色 ${c.label}`);
-    sw.addEventListener('click', () => setSelectedColor(c.id));
-    editColorPicker.appendChild(sw);
-  });
-  const noneBtn = editColorPicker.querySelector('.color-swatch--none');
-  if (noneBtn) {
-    noneBtn.addEventListener('click', () => setSelectedColor(null));
-  }
-  applyColorPickerSelection();
-}
-
-// --- Stats panel ---
-
-const STATS_TYPE_LABELS = {
-  alarm: '定时',
-  countdown: '倒计时',
-  holiday: '节假日',
-  anniversary: '纪念日',
-};
-
-async function renderStats() {
-  if (!statsPanel) return;
-  cachedTasksForStats = tasks;
-  const stats = await computeFlightStats();
-  cachedStats = stats;
-
-  const weeklySummaryEl = document.getElementById('weeklySummary');
-  if (weeklySummaryEl && stats.last7Total > 0) {
-    const topId = Object.entries(stats.taskTotals).sort((a,b) => b[1]-a[1])[0]?.[0];
-    const topTask = tasks.find(t => String(t.id) === topId);
-    weeklySummaryEl.innerHTML = `✈ 本周已飞行 <em>${stats.last7Total}</em> 次${topTask ? ` · 最常触发 <em>${topTask.label || '未命名'}</em>` : ''}`;
-    weeklySummaryEl.classList.remove('hidden');
-  } else if (weeklySummaryEl) {
-    weeklySummaryEl.classList.add('hidden');
-  }
-
-  if (statsTotalEl) statsTotalEl.textContent = String(stats.totalCount);
-  if (statsWeekEl) statsWeekEl.textContent = String(stats.last7Total);
-
-  if (statsTrendEl) {
-    statsTrendEl.classList.remove('up', 'down', 'flat');
-    if (stats.trend === null) {
-      statsTrendEl.classList.add('flat');
-      statsTrendEl.textContent = '— 暂无对比';
-    } else if (stats.trend === 0) {
-      statsTrendEl.classList.add('flat');
-      statsTrendEl.textContent = '→ 持平';
-    } else if (stats.trend > 0) {
-      statsTrendEl.classList.add('up');
-      statsTrendEl.textContent = `↑ ${stats.trend}%`;
-    } else {
-      statsTrendEl.classList.add('down');
-      statsTrendEl.textContent = `↓ ${Math.abs(stats.trend)}%`;
-    }
-  }
-
-  const topEntries = Object.entries(stats.taskTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 1);
-  if (topEntries.length > 0 && topEntries[0][1] > 0) {
-    const [topId, topCount] = topEntries[0];
-    const topTask = tasks.find(t => String(t.id) === String(topId));
-    if (statsTopTaskEl) {
-      statsTopTaskEl.textContent = topTask ? (topTask.label || '未命名') : `#${topId}`;
-    }
-    if (statsTopCountEl) statsTopCountEl.textContent = `${topCount} 次飞行`;
-  } else {
-    if (statsTopTaskEl) statsTopTaskEl.textContent = '—';
-    if (statsTopCountEl) statsTopCountEl.textContent = '暂无数据';
-  }
-
-  if (statsBarsEl) {
-    statsBarsEl.innerHTML = '';
-    const today = new Date();
-    const dayMs = 86400000;
-    const weekDayLabels = ['日', '一', '二', '三', '四', '五', '六'];
-    const dailyMap = new Map();
-    for (const d of stats.daily) dailyMap.set(d.date, d.totalCount);
-    const todayKey = (() => {
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    })();
-    let maxCount = 0;
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today.getTime() - i * dayMs);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const count = dailyMap.get(key) || 0;
-      if (count > maxCount) maxCount = count;
-    }
-    if (maxCount === 0) maxCount = 1;
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today.getTime() - i * dayMs);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const count = dailyMap.get(key) || 0;
-      const isToday = key === todayKey;
-      const col = document.createElement('div');
-      col.className = `stats-bar-col${count === 0 ? ' is-empty' : ''}`;
-      const countEl = document.createElement('div');
-      countEl.className = 'stats-bar-count';
-      countEl.textContent = count > 0 ? String(count) : '';
-      const bar = document.createElement('div');
-      bar.className = 'stats-bar';
-      bar.style.height = `${Math.max(2, (count / maxCount) * 56)}px`;
-      const label = document.createElement('div');
-      label.className = 'stats-bar-label';
-      label.textContent = isToday ? '今' : weekDayLabels[d.getDay()];
-      col.appendChild(countEl);
-      col.appendChild(bar);
-      col.appendChild(label);
-      statsBarsEl.appendChild(col);
-    }
-  }
-
-  if (statsRangeEl) {
-    const today = new Date();
-    const start = new Date(today.getTime() - 6 * 86400000);
-    const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
-    statsRangeEl.textContent = `${fmt(start)} – ${fmt(today)}`;
-  }
-
-  if (statsTypesEl) {
-    statsTypesEl.innerHTML = '';
-    const total = Object.values(stats.byType).reduce((s, n) => s + n, 0);
-    if (statsTotalSubEl) statsTotalSubEl.textContent = total > 0 ? `总计 ${total} 次` : '暂无飞行';
-    const types = ['alarm', 'countdown', 'holiday', 'anniversary'];
-    for (const t of types) {
-      const v = stats.byType[t] || 0;
-      const pct = total > 0 ? Math.round((v / total) * 100) : 0;
-      const row = document.createElement('div');
-      row.className = 'stats-type-row';
-      const name = document.createElement('div');
-      name.className = 'stats-type-name';
-      name.textContent = STATS_TYPE_LABELS[t] || t;
-      const bar = document.createElement('div');
-      bar.className = 'stats-type-bar';
-      const fill = document.createElement('div');
-      fill.className = 'stats-type-bar-fill';
-      fill.style.width = `${pct}%`;
-      bar.appendChild(fill);
-      const p = document.createElement('div');
-      p.className = 'stats-type-pct';
-      p.textContent = `${pct}%`;
-      row.appendChild(name);
-      row.appendChild(bar);
-      row.appendChild(p);
-      statsTypesEl.appendChild(row);
-    }
-  }
-
-  renderAchievements(stats);
-}
-
-function computeAchievements(stats) {
-  const badges = [];
-  if (stats.totalCount >= 1) badges.push({ icon: '🛫', name: '首次起飞', desc: '完成第 1 次飞行' });
-  if (stats.totalCount >= 10) badges.push({ icon: '✈️', name: '飞行新星', desc: '累计飞行 10 次' });
-  if (stats.totalCount >= 100) badges.push({ icon: '🚀', name: '百次飞行', desc: '累计飞行 100 次' });
-  if (stats.totalCount >= 500) badges.push({ icon: '👑', name: '飞行达人', desc: '累计飞行 500 次' });
-  if (stats.last7Total >= 7) badges.push({ icon: '🔥', name: '周活跃', desc: '本周飞行 7 次以上' });
-  if (stats.last7Total >= 21) badges.push({ icon: '💪', name: '高频飞行', desc: '本周飞行 21 次以上' });
-  if (stats.byType && Object.values(stats.byType).filter(v => v > 0).length >= 4) {
-    badges.push({ icon: '🌟', name: '全能机长', desc: '使用过全部 4 种任务类型' });
-  }
-  return badges;
-}
-
-function renderAchievements(stats) {
-  const el = document.getElementById('achievementBadges');
-  if (!el) return;
-  const badges = computeAchievements(stats);
-  if (badges.length === 0) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML = badges.slice(-5).map(b =>
-    `<span class="achievement-badge" title="${b.name}: ${b.desc}">${b.icon} ${b.name}</span>`
-  ).join(' ');
-}
-
-function initSystemThemeWatcher() {
-  if (!window.matchMedia) return;
-  systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
-  const handler = () => {
-    if (currentTheme === 'system') applyTheme('system');
-  };
-  if (systemThemeMedia.addEventListener) {
-    systemThemeMedia.addEventListener('change', handler);
-  } else if (systemThemeMedia.addListener) {
-    systemThemeMedia.addListener(handler);
-  }
-}
-
-themeButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const theme = btn.dataset.theme;
-    applyTheme(theme);
-    void set('theme', theme);
-  });
-});
-
-// --- Backup (import / export) ---
-
-function collectSettingsMap() {
-  return {
-    speed: speedSelect.value,
-    height: heightSelect.value,
-    effect: effectSelect.value,
-    plane: planeSelect.value,
-    particle: particleSelect.value,
-    bubble: bubbleSelect.value,
-    bubblePosition: bubblePositionSelect.value,
-    sound: soundSelect.value,
-    soundMode: soundModeSelect.value,
-    useSound: useSoundCheckbox.checked,
-    useImage: useImageCheckbox.checked,
-    muted: isMuted,
-  };
-}
-
-function applySettingsFromBackup(settings) {
-  if (!settings || typeof settings !== 'object') return;
-  if (settings.speed) speedSelect.value = settings.speed;
-  if (settings.height) heightSelect.value = settings.height;
-  if (settings.effect) effectSelect.value = settings.effect;
-  if (settings.plane) planeSelect.value = settings.plane;
-  if (settings.particle) particleSelect.value = settings.particle;
-  if (settings.bubble) bubbleSelect.value = settings.bubble;
-  if (settings.bubblePosition) bubblePositionSelect.value = settings.bubblePosition;
-  if (settings.sound) soundSelect.value = settings.sound;
-  if (settings.soundMode) soundModeSelect.value = settings.soundMode;
-  if (typeof settings.useSound === 'boolean') useSoundCheckbox.checked = settings.useSound;
-  if (typeof settings.useImage === 'boolean') useImageCheckbox.checked = settings.useImage;
-  if (typeof settings.muted === 'boolean') {
-    isMuted = settings.muted;
-    muteBtn.innerHTML = isMuted ? MUTED_ICON : UNMUTED_ICON;
-  }
-}
-
-async function handleExportTasks() {
-  try {
-    const count = exportTasksAsJson(getCleanTasks(), collectSettingsMap());
-    showToast(`已导出 ${count} 条任务到下载文件夹`);
-  } catch (e) {
-    console.error('export failed:', e);
-    showToast('导出失败，请重试');
-  }
-}
-
-async function handleImportTasks() {
-  importTasksInput.value = '';
-  importTasksInput.click();
-}
-
-async function handleImportFileChange() {
-  const file = importTasksInput.files?.[0];
-  if (!file) return;
-  try {
-    const data = await readBackupFromFile(file);
-    const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
-    if (count === 0) {
-      showToast('备份里没有任务数据');
-      return;
-    }
-    const proceed = window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
-    if (!proceed) return;
-
-    const maxId = data.tasks.reduce((m, t) => Math.max(m, t.id || 0), 0);
-    tasks = data.tasks.map(t => ({
-      ...t,
-      flightMode: t.flightMode || 'once',
-      loopCount: t.loopCount || 3,
-      loopInterval: t.loopInterval || 5,
-      intervalCount: t.intervalCount || 10,
-      _remaining: t.type === 'countdown' ? (t._remaining ?? t.duration) : undefined,
-      _status: 'idle',
-      _timer: null,
-    }));
-    nextId = maxId + 1;
-    await saveTasks(getCleanTasks());
-    if (data.settings) {
-      applySettingsFromBackup(data.settings);
-      await persistFlightSettings();
-      await set('muted', isMuted);
-    }
-    renderTasks();
-    showToast(`已导入 ${count} 条任务`);
-  } catch (e) {
-    console.error('import failed:', e);
-    showToast(`导入失败：${e.message || '未知错误'}`);
-  }
-}
-
-if (exportTasksBtn) exportTasksBtn.addEventListener('click', handleExportTasks);
-if (importTasksBtn) importTasksBtn.addEventListener('click', handleImportTasks);
-if (importTasksInput) importTasksInput.addEventListener('change', handleImportFileChange);
-
-// --- Deep link (gugufly://add?msg=...&type=...&hour=...&minute=...) ---
-
-function parseDeepLinkUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== 'string') return null;
-  let url;
-  try {
-    url = new URL(rawUrl);
-  } catch (e) {
-    return null;
-  }
-  if (url.protocol !== 'gugufly:') return null;
-  const action = url.host || url.pathname.replace(/^\/+/, '') || '';
-  const params = Object.fromEntries(url.searchParams.entries());
-  return { action, params };
-}
-
-function buildTaskFromDeepLink(params) {
-  const type = ['alarm', 'countdown', 'holiday', 'anniversary'].includes(params.type) ? params.type : 'alarm';
-  const msg = (params.msg || '').trim();
-  const hour = Math.min(23, Math.max(0, parseInt(params.hour, 10) || 0));
-  const minute = Math.min(59, Math.max(0, parseInt(params.minute, 10) || 0));
-  const mins = Math.min(999, Math.max(0, parseInt(params.mins, 10) || 0));
-  const secs = Math.min(59, Math.max(0, parseInt(params.secs, 10) || 0));
-
-  let task;
-  if (type === 'countdown') {
-    task = createCountdownTask();
-    task.duration = mins * 60 + secs;
-    if (task.duration <= 0) task.duration = 60;
-    task._remaining = task.duration;
-  } else if (type === 'holiday') {
-    task = createHolidayTask();
-    const presetKey = params.holidayKey && HOLIDAY_PRESETS[params.holidayKey] ? params.holidayKey : 'new_year';
-    const preset = HOLIDAY_PRESETS[presetKey];
-    task.holidayKey = presetKey;
-    task.label = formatHolidayLabel(preset);
-    task.month = preset.month;
-    task.day = preset.day;
-    task.hour = hour;
-    task.minute = minute;
-    if (msg) task.msg = msg;
-    return task;
-  } else if (type === 'anniversary') {
-    const d = new Date();
-    task = createAnniversaryTask();
-    task.month = Math.min(12, Math.max(1, parseInt(params.month, 10) || (d.getMonth() + 1)));
-    task.day = Math.min(31, Math.max(1, parseInt(params.day, 10) || d.getDate()));
-    task.hour = hour;
-    task.minute = minute;
-    if (msg) task.msg = msg;
-    return task;
-  } else {
-    task = createAlarmTask();
-    task.hour = hour;
-    task.minute = minute;
-    const days = (params.days || '')
-      .split(',')
-      .map(s => parseInt(s.trim(), 10))
-      .filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
-    task.repeat = Array.from(new Set(days));
-  }
-
-  if (msg) task.msg = msg;
-  return task;
-}
-
-async function handleDeepLinkAdd(params) {
-  closeModal();
-  closeSettingsModal();
-  const task = buildTaskFromDeepLink(params);
-  tasks.push(task);
-  await saveTasks(getCleanTasks());
-  renderTasks();
-  showToast(`已通过链接创建任务：${task.label || task.msg || '新任务'}`);
-}
-
-function handleDeepLink(rawUrl) {
-  const parsed = parseDeepLinkUrl(rawUrl);
-  if (!parsed) return;
-  if (parsed.action === 'add') {
-    void handleDeepLinkAdd(parsed.params);
-  }
-}
-
-if (isTauriRuntime) {
   listen('deep-link', (event) => {
     handleDeepLink(event.payload);
   }).catch(e => console.error('deep-link listen failed:', e));
 }
 
-if (statsToggle) {
-  statsToggle.addEventListener('click', () => {
-    isStatsOpen = !isStatsOpen;
-    if (statsPanel) statsPanel.classList.toggle('hidden', !isStatsOpen);
-    if (statsArrow) statsArrow.classList.toggle('collapsed', !isStatsOpen);
-  });
+// --- Sync mute ---
+// extracted to ./ui/Logo.js
+
+// --- Effect picker / Preset ---
+// extracted to ./settings/FlightSync.js
+
+// --- Deep link ---
+// extracted to ./flight/DeepLink.js
+
+function handleDeepLink(rawUrl) {
+  const parsed = parseDeepLinkUrl(rawUrl);
+  if (!parsed) return;
+  if (parsed.action === 'add') {
+    closeModal(modal, modalError);
+    closeSettingsModal();
+    const task = buildTaskFromDeepLink(parsed.params, {
+      createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask,
+      HOLIDAY_PRESETS, formatHolidayLabel,
+    });
+    tasks.push(task);
+    saveTasks(getCleanTasks(tasks));
+    renderTaskView();
+    showToast(`已通过链接创建任务：${task.label || task.msg || '新任务'}`);
+  }
 }
 
-// --- Global error reporting ---
-
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason;
-  const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
-  console.error('[unhandledrejection]', message);
-  if (typeof showToast === 'function') {
-    showToast(`后台任务出错了：${reason?.message || reason}`);
-  }
-});
-
-window.addEventListener('error', (event) => {
-  console.error('[window.onerror]', event.error || event.message);
-});
-
+setUpdateStatusEl(updateStatus);
 init();
