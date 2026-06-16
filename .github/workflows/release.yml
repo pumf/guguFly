@@ -12,7 +12,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-macos-arm64:
+  build-macos:
     runs-on: macos-latest
     permissions:
       contents: write
@@ -26,15 +26,18 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build Tauri
+      - name: Build Tauri ARM64
         run: npm run tauri build -- --target aarch64-apple-darwin
 
-      - name: Upload
+      - name: Build Tauri x86_64
+        run: npm run tauri build -- --target x86_64-apple-darwin
+
+      - name: Upload ARM64
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
@@ -42,29 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos-intel:
-    runs-on: macos-13
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Tauri
-        run: npm run tauri build -- --target x86_64-apple-darwin
-
-      - name: Upload
+      - name: Upload Intel
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
