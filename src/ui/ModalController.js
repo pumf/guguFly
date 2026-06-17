@@ -1,6 +1,5 @@
-import { TASK_COLORS, TASK_COLOR_VALUES } from '../tasks/TaskColors.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask } from '../tasks/TaskFactory.js';
-import { getMaxDayForMonth, pad2, formatHolidayLabel, normalizeRepeat } from '../tasks/TaskUtils.js';
+import { getMaxDayForMonth, formatHolidayLabel, normalizeRepeat } from '../tasks/TaskUtils.js';
 
 let showToastFn = (msg) => console.log(msg);
 
@@ -78,13 +77,11 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
-    editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
+    editHolidayHour, editHolidayMinute, holidayChecklist,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
     editImagePreview, editClearImageBtn, editUseImageCheckbox, editImageInput,
-    deleteTaskBtn, editImageData: _editImageData,
+    deleteTaskBtn,
   } = ctx;
-
-  const editImageData = _editImageData;
 
   ctx.editingId = task.id;
   clearModalError(modalError);
@@ -257,7 +254,7 @@ export function saveModal(editingId, ctx) {
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
-    editImagePreview, editUseImageCheckbox,
+    editUseImageCheckbox,
     stopCountdownFn,
   } = ctx;
 

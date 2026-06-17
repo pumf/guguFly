@@ -3,6 +3,7 @@ let emergencyCooldownUntil = 0;
 let getModalFn;
 let getSettingsModalFn;
 let stopLoopSoundLocalFn;
+let stopFlightLoopSoundFn;
 let stopPreviewAudioFn;
 let clearAllSequencesFn;
 let clearFlightQueueFn;
@@ -15,6 +16,7 @@ export function initEmergency(ctx) {
   getModalFn = ctx.getModal;
   getSettingsModalFn = ctx.getSettingsModal;
   stopLoopSoundLocalFn = ctx.stopLoopSoundLocal;
+   stopFlightLoopSoundFn = ctx.stopFlightLoopSound;
   stopPreviewAudioFn = ctx.stopPreviewAudio;
   clearAllSequencesFn = ctx.clearAllSequences;
   clearFlightQueueFn = ctx.clearFlightQueue;
@@ -56,6 +58,7 @@ export function shouldHandleEmergencyShortcut(event) {
 
 export async function triggerEmergencyLanding(tasks) {
   if (stopLoopSoundLocalFn) stopLoopSoundLocalFn();
+  if (stopFlightLoopSoundFn) stopFlightLoopSoundFn();
   if (stopPreviewAudioFn) stopPreviewAudioFn();
   if (clearAllSequencesFn) clearAllSequencesFn();
   if (clearFlightQueueFn) clearFlightQueueFn();
@@ -66,6 +69,8 @@ export async function triggerEmergencyLanding(tasks) {
     for (const w of all) {
       if (w.label.startsWith('flight-')) await w.close();
     }
-  } catch (e) {}
+  } catch (error) {
+    console.error('emergency close failed:', error);
+  }
   if (showToastFn) showToastFn('已紧急降落');
 }

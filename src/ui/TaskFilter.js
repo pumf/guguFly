@@ -50,5 +50,5 @@ export function initTaskFilter(ctx) {
     });
   });
 
-  return { getTaskSearchKeyword: () => taskSearchKeyword, getTaskTypeFilter: () => taskTypeFilter, getTaskGroupFilter: () => taskGroupFilter };
+  return () => ({ taskSearchKeyword, taskTypeFilter, taskGroupFilter });
 }

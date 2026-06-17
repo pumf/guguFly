@@ -5,7 +5,6 @@ import {
   createHolidayTask,
   createAnniversaryTask,
   createBaseTask,
-  cloneTask,
   getTaskTypeMeta,
   setNextId,
   getNextId,
@@ -60,19 +59,6 @@ describe('createAnniversaryTask', () => {
     expect(task.type).toBe('anniversary');
     expect(task.hour).toBe(9);
     expect(task.minute).toBe(0);
-  });
-});
-
-describe('cloneTask', () => {
-  it('clones and resets runtime state', () => {
-    const original = createCountdownTask();
-    original._status = 'running';
-    original._remaining = 500;
-    const cloned = cloneTask(original);
-    expect(cloned._status).toBe('idle');
-    expect(cloned._remaining).toBe(original.duration);
-    expect(cloned._timer).toBeNull();
-    expect(cloned.id).toBe(original.id);
   });
 });
 

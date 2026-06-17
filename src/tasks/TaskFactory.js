@@ -75,20 +75,6 @@ export function createAnniversaryTask() {
   };
 }
 
-export function cloneTask(t) {
-  return {
-    ...t,
-    postFlightAction: t.postFlightAction || 'none',
-    postFlightAppPath: t.postFlightAppPath || '',
-    postFlightUrl: t.postFlightUrl || '',
-    postFlightFolder: t.postFlightFolder || '',
-    postFlightScript: t.postFlightScript || '',
-    _remaining: t.duration,
-    _status: 'idle',
-    _timer: null,
-  };
-}
-
 export function getTaskTypeMeta(task) {
   const meta = {
     alarm: { label: '定时', className: 'alarm' },
@@ -98,10 +84,3 @@ export function getTaskTypeMeta(task) {
   };
   return meta[task.type] || { label: '任务', className: 'generic' };
 }
-
-export const TASK_TYPE_LABELS = {
-  alarm: '定时',
-  countdown: '倒计时',
-  holiday: '节假日',
-  anniversary: '纪念日',
-};

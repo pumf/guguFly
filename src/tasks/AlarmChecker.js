@@ -1,3 +1,5 @@
+import { computeNextAlarmDate } from './TaskUtils.js';
+
 let alarmInterval = null;
 const previewedTasks = new Set();
 
@@ -8,10 +10,17 @@ let doTriggerFlightFn;
 let showToastFn;
 let updateNextUpcomingFn;
 let updateMiniWindowFn;
-let isInQuietHoursFn;
-let getQuietHoursConfigFn;
 let normalizeRepeatFn;
 let isAlarmDueTodayFn;
+
+let saveDebounceTimer = null;
+function debouncedSave() {
+  if (saveDebounceTimer) return;
+  saveDebounceTimer = setTimeout(() => {
+    saveTasksFn(getCleanTasksFn(getTasksFn()));
+    saveDebounceTimer = null;
+  }, 2000);
+}
 
 export function initAlarmChecker(ctx) {
   getTasksFn = ctx.getTasks;
@@ -21,8 +30,6 @@ export function initAlarmChecker(ctx) {
   showToastFn = ctx.showToast;
   updateNextUpcomingFn = ctx.updateNextUpcoming;
   updateMiniWindowFn = ctx.updateMiniWindow;
-  isInQuietHoursFn = ctx.isInQuietHours;
-  getQuietHoursConfigFn = ctx.getQuietHoursConfig;
   normalizeRepeatFn = ctx.normalizeRepeat;
   isAlarmDueTodayFn = ctx.isAlarmDueToday;
 }
@@ -31,6 +38,10 @@ export function destroyAlarmChecker() {
   if (alarmInterval) {
     clearInterval(alarmInterval);
     alarmInterval = null;
+  }
+  if (saveDebounceTimer) {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = null;
   }
   previewedTasks.clear();
 }
@@ -41,10 +52,9 @@ export async function getNextUpcomingTask() {
   for (const task of getTasksFn()) {
     if (!task.enabled) continue;
     if (task.type === 'alarm') {
-      if (task._lastTriggeredDate === now.toDateString()) continue;
-      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), task.hour, task.minute);
-      let diff = Math.round((target - now) / 1000);
-      if (diff <= 0) diff += 86400;
+      const target = computeNextAlarmDate(task, now);
+      if (!target) continue;
+      const diff = Math.round((target - now) / 1000);
       if (diff < bestSec) { bestSec = diff; bestTask = task; }
     } else if (task.type === 'holiday' || task.type === 'anniversary') {
       const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
@@ -99,13 +109,13 @@ export function startAlarmChecker() {
       if (task.type === 'alarm') {
         if (isAlarmDueTodayFn(task, now)) {
           task._lastTriggeredDate = today;
-          saveTasksFn(getCleanTasksFn(getTasksFn()));
+          debouncedSave();
           doTriggerFlightFn(task);
         }
       } else if (task.type === 'holiday' || task.type === 'anniversary') {
         if (task.month === now.getMonth() + 1 && task.day === now.getDate() && task.hour === h && task.minute === m) {
           task._lastTriggeredDate = today;
-          saveTasksFn(getCleanTasksFn(getTasksFn()));
+          debouncedSave();
           doTriggerFlightFn(task);
         }
       }

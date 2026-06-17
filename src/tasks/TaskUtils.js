@@ -69,7 +69,6 @@ function getNthWeekdayDate(year, month, week, weekday) {
 export function computeNextAlarmDate(task, fromDate) {
   const now = fromDate || new Date();
   const repeat = normalizeRepeat(task);
-  const taskMin = task.hour * 60 + task.minute;
 
   if (repeat.type === 'weekly') {
     if (!repeat.days || repeat.days.length === 0) {

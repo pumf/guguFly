@@ -1,5 +1,4 @@
 import { get, set } from '../storage.js';
-import { applyTheme } from './ThemeManager.js';
 
 export async function loadSettings() {
   return {
@@ -21,6 +20,12 @@ export async function loadSettings() {
     customAudio: await get('customAudio'),
     customAudioName: await get('customAudioName'),
     useImage: await get('useImage'),
+    display: await get('display'),
+    quietHoursEnabled: await get('quietHoursEnabled'),
+    quietStartHour: await get('quietStartHour'),
+    quietEndHour: await get('quietEndHour'),
+    miniWindowEnabled: await get('miniWindowEnabled'),
+    miniWindowPosition: await get('miniWindowPosition'),
     theme: await get('theme'),
   };
 }

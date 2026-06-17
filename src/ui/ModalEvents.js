@@ -2,7 +2,7 @@ import { getSelectedEditColor } from './ColorPicker.js';
 
 export function initModalEvents(ctx) {
   const {
-    openNewModal, closeModal, openEditModal, selectColor,
+    openNewModal, closeModal,
     createCountdownTask, createAlarmTask,
     getCleanTasks, saveTasks, renderTaskView, showToast,
     saveModalHandler, deleteTaskFn, openDialog,
@@ -30,7 +30,9 @@ export function initModalEvents(ctx) {
   const selectAppBtn = document.getElementById('selectAppBtn');
   const selectFolderBtn = document.getElementById('selectFolderBtn');
   const editPostFlightAppPath = document.getElementById('editPostFlightAppPath');
+  const editPostFlightUrl = document.getElementById('editPostFlightUrl');
   const editPostFlightFolder = document.getElementById('editPostFlightFolder');
+  const editPostFlightScript = document.getElementById('editPostFlightScript');
 
   addTaskBtn?.addEventListener('click', () => {
     const ctx = {

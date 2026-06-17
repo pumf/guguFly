@@ -9,7 +9,7 @@ export async function initNotificationPermission() {
       const result = await requestPermission();
       notificationPermissionGranted = result === 'granted';
     }
-  } catch (e) {
+  } catch {
     notificationPermissionGranted = false;
   }
 }
@@ -21,5 +21,7 @@ export function notifyFlightTriggered(taskLabel, msg) {
       title: taskLabel ? `✈ ${taskLabel}` : '✈ 咕咕机长',
       body: msg || '该任务已触发',
     });
-  } catch (e) {}
+  } catch (error) {
+    console.error('send notification failed:', error);
+  }
 }

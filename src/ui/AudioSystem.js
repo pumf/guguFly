@@ -1,5 +1,6 @@
-let sharedAudioCtx = null;
-let audioUnlocked = false;
+import { dataUrlToArrayBuffer } from '../utils.js';
+import { getAudioContext, unlockAudioIfNeeded } from './AudioManager.js';
+
 let customAudioObjectUrl = '';
 let previewAudioHandle = null;
 let loopAudio = null;
@@ -8,7 +9,6 @@ let isMuted = false;
 
 let soundSelectEl;
 let soundModeSelectEl;
-let soundMetaEl;
 let soundNameEl;
 let previewSoundBtnEl;
 let useSoundCheckboxEl;
@@ -21,10 +21,17 @@ const SOUND_PRESETS_REF = [];
 let playPresetSoundFn;
 let buildCustomAudioObjectUrlFn;
 
+function stopSource(source) {
+  try {
+    source.stop();
+  } catch {
+    // Source may already be stopped.
+  }
+}
+
 export function initAudioSystem(ctx) {
   soundSelectEl = ctx.soundSelect;
   soundModeSelectEl = ctx.soundModeSelect;
-  soundMetaEl = ctx.soundMeta;
   soundNameEl = ctx.soundName;
   previewSoundBtnEl = ctx.previewSoundBtn;
   useSoundCheckboxEl = ctx.useSoundCheckbox;
@@ -42,35 +49,6 @@ export function setMuted(val) { isMuted = val; }
 export function isAudioMuted() { return isMuted; }
 export function setCustomAudioObjectUrl(url) { customAudioObjectUrl = url; }
 export function getCustomAudioObjectUrl() { return customAudioObjectUrl; }
-export function getAudioContext() {
-  if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
-  if (sharedAudioCtx.state === 'suspended') {
-    try { sharedAudioCtx.resume(); } catch (e) {}
-  }
-  return sharedAudioCtx;
-}
-
-export async function unlockAudioIfNeeded() {
-  if (audioUnlocked) return true;
-  try {
-    const audioCtx = getAudioContext();
-    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    audioUnlocked = true;
-    return true;
-  } catch (e) { return false; }
-}
-
-export function dataUrlToArrayBuffer(dataUrl) {
-  const base64 = dataUrl.split(',')[1] || '';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
 
 export function revokeCustomAudioObjectUrl() {
   if (!customAudioObjectUrl) return;
@@ -94,7 +72,7 @@ export async function playCustomAudio(loopMode) {
       audio.addEventListener('ended', () => { audio.src = ''; }, { once: true });
     }
     return audio;
-  } catch (e) {
+  } catch {
     const data = getCustomAudioDataFn();
     const ctx = getAudioContext();
     const decoded = await ctx.decodeAudioData(dataUrlToArrayBuffer(data));
@@ -107,9 +85,9 @@ export async function playCustomAudio(loopMode) {
     gain.connect(ctx.destination);
     source.start();
     if (loopMode) {
-      loopAudio = { pause() { try { source.stop(); } catch (e) {} } };
+      loopAudio = { pause() { stopSource(source); } };
     }
-    return { pause() { try { source.stop(); } catch (e) {} } };
+    return { pause() { stopSource(source); } };
   }
 }
 
@@ -140,7 +118,9 @@ export async function playPresetSoundAt(sound) {
   try {
     if (!SOUND_PRESETS_REF.some(p => p.value === sound)) sound = 'whoosh';
     await playPresetSoundFn(getAudioContext(), sound);
-  } catch (e) {}
+  } catch (error) {
+    console.error('preset audio failed:', error);
+  }
 }
 
 export function updateSoundMeta() {
@@ -175,7 +155,7 @@ export async function previewCustomSound() {
     }
     updateSoundMeta();
     showToastFn('正在试听自定义音频');
-  } catch (e) {
+  } catch {
     previewAudioHandle = null;
     updateSoundMeta();
     showToastFn('这段自定义音频试听失败');

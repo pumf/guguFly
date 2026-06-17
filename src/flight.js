@@ -23,7 +23,7 @@ let appWindow;
 try {
   appWindow = getCurrentWebviewWindow();
   appWindow.setIgnoreCursorEvents(true);
-} catch (e) {
+} catch {
   appWindow = null;
 }
 
@@ -59,7 +59,7 @@ const direction = params.get('dir') || localStorage.getItem('_flightDir') || 'lt
 const sequenceId = params.get('seq') || localStorage.getItem('_flightSeq') || '';
 
 const isRtl = direction === 'rtl';
-let flightDirection = isRtl ? -1 : 1;
+const flightDirection = isRtl ? -1 : 1;
 
 canvas.width = W;
 canvas.height = H;
@@ -179,7 +179,7 @@ const planeDrawers = {
     ctx.ellipse(0, 0, 3, 12, 0, 0, Math.PI * 2);
     ctx.fill();
   },
-  jet(x, y, t) {
+  jet() {
     ctx.fillStyle = '#636e72';
     ctx.beginPath();
     ctx.moveTo(30, 0);

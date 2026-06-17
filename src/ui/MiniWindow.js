@@ -1,5 +1,7 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { LogicalPosition } from '@tauri-apps/api/window';
 import { get } from '../storage.js';
+import { isTauriRuntime } from '../utils.js';
 
 let miniWindow = null;
 
@@ -29,7 +31,9 @@ async function computeMiniPos(posKey) {
       screenW = m.size.width;
       screenH = m.size.height;
     }
-  } catch (e) {}
+  } catch (error) {
+    console.error('mini monitor lookup failed:', error);
+  }
   const margin = 12;
   const maxX = screenX + screenW - MINI_WIN_WIDTH - margin;
   const maxY = screenY + screenH - MINI_WIN_HEIGHT - margin;
@@ -48,10 +52,13 @@ async function computeMiniPos(posKey) {
 }
 
 export async function createMiniWindow() {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+  if (!isTauriRuntime()) return;
   if (miniWindow) {
-    try { await miniWindow.show(); } catch (e) {}
+    try {
+      await miniWindow.show();
+    } catch (error) {
+      console.error('mini show failed:', error);
+    }
     return;
   }
   try {
@@ -73,7 +80,9 @@ export async function closeMiniWindow() {
   try {
     await miniWindow.hide();
     await miniWindow.close();
-  } catch (e) {}
+  } catch (error) {
+    console.error('mini close failed:', error);
+  }
   miniWindow = null;
 }
 
@@ -82,8 +91,10 @@ export async function positionMiniWindow(posKey) {
   try {
     const key = posKey || (await get('miniWindowPosition')) || 'top-right';
     const p = await computeMiniPos(key);
-    await miniWindow.setPosition({ x: p.x, y: p.y });
-  } catch (e) {}
+    await miniWindow.setPosition(new LogicalPosition(p.x, p.y));
+  } catch (error) {
+    console.error('mini position failed:', error);
+  }
 }
 
 export function formatUpcomingTime(sec) {
@@ -111,7 +122,9 @@ export async function updateMiniWindow(getNextUpcomingTaskFn) {
     } else {
       await emit('mini-set-content', { icon: '📋', text: '暂无提醒', detail: '' });
     }
-  } catch (e) {}
+  } catch (error) {
+    console.error('mini update failed:', error);
+  }
 }
 
 export function updateMiniPosGridActive(posKey) {

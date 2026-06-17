@@ -1,15 +1,21 @@
 import { TASK_COLOR_VALUES } from '../tasks/TaskColors.js';
 import { getTaskTypeMeta } from '../tasks/TaskFactory.js';
 import {
-  pad2, getTaskStatusLabel, getTaskInfoText, getTaskSortScore,
+  getTaskStatusLabel, getTaskInfoText, getTaskSortScore,
   getTaskTimeAnchor, getTaskGroupKey, getTaskDetailLines, matchesFilter, formatDuration,
 } from '../tasks/TaskUtils.js';
+
+const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
+const svgCal = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const svgHeart = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
 
 export function renderTasks({
   tasks, taskListEl, holidayPresets, expandedTaskId, toggleTaskExpandedFn,
   openEditModalFn, deleteTaskFn, saveTasks, getCleanTasksFn,
   startCountdownFn, pauseCountdownFn, stopCountdownFn,
   triggerFlightWithModeFn, updateHeroStatusFn,
+  renderTasksFn,
   filterType, filterGroup, filterKeyword,
 }) {
   const fullCtx = {
@@ -17,6 +23,7 @@ export function renderTasks({
     openEditModalFn, deleteTaskFn, saveTasks, getCleanTasksFn,
     startCountdownFn, pauseCountdownFn, stopCountdownFn,
     triggerFlightWithModeFn, updateHeroStatusFn,
+    renderTasksFn,
     filterType, filterGroup, filterKeyword,
   };
   taskListEl.innerHTML = '';
@@ -75,11 +82,11 @@ export function renderTasks({
     const enableBtn = document.createElement('button');
     enableBtn.className = 'task-group-btn';
     enableBtn.textContent = '全部启用';
-    enableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, true, tasks, saveTasks, getCleanTasksFn));
+    enableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, true, tasks, saveTasks, getCleanTasksFn, renderTasksFn));
     const disableBtn = document.createElement('button');
     disableBtn.className = 'task-group-btn';
     disableBtn.textContent = '全部停用';
-    disableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, false, tasks, saveTasks, getCleanTasksFn));
+    disableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, false, tasks, saveTasks, getCleanTasksFn, renderTasksFn));
     actions.appendChild(enableBtn);
     actions.appendChild(disableBtn);
 
@@ -109,16 +116,12 @@ export function renderTasks({
       toggle.addEventListener('change', (e) => {
         task.enabled = e.target.checked;
         saveTasks(getCleanTasksFn(tasks));
-        renderTasks(fullCtx);
+        updateTaskToggleUI(task);
       });
       toggle.addEventListener('click', (e) => e.stopPropagation());
 
       const icon = document.createElement('span');
       icon.className = 'task-icon';
-      const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-      const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
-      const svgCal = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-      const svgHeart = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
       icon.innerHTML = task.type === 'alarm' ? svgClock : task.type === 'countdown' ? svgTimer : task.type === 'holiday' ? svgCal : svgHeart;
 
       const body = document.createElement('div');
@@ -162,26 +165,7 @@ export function renderTasks({
       body.appendChild(info);
 
       if (expandedTaskId === task.id) {
-        const details = document.createElement('div');
-        details.className = 'task-details';
-        getTaskDetailLines(task, holidayPresets).forEach(line => {
-          const detail = document.createElement('div');
-          detail.className = 'task-detail-line';
-          detail.textContent = line;
-          details.appendChild(detail);
-        });
-
-        const detailActions = document.createElement('div');
-        detailActions.className = 'task-detail-actions';
-        const quickEditBtn = document.createElement('button');
-        quickEditBtn.className = 'task-detail-btn';
-        quickEditBtn.textContent = '快速编辑';
-        quickEditBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openEditModalFn(task);
-        });
-        detailActions.appendChild(quickEditBtn);
-        details.appendChild(detailActions);
+        const details = buildTaskDetails(task, holidayPresets, openEditModalFn);
         body.appendChild(details);
       }
 
@@ -262,7 +246,7 @@ export function renderTasks({
       card.appendChild(actionsEl);
 
       card.addEventListener('click', () => toggleTaskExpandedFn(task.id));
-      card.addEventListener('dblclick', (e) => openEditModalFn(task));
+      card.addEventListener('dblclick', () => openEditModalFn(task));
       card.draggable = true;
       card.setAttribute('data-task-id', task.id);
       card.addEventListener('dragstart', (e) => {
@@ -350,11 +334,12 @@ export function updateCountdownTaskUI(task, renderCtx) {
   updateCountdownActionUI(task, card.querySelector('.task-actions'));
 }
 
-function setGroupEnabled(groupTasks, enabled, tasks, saveTasks, getCleanTasksFn) {
+function setGroupEnabled(groupTasks, enabled, tasks, saveTasks, getCleanTasksFn, renderTasksFn) {
   groupTasks.forEach(task => {
     task.enabled = enabled;
   });
   saveTasks(getCleanTasksFn(tasks));
+  renderTasksFn?.();
 }
 
 function getTaskGroupMeta(groupKey, count) {
@@ -365,4 +350,62 @@ function getTaskGroupMeta(groupKey, count) {
     disabled: { title: '已停用', subtitle: `当前关闭的 ${count} 条任务` },
   };
   return labels[groupKey];
+}
+
+function buildTaskDetails(task, holidayPresets, openEditModalFn) {
+  const details = document.createElement('div');
+  details.className = 'task-details';
+  getTaskDetailLines(task, holidayPresets).forEach(line => {
+    const detail = document.createElement('div');
+    detail.className = 'task-detail-line';
+    detail.textContent = line;
+    details.appendChild(detail);
+  });
+  const detailActions = document.createElement('div');
+  detailActions.className = 'task-detail-actions';
+  const quickEditBtn = document.createElement('button');
+  quickEditBtn.className = 'task-detail-btn';
+  quickEditBtn.textContent = '快速编辑';
+  quickEditBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEditModalFn(task);
+  });
+  detailActions.appendChild(quickEditBtn);
+  details.appendChild(detailActions);
+  return details;
+}
+
+export function updateTaskToggleUI(task) {
+  const card = document.querySelector(`[data-task-id="${task.id}"]`);
+  if (!card) return;
+  const badge = card.querySelector('.task-status-badge');
+  if (badge) badge.textContent = getTaskStatusLabel(task);
+}
+
+export function toggleTaskExpandedCard(prevExpandedId, newExpandedId, ctx) {
+  const container = ctx.taskListEl;
+  if (prevExpandedId !== null && prevExpandedId !== newExpandedId) {
+    const card = container.querySelector(`[data-task-id="${prevExpandedId}"]`);
+    if (card) {
+      const body = card.querySelector('.task-body');
+      const details = body?.querySelector('.task-details');
+      if (details) details.remove();
+      const btn = card.querySelector('.task-expand-btn');
+      if (btn) { btn.textContent = '详情'; btn.title = '展开详情'; }
+    }
+  }
+  if (newExpandedId !== null && newExpandedId !== prevExpandedId) {
+    const card = container.querySelector(`[data-task-id="${newExpandedId}"]`);
+    if (card) {
+      const body = card.querySelector('.task-body');
+      if (body && !body.querySelector('.task-details')) {
+        const task = ctx.tasks.find(t => String(t.id) === String(newExpandedId));
+        if (task) {
+          body.appendChild(buildTaskDetails(task, ctx.holidayPresets, ctx.openEditModalFn));
+        }
+      }
+      const btn = card.querySelector('.task-expand-btn');
+      if (btn) { btn.textContent = '收起'; btn.title = '收起详情'; }
+    }
+  }
 }

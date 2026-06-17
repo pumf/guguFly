@@ -1,3 +1,5 @@
+import { pad2 } from './tasks/TaskUtils.js';
+
 const BACKUP_VERSION = 1;
 const BACKUP_KIND = 'gugufly-tasks';
 
@@ -5,8 +7,6 @@ const EXPORTABLE_KEYS = [
   'speed', 'height', 'effect', 'plane', 'particle', 'bubble', 'bubblePosition',
   'sound', 'soundMode', 'useSound', 'useImage', 'muted',
 ];
-
-function pad2(n) { return String(n).padStart(2, '0'); }
 
 function formatDateForFile(date = new Date()) {
   return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}-${pad2(date.getHours())}${pad2(date.getMinutes())}`;
@@ -69,7 +69,7 @@ export function readBackupFromFile(file) {
         const err = validateBackup(data);
         if (err) return reject(new Error(err));
         resolve(data);
-      } catch (e) {
+      } catch {
         reject(new Error('文件不是合法 JSON'));
       }
     };

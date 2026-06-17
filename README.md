@@ -160,16 +160,53 @@ guguFly/
 ├── index.html              # 主界面
 ├── flight.html             # 飞行窗口
 ├── src/
-│   ├── main.js             # 主界面逻辑（任务 / 飞行 / 设置）
-│   ├── flight.js           # 飞行动画渲染
-│   ├── style.css           # 主样式
-│   ├── storage.js          # Tauri Store 封装
-│   ├── timer.js            # 倒计时
-│   ├── quotes.js           # 文案库
-│   ├── sounds.js           # 音色合成
-│   └── backup.js           # 导入导出
-├── src-tauri/              # Rust 端
-│   ├── src/lib.rs          # 主入口 + 托盘 + 全局快捷键
+│   ├── main.js             # 主入口 + 模块依赖注入
+│   ├── flight.js           # 飞行动画渲染（Canvas）
+│   ├── style.css           # 全局样式（2500+ 行）
+│   ├── storage.js          # Tauri Store 封装 + localStorage 回退
+│   ├── timer.js            # AccurateTimer 高精度倒计时
+│   ├── sounds.js           # 12 种 Web Audio 音色合成
+│   ├── quotes.js           # 随机文案库
+│   ├── backup.js           # 任务导入/导出
+│   ├── utils.js            # 共享工具函数
+│   ├── tasks/              # 领域模型层
+│   │   ├── TaskFactory.js      # 任务工厂 + ID 生成
+│   │   ├── TaskUtils.js        # 排序/过滤/清洗/日期计算
+│   │   ├── TaskColors.js       # 8 种颜色标签定义
+│   │   ├── CountdownTimer.js   # 倒计时控制
+│   │   ├── AlarmChecker.js     # 定时任务秒级检查
+│   │   └── HolidayPresets.js   # 内置节假日预设
+│   ├── ui/                 # 界面组件
+│   │   ├── TaskRenderer.js     # 任务列表渲染
+│   │   ├── ModalController.js  # 新建/编辑模态框
+│   │   ├── ModalEvents.js      # 模态事件绑定
+│   │   ├── StatsPanel.js       # 飞行统计面板
+│   │   ├── HistoryPanel.js     # 任务触发历史
+│   │   ├── HeroSection.js      # 顶部英雄区
+│   │   ├── Toast.js            # Toast 通知
+│   │   ├── ColorPicker.js      # 颜色选择器
+│   │   ├── Logo.js             # Title Logo 更新
+│   │   ├── AudioSystem.js      # 音频播放管理
+│   │   ├── NotificationManager.js # 系统通知
+│   │   ├── MediaUpload.js      # 图片/音频上传
+│   │   ├── MiniWindow.js       # 迷你悬浮窗
+│   │   ├── FlightPreview.js    # 飞行预览
+│   │   ├── TaskFilter.js       # 搜索 & 筛选
+│   │   └── SettingsPanel.js    # 设置面板
+│   ├── settings/           # 持久化配置
+│   │   ├── SettingsManager.js  # 设置加载/存储
+│   │   ├── ThemeManager.js     # 主题切换
+│   │   ├── UpdateManager.js    # 版本更新检查
+│   │   └── FlightSync.js       # 飞行配置同步
+│   └── flight/             # 飞行编排
+│       ├── FlightOrchestrator.js # 飞行窗口创建/队列
+│       ├── FlightTrigger.js     # 触发逻辑（计数/连飞）
+│       ├── FlightPresets.js     # 5 个场景预设
+│       ├── Emergency.js         # 紧急降落
+│       ├── DeepLink.js          # URL Scheme 解析
+│       └── TauriListeners.js    # 托盘/快捷键事件
+├── src-tauri/              # Rust 后端
+│   ├── src/lib.rs          # 托盘 + 快捷键 + 11 个命令
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── capabilities/
@@ -193,6 +230,10 @@ npm run tauri dev
 python3 scripts/capture_screenshots.py
 ```
 
+### 发布检查
+
+发版前可按清单逐项验证：[`docs/release-checklist.md`](docs/release-checklist.md)
+
 ## 🤝 贡献
 
 欢迎 PR、Issue、Feature Request！提交前请：
@@ -205,14 +246,18 @@ python3 scripts/capture_screenshots.py
 
 ## 📜 路线图
 
-### v0.3（开源核心）
-- [ ] cron-like 重复模式（"每月第 N 个周 X"）
+### v0.6（进行中 — 稳定性 & 安全性 & 用户体验）
+- [x] CSP 策略启用
+- [x] `run_script` 白名单安全限制
+- [x] 任务删除确认弹窗
+- [x] 图片上传大小限制
+- [x] 工程结构拆分（`main.js` 模块化）
+- [x] 关键交互测试补齐（深链 / 导入 / 倒计时 / 紧急降落等）
 - [ ] 更多飞行动画模板（螺旋 / 心形 / 8 字）
-- [ ] 任务历史 / 日志
-- [ ] 番茄钟统计（专注时长累计）
-- [ ] 成就系统（连飞 7 天 / 100 次）
-- [ ] 应用内 onboarding
 - [ ] 键盘快捷键（Cmd+N 新建任务）
+- [ ] 应用内 onboarding
+- [ ] 成就系统（连飞 7 天 / 100 次）
+- [ ] 深色主题完整覆盖
 
 ### v1.0（Pro 计划）
 - [ ] ☁️ 云端备份 + 多设备同步（WebDAV 通用协议）

@@ -27,6 +27,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test
+        run: npm run test
+
   rust:
     name: Rust check
     runs-on: macos-latest

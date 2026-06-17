@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { compareVersions } from '../tasks/TaskUtils.js';
+import { isTauriRuntime } from '../utils.js';
 
 const GITHUB_REPO = 'pumf/guguFly';
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
@@ -24,7 +25,9 @@ function getCachedUpdate() {
 function setCachedUpdate(data) {
   try {
     localStorage.setItem(UPDATE_CACHE_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
-  } catch {}
+  } catch (error) {
+    console.error('cache update state failed:', error);
+  }
 }
 
 function showUpdateIndicator(show) {
@@ -37,7 +40,12 @@ function showUpdateIndicator(show) {
 export async function getCurrentVersion() {
   const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
   if (isTauriRuntime) {
-    try { return await invoke('get_app_version'); } catch (e) { return '0.0.0'; }
+    try {
+      return await invoke('get_app_version');
+    } catch (error) {
+      console.error('get app version failed:', error);
+      return '0.0.0';
+    }
   }
   return '0.0.0';
 }
@@ -52,8 +60,7 @@ export function openReleasePage() {
 }
 
 export async function autoCheckForUpdate() {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+  if (!isTauriRuntime()) return;
   const currentVer = await getCurrentVersion();
   const cached = getCachedUpdate();
 
@@ -120,7 +127,14 @@ export async function checkForUpdate() {
     if (updateModalTitle) updateModalTitle.textContent = '发现新版本';
     if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
     if (updateLatestVersion) updateLatestVersion.textContent = `v${cached.version}`;
-    if (updateReleaseNotes) updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+    if (updateReleaseNotes) {
+      updateReleaseNotes.textContent = '';
+      (cached.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        updateReleaseNotes.appendChild(p);
+      });
+    }
     if (updateDownloadBtn) {
       updateDownloadBtn.classList.remove('hidden');
       updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
@@ -150,14 +164,21 @@ export async function checkForUpdate() {
       htmlUrl = data.html_url || GITHUB_DOWNLOAD_URL;
       notes = data.body || '';
     }
-  } catch (e) {
+  } catch {
     if (updateLoading) updateLoading.classList.add('hidden');
     if (cached) {
       if (updateInfo) updateInfo.classList.remove('hidden');
       if (updateModalTitle) updateModalTitle.textContent = '发现新版本（缓存）';
       if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
       if (updateLatestVersion) updateLatestVersion.textContent = `v${cached.version}`;
-      if (updateReleaseNotes) updateReleaseNotes.innerHTML = (cached.notes || '').split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+      if (updateReleaseNotes) {
+        updateReleaseNotes.textContent = '';
+        (cached.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
+          const p = document.createElement('p');
+          p.textContent = line;
+          updateReleaseNotes.appendChild(p);
+        });
+      }
       if (updateDownloadBtn) {
         updateDownloadBtn.classList.remove('hidden');
         updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
@@ -199,7 +220,14 @@ export async function checkForUpdate() {
     if (updateModalTitle) updateModalTitle.textContent = '发现新版本';
     if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
     if (updateLatestVersion) updateLatestVersion.textContent = `v${latestVer}`;
-    if (updateReleaseNotes) updateReleaseNotes.innerHTML = notes.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+    if (updateReleaseNotes) {
+      updateReleaseNotes.textContent = '';
+      notes.split('\n').filter(l => l.trim()).forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        updateReleaseNotes.appendChild(p);
+      });
+    }
     if (updateDownloadBtn) {
       updateDownloadBtn.classList.remove('hidden');
       updateDownloadBtn.dataset.url = htmlUrl;

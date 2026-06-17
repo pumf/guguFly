@@ -1,0 +1,40 @@
+export function createAppState() {
+  const state = {
+    tasks: [],
+    editingId: null,
+    expandedTaskId: null,
+    isMuted: false,
+    isConfigOpen: false,
+    customImageData: '',
+    editImageData: '',
+    customAudioData: '',
+    customAudioName: '',
+    isStatsOpen: false,
+    getTaskFilterState: null,
+  };
+
+  return {
+    get tasks() { return state.tasks; },
+    set tasks(value) { state.tasks = value; },
+    get editingId() { return state.editingId; },
+    set editingId(value) { state.editingId = value; },
+    get expandedTaskId() { return state.expandedTaskId; },
+    set expandedTaskId(value) { state.expandedTaskId = value; },
+    get isMuted() { return state.isMuted; },
+    set isMuted(value) { state.isMuted = value; },
+    get isConfigOpen() { return state.isConfigOpen; },
+    set isConfigOpen(value) { state.isConfigOpen = value; },
+    get customImageData() { return state.customImageData; },
+    set customImageData(value) { state.customImageData = value; },
+    get editImageData() { return state.editImageData; },
+    set editImageData(value) { state.editImageData = value; },
+    get customAudioData() { return state.customAudioData; },
+    set customAudioData(value) { state.customAudioData = value; },
+    get customAudioName() { return state.customAudioName; },
+    set customAudioName(value) { state.customAudioName = value; },
+    get isStatsOpen() { return state.isStatsOpen; },
+    set isStatsOpen(value) { state.isStatsOpen = value; },
+    get getTaskFilterState() { return state.getTaskFilterState; },
+    set getTaskFilterState(value) { state.getTaskFilterState = value; },
+  };
+}

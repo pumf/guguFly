@@ -4,7 +4,6 @@ const STATS_TYPE_LABELS = {
 };
 
 let tasks = [];
-let cachedStats = null;
 
 export function setStatsTasks(taskList) {
   tasks = taskList;
@@ -50,7 +49,6 @@ export async function renderStats(computeFlightStatsFn) {
 
   if (!statsPanel) return;
   const stats = await computeFlightStatsFn();
-  cachedStats = stats;
 
   if (weeklySummaryEl && stats.last7Total > 0) {
     const topId = Object.entries(stats.taskTotals).sort((a,b) => b[1]-a[1])[0]?.[0];

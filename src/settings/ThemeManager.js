@@ -39,6 +39,13 @@ export function applyTheme(theme) {
   }
 }
 
+export function syncThemeButtons() {
+  const theme = currentTheme;
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.theme === theme);
+  });
+}
+
 export function initSystemThemeWatcher() {
   if (!window.matchMedia) return;
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');

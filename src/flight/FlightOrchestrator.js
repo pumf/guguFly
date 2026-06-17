@@ -4,7 +4,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { getRandomQuote } from '../quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from '../sounds.js';
-import { createCountdownTask } from '../tasks/TaskFactory.js';
+import { dataUrlToArrayBuffer, isTauriRuntime } from '../utils.js';
+import { getAudioContext, unlockAudioIfNeeded } from '../ui/AudioManager.js';
 
 let activeFlightJob = null;
 const flightQueue = [];
@@ -33,11 +34,8 @@ let useImageCheckboxEl = null;
 
 let loopAudio = null;
 let loopOscInterval = null;
-let sharedAudioCtx = null;
-let audioUnlocked = false;
 let customAudioProbe = null;
 let previewAudioHandle = null;
-let onPostFlightCancelled = null;
 
 export function initFlightOrchestrator(config) {
   soundSelectEl = config.soundSelect;
@@ -52,7 +50,14 @@ export function initFlightOrchestrator(config) {
   bubblePositionSelectEl = config.bubblePositionSelect;
   displaySelectEl = config.displaySelect;
   useImageCheckboxEl = config.useImageCheckbox;
-  onPostFlightCancelled = config.onPostFlightCancelled || (() => {});
+}
+
+function stopSource(source) {
+  try {
+    source.stop();
+  } catch {
+    // Source may already be stopped.
+  }
 }
 
 export function setCustomImageData(data) { customImageData_ = data; }
@@ -100,43 +105,6 @@ export function getActiveFlightJob() { return activeFlightJob; }
 
 const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
 
-async function getAudioContext() {
-  if (!sharedAudioCtx) {
-    sharedAudioCtx = new AudioContext();
-  }
-  if (sharedAudioCtx.state === 'suspended') {
-    try { await sharedAudioCtx.resume(); } catch (e) {}
-  }
-  return sharedAudioCtx;
-}
-
-async function unlockAudioIfNeeded() {
-  if (audioUnlocked) return true;
-  try {
-    const audioCtx = await getAudioContext();
-    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    audioUnlocked = true;
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function dataUrlToArrayBuffer(dataUrl) {
-  const base64 = dataUrl.split(',')[1] || '';
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 function revokeCustomAudioObjectUrl() {
   if (!customAudioObjectUrl_) return;
   URL.revokeObjectURL(customAudioObjectUrl_);
@@ -170,7 +138,7 @@ async function playCustomAudio(loopMode) {
       audio.addEventListener('ended', () => { audio.src = ''; }, { once: true });
     }
     return audio;
-  } catch (htmlAudioError) {
+  } catch {
     const audioCtx = await getAudioContext();
     const decoded = await audioCtx.decodeAudioData(dataUrlToArrayBuffer(customAudioData_));
     const source = audioCtx.createBufferSource();
@@ -182,9 +150,9 @@ async function playCustomAudio(loopMode) {
     gain.connect(audioCtx.destination);
     source.start();
     if (loopMode) {
-      loopAudio = { pause() { try { source.stop(); } catch (e) {} } };
+      loopAudio = { pause() { stopSource(source); } };
     }
-    return { pause() { try { source.stop(); } catch (e) {} } };
+    return { pause() { stopSource(source); } };
   }
 }
 
@@ -201,7 +169,11 @@ export function stopLoopSound() {
 
 export function stopPreviewAudio() {
   if (!previewAudioHandle) return;
-  try { previewAudioHandle.pause(); } catch (e) {}
+  try {
+    previewAudioHandle.pause();
+  } catch (error) {
+    console.error('preview audio stop failed:', error);
+  }
   previewAudioHandle = null;
 }
 
@@ -230,7 +202,7 @@ export async function validateCustomAudioPreview() {
       setTimeout(() => { cleanup(); resolve(); }, 1200);
     });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -268,21 +240,33 @@ async function playOscillator(sound, playPresetSound) {
     if (!KNOWN_SOUND_VALUES.has(sound)) sound = 'whoosh';
     const audioCtx = await getAudioContext();
     await playPresetSound(audioCtx, sound);
-  } catch (e) {}
+  } catch (error) {
+    console.error('preset sound failed:', error);
+  }
 }
 
 let showToast = (msg) => { console.log(msg); };
 export function setToastFn(fn) { showToast = fn; }
 
 async function showPostFlightNotify(action) {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+  if (!isTauriRuntime()) return;
   try {
     if (pfNotifyWin) {
-      try { await pfNotifyWin.close(); } catch (e) {}
+      try {
+        await pfNotifyWin.close();
+      } catch (error) {
+        console.error('post-flight notify close failed:', error);
+      }
       pfNotifyWin = null;
     }
-    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
+    if (pfUnlistenClick) {
+      try {
+        pfUnlistenClick();
+      } catch (error) {
+        console.error('post-flight unlisten failed:', error);
+      }
+      pfUnlistenClick = null;
+    }
 
     const sw = screen.availWidth || 1440;
     const sh = screen.availHeight || 900;
@@ -303,7 +287,9 @@ async function showPostFlightNotify(action) {
       try {
         await new Promise(r => setTimeout(r, 150));
         await emit('pf-notify-set-label', { label: fullText });
-      } catch (e) {}
+      } catch (error) {
+        console.error('post-flight notify label failed:', error);
+      }
     });
 
     pfNotifyWin.onCloseRequested(() => {
@@ -312,9 +298,16 @@ async function showPostFlightNotify(action) {
         pendingPfCancel = null;
       }
     });
-    pfNotifyWin.once('tauri://error', () => {});
+    pfNotifyWin.once('tauri://error', (error) => console.error('post-flight notify window error:', error));
 
-    if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
+    if (pfUnlistenClick) {
+      try {
+        pfUnlistenClick();
+      } catch (error) {
+        console.error('post-flight stale unlisten failed:', error);
+      }
+      pfUnlistenClick = null;
+    }
     const unlisten = await listen('pf-notify-clicked', async () => {
       if (pendingPfCancel) {
         pendingPfCancel();
@@ -328,14 +321,44 @@ async function showPostFlightNotify(action) {
 }
 
 async function closePostFlightNotifyLocal() {
-  if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
-  try { if (pfNotifyWin) { pfAutoClosing = true; await pfNotifyWin.close(); pfNotifyWin = null; } } catch (e) {}
+  if (pfUnlistenClick) {
+    try {
+      pfUnlistenClick();
+    } catch (error) {
+      console.error('post-flight local unlisten failed:', error);
+    }
+    pfUnlistenClick = null;
+  }
+  try {
+    if (pfNotifyWin) {
+      pfAutoClosing = true;
+      await pfNotifyWin.close();
+      pfNotifyWin = null;
+    }
+  } catch (error) {
+    console.error('post-flight local close failed:', error);
+  }
   pfAutoClosing = false;
 }
 
 export async function closePostFlightNotify() {
-  if (pfUnlistenClick) { try { pfUnlistenClick(); } catch(e){} pfUnlistenClick = null; }
-  try { if (pfNotifyWin) { pfAutoClosing = true; await pfNotifyWin.close(); pfNotifyWin = null; } } catch (e) {}
+  if (pfUnlistenClick) {
+    try {
+      pfUnlistenClick();
+    } catch (error) {
+      console.error('post-flight unlisten cleanup failed:', error);
+    }
+    pfUnlistenClick = null;
+  }
+  try {
+    if (pfNotifyWin) {
+      pfAutoClosing = true;
+      await pfNotifyWin.close();
+      pfNotifyWin = null;
+    }
+  } catch (error) {
+    console.error('post-flight close failed:', error);
+  }
   pfAutoClosing = false;
 }
 
@@ -365,8 +388,7 @@ export function releaseFlightQueue() {
 }
 
 async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskImageData = null, taskUseImage = null) {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+  if (!isTauriRuntime()) return;
 
   const speed = speedSelectEl.value;
   const height = heightSelectEl.value;
@@ -389,7 +411,9 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
         sw = monitor.size.width;
         sh = monitor.size.height;
       }
-    } catch (e) {}
+    } catch (error) {
+      console.error('active monitor lookup failed:', error);
+    }
   }
 
   localStorage.setItem('_flightImage', effectiveImage || '');
@@ -424,8 +448,7 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
 
 export async function executePostFlightAction(postFlight) {
   if (!postFlight || postFlight.action === 'none') return;
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+  if (!isTauriRuntime()) return;
   try {
     if (postFlight.action === 'app' && postFlight.appPath) {
       await invoke('open_app', { path: postFlight.appPath });
@@ -445,7 +468,7 @@ export async function executePostFlightAction(postFlight) {
       if (!confirmed) return;
       const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
       const ttsScript = navigator.platform.includes('Win')
-        ? `powershell -Command "Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.Speak(\\"${ttsText}\\")"`
+        ? `mshta vbscript:Execute("CreateObject(""SAPI.SpVoice"").Speak(""${ttsText}"" ) :close")`
         : `say "${ttsText}"`;
       await invoke('run_script', { script: ttsScript });
     } else if (postFlight.action === 'script' && postFlight.script) {
@@ -520,9 +543,8 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
   }
 }
 
-export async function initFlightListeners({ saveTasks, getCleanTasks, triggerLanding, showToast: toastFn }) {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (!isTauriRuntime) return;
+export async function initFlightListeners() {
+  if (!isTauriRuntime()) return;
 
   listen('flight-ended', async (event) => {
     localStorage.removeItem('_flightImage');

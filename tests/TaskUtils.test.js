@@ -10,7 +10,6 @@ import {
   repeatSummary,
   matchesFilter,
   getTaskSortScore,
-  getTaskTimeAnchor,
   getTaskGroupKey,
   getCleanTasks,
   hydrateTasks,
@@ -100,6 +99,13 @@ describe('getTaskSortScore', () => {
     const disabled = { enabled: false, _status: 'idle', type: 'alarm' };
     const enabled = { enabled: true, _status: 'idle', type: 'alarm' };
     expect(getTaskSortScore(disabled)).toBeGreaterThan(getTaskSortScore(enabled));
+  });
+});
+
+describe('getTaskTimeAnchor', () => {
+  it('returns minute offset for alarm tasks', async () => {
+    const { getTaskTimeAnchor } = await import('../src/tasks/TaskUtils.js');
+    expect(getTaskTimeAnchor({ type: 'alarm', hour: 9, minute: 30 })).toBe(570);
   });
 });
 
@@ -203,6 +209,13 @@ describe('computeNextAlarmDate', () => {
     const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'weekly', days: [] } };
     const next = computeNextAlarmDate(task, now);
     expect(next).toBeNull();
+  });
+
+  it('no repeat (empty days) returns today if time not passed', () => {
+    const now = new Date(2026, 0, 5, 8, 0);
+    const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'weekly', days: [] } };
+    const next = computeNextAlarmDate(task, now);
+    expect(next).toEqual(new Date(2026, 0, 5, 9, 0));
   });
 
   it('monthly_date: returns current month date if later today', () => {

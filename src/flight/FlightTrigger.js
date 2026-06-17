@@ -14,7 +14,8 @@ export async function registerFlightTrigger() {
   if (!lastStreakDate) streak = 1;
   else {
     const diff = ctx.dayDiff(lastStreakDate, today);
-    streak = (diff === 0 || diff === 1) ? streak + 1 : 1;
+    if (diff === 1) streak += 1;
+    else if (diff !== 0) streak = 1;
   }
   await ctx.set('streak', streak);
   await ctx.set('streakLastDate', today);

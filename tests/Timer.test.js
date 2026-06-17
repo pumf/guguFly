@@ -30,7 +30,6 @@ describe('AccurateTimer', () => {
     const timer = new AccurateTimer(5000, () => {}, () => {});
     timer.start();
     timer.pause();
-    const pausedRemaining = timer.remaining;
     timer.resume();
     expect(timer.paused).toBe(false);
     expect(timer.running).toBe(true);

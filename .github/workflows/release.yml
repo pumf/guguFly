@@ -29,7 +29,7 @@ jobs:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri ARM64
         run: npm run tauri build -- --target aarch64-apple-darwin
@@ -73,7 +73,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri
         run: npm run tauri build
@@ -103,7 +103,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri
         run: npm run tauri build

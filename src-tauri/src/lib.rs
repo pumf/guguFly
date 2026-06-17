@@ -33,8 +33,33 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+fn is_script_allowed(script: &str) -> bool {
+    let trimmed = script.trim();
+    let has_shell_meta = trimmed.contains(';') || trimmed.contains('|')
+        || trimmed.contains("&&") || trimmed.contains("$(")
+        || trimmed.contains('`') || trimmed.contains(">");
+    if has_shell_meta {
+        return false;
+    }
+    let allowed = &[
+        "pmset displaysleepnow",
+        "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
+        "rundll32.exe user32.dll,LockWorkStation",
+    ];
+    if allowed.contains(&trimmed) {
+        return true;
+    }
+    if trimmed.starts_with("say ") || trimmed.starts_with("osascript -e ") || trimmed.starts_with("mshta vbscript:Execute(") {
+        return true;
+    }
+    false
+}
+
 #[tauri::command]
 fn run_script(script: String) -> Result<(), String> {
+    if !is_script_allowed(&script) {
+        return Err("不允许的脚本命令，请联系开发者添加白名单".to_string());
+    }
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("cmd")

@@ -127,7 +127,6 @@ const PLAYERS = {
     freqSweep(audioCtx, 'sawtooth', 1800, 180, 0.35, 0.18);
   },
   morning(audioCtx) {
-    const now = audioCtx.currentTime;
     freqSweep(audioCtx, 'sine', 1800, 2400, 0.12, 0.18);
     freqSweep(audioCtx, 'sine', 2200, 2000, 0.1, 0.18);
     playOsc(audioCtx, 'sine', 523, 0.18, 0.5, 0.2);
@@ -154,5 +153,7 @@ export async function playPreset(audioCtx, sound) {
   const player = PLAYERS[sound] || PLAYERS.whoosh;
   try {
     player(audioCtx);
-  } catch (e) {}
+  } catch (error) {
+    console.error('sound preset playback failed:', error);
+  }
 }

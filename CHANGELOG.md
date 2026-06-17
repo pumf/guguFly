@@ -2,6 +2,65 @@
 
 咕咕机长的所有重要变更都会记录在这里。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [0.5.1] - 2026-06-17
+
+### 🐛 修复
+- 修复初始化顺序错误导致多个按钮事件未绑定
+- 修复紧急降落后飞行循环音频未停止
+- 修复主题按钮缺少选中态高亮
+- 修复迷你悬浮框位置设置在 Tauri v2 下不生效
+
+### 🧹 工程化
+- 补齐模块化依赖注入与对应测试覆盖
+
+## [0.5.0] - 2026-06-14
+
+### 🏗 重构
+- **大规模模块化重构**：将 2000+ 行的 `main.js` 拆分到 25+ 独立模块
+  - `ui/`: Toast、TaskRenderer、ModalController、StatsPanel、HeroSection、AudioSystem、ColorPicker、HistoryPanel、MiniWindow、FlightPreview、Logo、NotificationManager、MediaUpload
+  - `tasks/`: TaskFactory、TaskUtils、CountdownTimer、AlarmChecker、HolidayPresets、TaskColors
+  - `settings/`: SettingsManager、ThemeManager、UpdateManager、FlightSync
+  - `flight/`: FlightOrchestrator、FlightTrigger、FlightPresets、Emergency、DeepLink、TauriListeners
+- 全部模块通过 `main.js init()` 依赖注入连接，消除全局变量污染
+- 移除 `marketing-site` 混入，独立仓库管理
+
+### 🐛 修复（19 项）
+- 修复迷你窗拖动和飞行后通知浮窗定位
+- 统一迷你窗位置单位为物理像素
+- 修复 Intel Mac 飞行动画不显示（添加 `roundRect` polyfill）
+- 修复 Windows 兼容性 — `run_script` 用 `cmd` 执行，锁屏/TTS 区分平台命令
+- 修复 Intel Mac 托盘图标不显示（`tray-icon.png` 改为 `include_bytes!` 嵌入）
+- 修复飞行时内置声音不播放（`AudioContext` unlock 问题）
+- 修复托盘左键/右键/最小化唤醒行为
+
+### ✨ 新增
+- 静默时段：指定时间段内自动跳过飞行提醒
+- 迷你悬浮窗：屏幕角落显示下次提醒倒计时，位置可拖动
+- 任务快速模板：一键创建番茄钟、喝水提醒、站会、午休、久坐拉伸
+- 托盘菜单快速倒计时：5/15/25/30 分钟
+- 飞行后操作：打开软件/网页/文件夹、锁屏、TTS 语音播报、运行脚本
+- 版本更新检查：自动检测 GitHub 新版本 + 手动检查弹窗
+- 显示偏好：所有屏幕/当前屏幕
+- CI 交叉编译 macOS ARM64 + x86_64 双架构
+
+## [0.4.0] - 2026-06-11
+
+### ✨ 新增
+- **飞行后操作**：飞行结束后自动打开应用/网页/文件夹、锁屏、运行脚本
+- **版本更新检查**：自动检测 GitHub 新版本，Release Notes 展示
+- **快速倒计时**：托盘菜单直接启动 5/15/25/30 分钟倒计时
+- **静默时段**：在指定时间段内自动跳过飞行提醒
+- **迷你悬浮窗**：屏幕角落显示下次提醒倒计时，位置可拖动
+- **任务快速模板**：番茄钟、喝水、站会、午休、久坐拉伸
+- **显示偏好**：选择在所有屏幕或当前屏幕飞行
+- **Post-flight 通知浮窗**：飞行结束后展示操作选项 UI
+
+### 🐛 修复
+- 修复托盘双击无响应问题
+- 修复窗口高度适配更多设置内容
+- 修复倒计时暂停状态恢复
+- 修复飞行时焦点占用不抢输入
+
 ## [0.3.1] - 2026-06-08
 
 ### 🐛 修复

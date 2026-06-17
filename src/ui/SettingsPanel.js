@@ -1,8 +1,8 @@
 export function initSettingsPanel(ctx) {
   const {
-    isTauriRuntime, isMuted, MUTED_ICON, UNMUTED_ICON, setMuted,
+    isTauriRuntime, MUTED_ICON, UNMUTED_ICON, setMuted,
     syncMuteToTray, stopLoopSoundLocal, stopPreviewAudio, resetAudioPreview,
-    set, persistSetting, applyTheme,
+    set, persistSetting,     applyTheme, syncThemeButtons,
     enableAutostart, disableAutostart,
     createMiniWindow, closeMiniWindow, positionMiniWindow, getMiniPositions, updateMiniPosGridActive,
     exportTasksAsJson, getCleanTasks, tasksRef, saveTasks, readBackupFromFile,
@@ -14,7 +14,7 @@ export function initSettingsPanel(ctx) {
     bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
     useSoundCheckbox, useImageCheckbox,
     isConfigOpenRef, isMutedRef, isStatsOpenRef, muteBtn,
-    unlockAudioIfNeeded, persistFlightSettings,
+    persistFlightSettings,
   } = ctx;
 
   const configToggle = document.getElementById('configToggle');
@@ -129,13 +129,14 @@ export function initSettingsPanel(ctx) {
     btn.addEventListener('click', () => {
       const theme = btn.dataset.theme;
       applyTheme(theme);
+      syncThemeButtons();
       void set('theme', theme);
     });
   });
 
   exportTasksBtn?.addEventListener('click', async () => {
     const version = await getCurrentVersion();
-    const count = exportTasksAsJson(getCleanTasks(tasksRef()), {
+    const count = exportTasksAsJson(getCleanTasks(tasksRef.get()), {
       speed: speedSelect.value, height: heightSelect.value, effect: effectSelect.value,
       plane: planeSelect.value, particle: particleSelect.value, bubble: bubbleSelect.value,
       bubblePosition: bubblePositionSelect.value, sound: soundSelect.value,
@@ -155,7 +156,9 @@ export function initSettingsPanel(ctx) {
       const data = await readBackupFromFile(file);
       const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
       if (count === 0) { showToast('备份里没有任务数据'); return; }
-      const proceed = window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
+      const proceed = isTauriRuntime
+        ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) => confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`, { title: '确认导入', kind: 'warning' }))
+        : window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
       if (!proceed) return;
       const { tasks: imported, maxId } = hydrateTasks(data.tasks);
       tasksRef.set(imported);

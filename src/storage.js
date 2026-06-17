@@ -1,8 +1,7 @@
 import { Store } from '@tauri-apps/plugin-store';
+import { isTauriRuntime } from './utils.js';
 
 let store = null;
-
-const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
 const BROWSER_KEY_PREFIX = 'gugufly:';
 
@@ -10,7 +9,7 @@ function browserGet(key) {
   try {
     const raw = window.localStorage.getItem(BROWSER_KEY_PREFIX + key);
     return raw === null ? undefined : JSON.parse(raw);
-  } catch (e) {
+  } catch {
     return undefined;
   }
 }
@@ -18,7 +17,9 @@ function browserGet(key) {
 function browserSet(key, value) {
   try {
     window.localStorage.setItem(BROWSER_KEY_PREFIX + key, JSON.stringify(value));
-  } catch (e) {}
+  } catch (error) {
+    console.error('localStorage write failed:', error);
+  }
 }
 
 async function browserEntries() {
@@ -28,17 +29,19 @@ async function browserEntries() {
     if (!key || !key.startsWith(BROWSER_KEY_PREFIX)) continue;
     try {
       pairs.push([key.slice(BROWSER_KEY_PREFIX.length), JSON.parse(window.localStorage.getItem(key))]);
-    } catch (e) {}
+    } catch (error) {
+      console.error('localStorage entry parse failed:', error);
+    }
   }
   return pairs;
 }
 
 async function getStore() {
   if (store) return store;
-  if (isTauri) {
+  if (isTauriRuntime()) {
     try {
       store = await Store.load('config.json');
-    } catch (e) {
+    } catch {
       store = null;
     }
   } else {
@@ -77,13 +80,6 @@ export async function set(key, value) {
   if (s.save) await s.save();
 }
 
-export async function getAll() {
-  const s = await getStore();
-  if (!s) return DEFAULTS;
-  const entries = await s.entries();
-  return { ...DEFAULTS, ...Object.fromEntries(entries) };
-}
-
 export async function loadTasks() {
   const val = await get('_tasks');
   return val || [];
@@ -106,12 +102,6 @@ export async function incrementTodayCount() {
   const count = (await get('todayCount')) + 1;
   await set('todayCount', count);
   return count;
-}
-
-export async function incrementStreak() {
-  const streak = (await get('streak')) + 1;
-  await set('streak', streak);
-  return streak;
 }
 
 export async function resetStreak() {

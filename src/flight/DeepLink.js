@@ -6,7 +6,9 @@ export function parseDeepLinkUrl(rawUrl) {
     const action = url.host || url.pathname.replace(/^\/+/, '') || '';
     const params = Object.fromEntries(url.searchParams.entries());
     return { action, params };
-  } catch (e) { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function buildTaskFromDeepLink(params, ctx) {
