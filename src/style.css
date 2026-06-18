@@ -179,6 +179,23 @@ body {
   background: rgba(0, 0, 0, 0.06);
 }
 
+.hero-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0 0;
+  margin-top: 2px;
+}
+
+.hero-section-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
 .task-section {
   flex: 1;
   min-height: 0;
@@ -192,8 +209,7 @@ body {
 .section-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-end;
 }
 
 .section-title {
