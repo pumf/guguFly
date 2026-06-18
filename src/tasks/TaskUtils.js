@@ -286,7 +286,7 @@ export function getTaskSortScore(task) {
   if (task._status === 'paused') base -= 1200;
   if (task.type === 'countdown') base -= 500;
   if (task.type === 'alarm') base -= 200;
-  if (task._lastTriggeredDate && task._lastTriggeredDate === getDateKey()) base += 3000;
+  if (task._lastTriggeredDate && task._lastTriggeredDate === new Date().toDateString()) base += 3000;
   return base;
 }
 
