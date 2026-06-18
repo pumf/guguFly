@@ -29,6 +29,8 @@
     "opener:default",
     "opener:allow-open-url",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-confirm",
+    "dialog:allow-ask"
   ]
 }
