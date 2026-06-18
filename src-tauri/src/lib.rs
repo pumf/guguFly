@@ -453,6 +453,14 @@ pub fn run() {
                 let _ = _app_handle.emit("deep-link", url.to_string());
             }
         }
+        #[cfg(target_os = "macos")]
+        tauri::RunEvent::Reopen { .. } => {
+            if let Some(window) = _app_handle.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.unminimize();
+            }
+        }
         _ => {}
     });
 }

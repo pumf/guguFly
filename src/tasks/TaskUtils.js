@@ -292,7 +292,7 @@ export function getTaskSortScore(task) {
 export function getTaskTimeAnchor(task) {
   if (task.type === 'alarm') return task.hour * 60 + task.minute;
   if (task.type === 'countdown') return task._remaining ?? task.duration;
-  if (task.type === 'holiday' || task.type === 'anniversary') return ((task.month || 1) * 100 + (task.day || 1));
+  if (task.type === 'holiday' || task.type === 'anniversary') return daysUntilMonthDay(task.month || 1, task.day || 1);
   return 999999;
 }
 

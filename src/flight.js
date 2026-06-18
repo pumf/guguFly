@@ -42,6 +42,9 @@ const effectMap = {
   ceremony: { durationBase: 4600, enterProgress: 0.3, exitProgress: 0.74, floatDivisor: 220, floatAmount: 2, travelMid: 0.08, fadeIn: 0.24, fadeOutStart: 0.86, fadeOutSpan: 0.14, particleBoost: 0.7, path: 'arc', pathAmplitude: 90 },
   swift: { durationBase: 2200, enterProgress: 0.12, exitProgress: 0.9, floatDivisor: 115, floatAmount: 2.5, travelMid: 0.26, fadeIn: 0.1, fadeOutStart: 0.94, fadeOutSpan: 0.06, particleBoost: 1.2, path: 'straight', pathAmplitude: 0 },
   playful: { durationBase: 3100, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 78, floatAmount: 8, travelMid: 0.18, fadeIn: 0.14, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 1.35, path: 'sine', pathAmplitude: 70 },
+  spiral: { durationBase: 3800, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 200, floatAmount: 1, travelMid: 0.14, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1.1, path: 'spiral', pathAmplitude: 80 },
+  heart: { durationBase: 4200, enterProgress: 0.15, exitProgress: 0.78, floatDivisor: 250, floatAmount: 0.5, travelMid: 0.12, fadeIn: 0.18, fadeOutStart: 0.86, fadeOutSpan: 0.14, particleBoost: 1.2, path: 'heart', pathAmplitude: 100 },
+  figure8: { durationBase: 4000, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 180, floatAmount: 0.5, travelMid: 0.14, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1.15, path: 'figure8', pathAmplitude: 75 },
 };
 
 const speedFactor = speedMap[params.get('speed') || localStorage.getItem('_flightSpeed')] || 0.35;
@@ -522,6 +525,15 @@ function animate() {
     pathY = u * effectConfig.pathAmplitude;
   } else if (effectConfig.path === 'sine') {
     pathY = Math.sin(easedProgress * Math.PI * 2) * effectConfig.pathAmplitude;
+  } else if (effectConfig.path === 'spiral') {
+    const spiralAngle = easedProgress * Math.PI * 6;
+    pathY = Math.sin(spiralAngle) * effectConfig.pathAmplitude * (1 - easedProgress * 0.6);
+  } else if (effectConfig.path === 'heart') {
+    const t = easedProgress;
+    pathY = -(Math.pow(Math.sin(t * Math.PI), 1.5) * 0.7 + Math.sin(t * Math.PI * 2) * 0.3) * effectConfig.pathAmplitude;
+  } else if (effectConfig.path === 'figure8') {
+    pathY = Math.sin(easedProgress * Math.PI * 4) * effectConfig.pathAmplitude * 0.7;
+    pathY += Math.sin(easedProgress * Math.PI * 2) * effectConfig.pathAmplitude * 0.3;
   }
 
   const currentY = plane.y + floatY + pathY;

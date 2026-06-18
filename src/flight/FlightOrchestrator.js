@@ -1,4 +1,5 @@
-import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { availableMonitors, currentMonitor } from '@tauri-apps/api/window';
 import { listen, emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -401,25 +402,40 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   const effectiveImage = taskImageData !== null ? taskImageData : customImageData_;
   const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckboxEl.checked;
 
-  let sw = screen.width, sh = screen.height, x = 0, y = 0;
-  if (displaySelectEl.value === 'active') {
+  // Determine which monitors to fly on
+  let monitorConfigs = [];
+  if (displaySelectEl.value === 'all') {
     try {
-      const monitor = await getCurrentWebviewWindow().currentMonitor();
-      if (monitor) {
-        x = monitor.position.x;
-        y = monitor.position.y;
-        sw = monitor.size.width;
-        sh = monitor.size.height;
-      }
+      const monitors = await availableMonitors();
+      monitorConfigs = monitors.map(m => ({
+        x: m.position.x, y: m.position.y,
+        w: m.size.width, h: m.size.height,
+      }));
     } catch (error) {
-      console.error('active monitor lookup failed:', error);
+      console.error('available monitors failed:', error);
+      monitorConfigs = [{ x: 0, y: 0, w: screen.width, h: screen.height }];
     }
+  } else {
+    let mx = 0, my = 0, mw = screen.width, mh = screen.height;
+    if (displaySelectEl.value === 'active') {
+      try {
+        const monitor = await currentMonitor();
+        if (monitor) {
+          mx = monitor.position.x;
+          my = monitor.position.y;
+          mw = monitor.size.width;
+          mh = monitor.size.height;
+        }
+      } catch (error) {
+        console.error('active monitor lookup failed:', error);
+      }
+    }
+    monitorConfigs = [{ x: mx, y: my, w: mw, h: mh }];
   }
 
+  // Store common settings once (applies to all windows)
   localStorage.setItem('_flightImage', effectiveImage || '');
   localStorage.setItem('_flightUseImage', effectiveUseImage ? '1' : '0');
-  localStorage.setItem('_flightW', sw);
-  localStorage.setItem('_flightH', sh);
   localStorage.setItem('_flightSpeed', speed);
   localStorage.setItem('_flightHeight', height);
   localStorage.setItem('_flightEffect', effect);
@@ -431,17 +447,27 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   localStorage.setItem('_flightDir', direction);
   localStorage.setItem('_flightSeq', sequenceId);
 
-  try {
-    const flightWin = new WebviewWindow(`flight-${Date.now()}`, {
-      url: '/flight.html',
-      width: sw, height: sh, x, y,
-      transparent: true, decorations: false,
-      alwaysOnTop: true, skipTaskbar: true,
-      resizable: false, visible: true, focus: false,
-    });
-    flightWin.once('tauri://error', (e) => console.error('flight error:', e));
-  } catch (e) {
-    console.error('flight error:', e);
+  const ts = Date.now();
+  for (const [index, mc] of monitorConfigs.entries()) {
+    localStorage.setItem('_flightW', mc.w);
+    localStorage.setItem('_flightH', mc.h);
+
+    try {
+      const flightWin = new WebviewWindow(`flight-${ts}-${index}`, {
+        url: `/flight.html?w=${mc.w}&h=${mc.h}`,
+        width: mc.w, height: mc.h, x: mc.x, y: mc.y,
+        transparent: true, decorations: false,
+        alwaysOnTop: true, skipTaskbar: true,
+        resizable: false, visible: true, focus: false,
+      });
+      flightWin.once('tauri://error', (e) => console.error('flight error:', e));
+    } catch (e) {
+      console.error('flight error:', e);
+    }
+
+    if (index < monitorConfigs.length - 1) {
+      await new Promise(r => setTimeout(r, 120));
+    }
   }
   await new Promise(r => setTimeout(r, 200));
 }

@@ -2256,6 +2256,15 @@ body {
 .effect-preview--playful .effect-dot {
   animation: dotPlayful 2.2s ease-in-out infinite;
 }
+.effect-preview--spiral .effect-dot {
+  animation: dotSpiral 2.6s ease-in-out infinite;
+}
+.effect-preview--heart .effect-dot {
+  animation: dotHeart 2.8s ease-in-out infinite;
+}
+.effect-preview--figure8 .effect-dot {
+  animation: dotFigure8 2.6s ease-in-out infinite;
+}
 
 @keyframes dotLinear {
   0%   { left: 0%; top: 50%; }
@@ -2279,6 +2288,39 @@ body {
   25%  { left: 25%; top: 10%; }
   50%  { left: 50%; top: 50%; }
   75%  { left: 75%; top: 90%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotSpiral {
+  0%   { left: 0%; top: 50%; }
+  12.5%{ left: 12.5%; top: 10%; }
+  25%  { left: 25%; top: 50%; }
+  37.5%{ left: 37.5%; top: 90%; }
+  50%  { left: 50%; top: 40%; }
+  62.5%{ left: 62.5%; top: 60%; }
+  75%  { left: 75%; top: 45%; }
+  87.5%{ left: 87.5%; top: 55%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotHeart {
+  0%   { left: 0%; top: 50%; }
+  20%  { left: 20%; top: 5%; }
+  30%  { left: 30%; top: 10%; }
+  40%  { left: 40%; top: 40%; }
+  50%  { left: 50%; top: 80%; }
+  60%  { left: 60%; top: 40%; }
+  70%  { left: 70%; top: 10%; }
+  80%  { left: 80%; top: 5%; }
+  100% { left: 100%; top: 50%; }
+}
+@keyframes dotFigure8 {
+  0%   { left: 0%; top: 50%; }
+  15%  { left: 15%; top: 10%; }
+  25%  { left: 25%; top: 5%; }
+  35%  { left: 35%; top: 30%; }
+  50%  { left: 50%; top: 50%; }
+  65%  { left: 65%; top: 70%; }
+  75%  { left: 75%; top: 95%; }
+  85%  { left: 85%; top: 90%; }
   100% { left: 100%; top: 50%; }
 }
 

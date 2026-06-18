@@ -30,6 +30,7 @@ export async function initCoreModules(ctx) {
     WebviewWindow,
     initHeroSection,
     initFlightPreview,
+    initFlightListeners,
     queueFlight,
     createMiniWindow,
     initTauriListeners,
@@ -192,6 +193,8 @@ export async function initCoreModules(ctx) {
     persistSetting,
     updateSoundMeta,
   });
+
+  await initFlightListeners();
 
   initTauriListeners({
     listen,
