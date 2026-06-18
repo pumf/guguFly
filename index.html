@@ -47,18 +47,16 @@
       </div>
 
       <div class="task-section">
-        <div class="section-head">
-          <div style="display:flex;align-items:center;gap:6px;position:relative;margin-left:auto"><｜end▁of▁thinking｜>
-            <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
-            <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
-            <div id="templateMenu" class="template-menu hidden">
+        <div class="section-head" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;position:relative">
+          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+          <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
+          <div id="templateMenu" class="template-menu hidden">
               <button class="template-item" data-template="pomodoro">🍅 番茄钟 25 分钟</button>
               <button class="template-item" data-template="drink">💧 喝水提醒 · 每小时</button>
               <button class="template-item" data-template="standup">📋 每日站会 09:30</button>
               <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
               <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
             </div>
-          </div>
         </div>
 
         <div class="task-filter-bar">

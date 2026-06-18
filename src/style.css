@@ -200,7 +200,7 @@ body {
   flex: 1;
   min-height: 0;
   border-radius: 24px;
-  padding: 10px 14px 8px;
+  padding: 6px 14px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
