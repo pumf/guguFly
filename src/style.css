@@ -179,16 +179,7 @@ body {
   background: rgba(0, 0, 0, 0.06);
 }
 
-.hero-section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0 0;
-  margin-top: 2px;
-}
-
-.hero-section-stats {
+.hero-mid-stats {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -210,16 +201,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-}
-
-.section-title {
-  font-size: 15px;
-  line-height: 1.1;
-  font-weight: 800;
-}
-
-.section-tip {
-  display: none;
 }
 
 .task-filter-bar {
