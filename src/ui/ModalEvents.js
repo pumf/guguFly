@@ -1,11 +1,12 @@
 import { getSelectedEditColor } from './ColorPicker.js';
+import { invoke } from '@tauri-apps/api/core';
 
 export function initModalEvents(ctx) {
   const {
     openNewModal, closeModal,
     createCountdownTask, createAlarmTask,
     getCleanTasks, saveTasks, renderTaskView, showToast,
-    saveModalHandler, deleteTaskFn, openDialog,
+    saveModalHandler, deleteTaskFn,
     isTauriRuntime,
     tasksRef, editingIdRef,
   } = ctx;
@@ -135,7 +136,7 @@ export function initModalEvents(ctx) {
   selectAppBtn?.addEventListener('click', async () => {
     if (!isTauriRuntime) return;
     try {
-      const selected = await openDialog({ multiple: false, title: '选择应用程序' });
+      const selected = await invoke('pick_file');
       if (selected) editPostFlightAppPath.value = selected;
     } catch (e) { console.error('File dialog failed:', e); }
   });
@@ -143,7 +144,7 @@ export function initModalEvents(ctx) {
   selectFolderBtn?.addEventListener('click', async () => {
     if (!isTauriRuntime) return;
     try {
-      const selected = await openDialog({ multiple: false, title: '选择文件夹', directory: true });
+      const selected = await invoke('pick_folder');
       if (selected) editPostFlightFolder.value = selected;
     } catch (e) { console.error('Folder dialog failed:', e); }
   });

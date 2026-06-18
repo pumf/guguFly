@@ -348,7 +348,6 @@ export async function initCoreModules(ctx) {
     showToast,
     saveModalHandler,
     deleteTaskFn,
-    openDialog: deps.openDialog,
     isTauriRuntime: runtime.isTauriRuntime,
     tasksRef: { get: () => state.tasks },
     editingIdRef: { get: () => state.editingId, set: (value) => { state.editingId = value; } },

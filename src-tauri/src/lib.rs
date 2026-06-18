@@ -111,6 +111,20 @@ fn mini_start_dragging(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn pick_file() -> Result<Option<String>, String> {
+    let dialog = rfd::FileDialog::new()
+        .set_title("选择应用程序");
+    Ok(dialog.pick_file().map(|p| p.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn pick_folder() -> Result<Option<String>, String> {
+    let dialog = rfd::FileDialog::new()
+        .set_title("选择文件夹");
+    Ok(dialog.pick_folder().map(|p| p.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
 fn open_app(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -272,7 +286,6 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, _event| {
@@ -437,7 +450,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, pick_file, pick_folder, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

@@ -28,7 +28,7 @@ tauri-plugin-autostart = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
+rfd = "0.15"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2"
