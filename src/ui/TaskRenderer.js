@@ -112,7 +112,7 @@ export function renderTasks({
       toggle.addEventListener('change', (e) => {
         task.enabled = e.target.checked;
         saveTasks(getCleanTasksFn(tasks));
-        updateTaskToggleUI(task);
+        renderTasksFn();
       });
       toggle.addEventListener('click', (e) => e.stopPropagation());
 
