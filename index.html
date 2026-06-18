@@ -29,7 +29,6 @@
               <button id="emergencyBtn" class="icon-btn icon-btn--warn" type="button" title="紧急降落">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e17055" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
               </button>
-              <button class="icon-btn" id="statsToggle" type="button" title="飞行统计">📊</button>
               <button id="settingsBtn" class="icon-btn" type="button" title="设置">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                 <span class="update-dot hidden" id="settingsUpdateDot"></span>
@@ -40,7 +39,15 @@
             </div>
           </div>
         </div>
-        <div id="nextUpcoming" class="next-upcoming hidden"></div>
+        <div id="nextUpcoming" class="next-upcoming">
+          <span class="next-stats">
+            <span class="hero-stat" id="todayCount">0 次起飞</span>
+            <span class="hero-stat-sep">·</span>
+            <span class="hero-stat hero-stat--muted" id="heroStatus">等待起飞</span>
+          </span>
+          <span class="next-msg"></span>
+          <button class="hero-stats-toggle" id="statsToggle" title="飞行统计">📊</button>
+        </div>
       </div>
 
       <div class="task-section">
