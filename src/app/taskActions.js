@@ -1,5 +1,3 @@
-import { showConfirm } from '../utils.js';
-
 export function createTaskActions(ctx) {
   const {
     state,
@@ -113,10 +111,10 @@ export function createTaskActions(ctx) {
   }
 
   function deleteTaskFn(task) {
-    showConfirm(`确认删除任务「${task.label || task.msg || '未命名任务'}」吗？`).then(confirmed => {
+    window.showConfirm(`确认删除任务「${task.label || task.msg || '未命名任务'}」吗？`).then(confirmed => {
       if (!confirmed) return;
       deleteTask(task, state.tasks, () => closeModal(dom.modal, dom.modalError), saveTasks, (tasks) => getCleanTasks(tasks), renderTaskView, stopCountdown);
-    });
+    }).catch(e => console.error('delete confirm failed:', e));
   }
 
   function saveModalHandler() {

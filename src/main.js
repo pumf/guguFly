@@ -7,6 +7,8 @@ import { getRandomQuote } from './quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
+import { showConfirm } from './utils.js';
+window.showConfirm = showConfirm;
 
 import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';

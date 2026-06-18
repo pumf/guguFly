@@ -1,12 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleDeepLink } from '../src/app/deepLinkActions.js';
 
-vi.mock('../src/utils.js', () => ({
-  showConfirm: vi.fn(),
-}));
-
-import { showConfirm } from '../src/utils.js';
-
 describe('handleDeepLink', () => {
   let state;
   let closeModal;
@@ -24,6 +18,7 @@ describe('handleDeepLink', () => {
     saveTasks = vi.fn();
     renderTaskView = vi.fn();
     showToast = vi.fn();
+    globalThis.window = { showConfirm: vi.fn() };
   });
 
   it('creates task for add deep link', async () => {
@@ -54,7 +49,7 @@ describe('handleDeepLink', () => {
   });
 
   it('stops when tauri confirmation is rejected', async () => {
-    showConfirm.mockResolvedValue(false);
+    window.showConfirm.mockResolvedValue(false);
 
     await handleDeepLink({
       rawUrl: 'gugufly://add?msg=test',
@@ -73,7 +68,7 @@ describe('handleDeepLink', () => {
       showToast,
     });
 
-    expect(showConfirm).toHaveBeenCalled();
+    expect(window.showConfirm).toHaveBeenCalled();
     expect(state.tasks).toHaveLength(0);
     expect(saveTasks).not.toHaveBeenCalled();
   });

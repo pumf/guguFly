@@ -1,12 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { initSettingsPanel } from '../src/ui/SettingsPanel.js';
 
-vi.mock('../src/utils.js', () => ({
-  showConfirm: vi.fn(),
-}));
-
-import { showConfirm } from '../src/utils.js';
-
 function makeEl() {
   const handlers = {};
   return {
@@ -32,7 +26,7 @@ describe('initSettingsPanel import flow', () => {
   beforeEach(() => {
     originalDocument = globalThis.document;
     originalWindow = globalThis.window;
-    showConfirm.mockResolvedValue(true);
+    globalThis.window = { showConfirm: vi.fn().mockResolvedValue(true) };
   });
 
   afterEach(() => {
@@ -57,7 +51,7 @@ describe('initSettingsPanel import flow', () => {
       getElementById: vi.fn((id) => elements.get(id) || null),
       querySelectorAll: vi.fn((selector) => (selector === '.theme-btn' ? themeButtons : [])),
     };
-    globalThis.window = { open: vi.fn() };
+    globalThis.window = { showConfirm: vi.fn().mockResolvedValue(true), open: vi.fn() };
 
     const importTasksInput = elements.get('importTasksInput');
     const speedSelect = { value: 'slow', addEventListener: vi.fn() };

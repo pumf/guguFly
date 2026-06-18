@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTaskActions } from '../src/app/taskActions.js';
 
-vi.mock('../src/utils.js', () => ({
-  showConfirm: vi.fn(),
-}));
-
-import { showConfirm } from '../src/utils.js';
-
 describe('createTaskActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.window = { showConfirm: vi.fn() };
   });
 
   it('deletes task only after confirmation', async () => {
-    showConfirm.mockResolvedValue(true);
+    window.showConfirm.mockResolvedValue(true);
     const state = { tasks: [{ id: 1, label: 'A' }], expandedTaskId: null, editingId: null, editImageData: '', getTaskFilterState: null };
     const deleteTask = vi.fn((task, tasks) => tasks.splice(tasks.findIndex(t => t.id === task.id), 1));
     const renderTasks = vi.fn();
@@ -43,13 +38,13 @@ describe('createTaskActions', () => {
 
     await actions.deleteTaskFn(state.tasks[0]);
 
-    expect(showConfirm).toHaveBeenCalled();
+    expect(window.showConfirm).toHaveBeenCalled();
     expect(deleteTask).toHaveBeenCalled();
     expect(state.tasks).toHaveLength(0);
   });
 
   it('does not delete task when confirmation is cancelled', async () => {
-    showConfirm.mockResolvedValue(false);
+    window.showConfirm.mockResolvedValue(false);
     const state = { tasks: [{ id: 1, label: 'A' }], expandedTaskId: null, editingId: null, editImageData: '', getTaskFilterState: null };
     const deleteTask = vi.fn();
 
@@ -78,7 +73,7 @@ describe('createTaskActions', () => {
 
     await actions.deleteTaskFn(state.tasks[0]);
 
-    expect(showConfirm).toHaveBeenCalled();
+    expect(window.showConfirm).toHaveBeenCalled();
     expect(deleteTask).not.toHaveBeenCalled();
     expect(state.tasks).toHaveLength(1);
   });

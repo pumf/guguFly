@@ -1,5 +1,3 @@
-import { showConfirm } from '../utils.js';
-
 export async function handleDeepLink(ctx) {
   const {
     rawUrl,
@@ -28,7 +26,7 @@ export async function handleDeepLink(ctx) {
 
   if (isTauriRuntime) {
     try {
-      const confirmed = await showConfirm(`即将创建任务「${task.label || task.msg || '新任务'}」\n类型：${
+      const confirmed = await window.showConfirm(`即将创建任务「${task.label || task.msg || '新任务'}」\n类型：${
         { alarm: '定时', countdown: '倒计时', holiday: '节假日', anniversary: '纪念日' }[task.type] || task.type
       }`);
       if (!confirmed) return;

@@ -2,7 +2,6 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { availableMonitors, currentMonitor } from '@tauri-apps/api/window';
 import { listen, emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { showConfirm } from '../utils.js';
 import { getRandomQuote } from '../quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from '../sounds.js';
 import { dataUrlToArrayBuffer, isTauriRuntime } from '../utils.js';
@@ -491,7 +490,7 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'url' && postFlight.url) {
       await invoke('open_url_in_browser', { url: postFlight.url });
     } else if (postFlight.action === 'lock') {
-      const confirmed = await showConfirm('即将锁屏，是否继续？');
+      const confirmed = await window.showConfirm('即将锁屏，是否继续？');
       if (!confirmed) return;
       const lockScript = navigator.platform.includes('Win')
         ? 'rundll32.exe user32.dll,LockWorkStation'
@@ -500,7 +499,7 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'folder' && postFlight.folder) {
       await invoke('open_app', { path: postFlight.folder });
     } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
-      const confirmed = await showConfirm('将执行语音播报，是否继续？');
+      const confirmed = await window.showConfirm('将执行语音播报，是否继续？');
       if (!confirmed) return;
       const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
       const ttsScript = navigator.platform.includes('Win')
@@ -508,7 +507,7 @@ export async function executePostFlightAction(postFlight) {
         : `say "${ttsText}"`;
       await invoke('run_script', { script: ttsScript });
     } else if (postFlight.action === 'script' && postFlight.script) {
-      const confirmed = await showConfirm('将执行自定义脚本，是否继续？');
+      const confirmed = await window.showConfirm('将执行自定义脚本，是否继续？');
       if (!confirmed) return;
       await invoke('run_script', { script: postFlight.script });
     }
