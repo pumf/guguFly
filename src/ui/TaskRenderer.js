@@ -123,42 +123,56 @@ export function renderTasks({
       const body = document.createElement('div');
       body.className = 'task-body';
 
-      const metaRow = document.createElement('div');
-      metaRow.className = 'task-meta-row';
+      const labelRow = document.createElement('div');
+      labelRow.className = 'task-label-row';
+
+      const label = document.createElement('span');
+      label.className = 'task-label';
+      label.textContent = task.label || (task.type === 'alarm' ? '闹钟' : task.type === 'countdown' ? '倒计时' : task.type === 'holiday' ? '节日' : '纪念日');
+      labelRow.appendChild(label);
+
       const typeBadge = document.createElement('span');
       typeBadge.className = `task-badge task-badge--${typeMeta.className}`;
       typeBadge.textContent = typeMeta.label;
+      labelRow.appendChild(typeBadge);
+
       const statusBadge = document.createElement('span');
       statusBadge.className = 'task-status-badge';
       statusBadge.textContent = getTaskStatusLabel(task);
-      metaRow.appendChild(typeBadge);
+      labelRow.appendChild(statusBadge);
+
+      body.appendChild(labelRow);
+
+      const infoRow = document.createElement('div');
+      infoRow.className = 'task-info-row';
+
+      const info = document.createElement('span');
+      info.className = 'task-info';
+      info.textContent = getTaskInfoText(task, holidayPresets);
+      infoRow.appendChild(info);
+
       if (task.group) {
         const groupMap = { work: '💼', health: '💚', life: '🏠', other: '📌' };
         const groupNames = { work: '工作', health: '健康', life: '生活', other: '其他' };
-        const groupBadge = document.createElement('span');
-        groupBadge.className = 'task-badge task-badge--group';
-        groupBadge.textContent = `${groupMap[task.group] || ''} ${groupNames[task.group] || task.group}`;
-        metaRow.appendChild(groupBadge);
+        const sep = document.createElement('span');
+        sep.className = 'task-info-sep';
+        sep.textContent = '·';
+        infoRow.appendChild(sep);
+        const gb = document.createElement('span');
+        gb.className = 'task-badge task-badge--group';
+        gb.textContent = `${groupMap[task.group] || ''} ${groupNames[task.group] || task.group}`;
+        infoRow.appendChild(gb);
       }
-      metaRow.appendChild(statusBadge);
 
-      const label = document.createElement('div');
-      label.className = 'task-label';
-      label.textContent = task.label || (task.type === 'alarm' ? '闹钟' : task.type === 'countdown' ? '倒计时' : task.type === 'holiday' ? '节日' : '纪念日');
       if (task.imageData && task.useImage) {
         const imgBadge = document.createElement('span');
         imgBadge.className = 'task-image-badge';
         imgBadge.title = '此任务使用自定义图片';
         imgBadge.textContent = '🖼';
-        label.appendChild(imgBadge);
+        infoRow.appendChild(imgBadge);
       }
 
-      const info = document.createElement('div');
-      info.className = 'task-info';
-      info.textContent = getTaskInfoText(task, holidayPresets);
-      body.appendChild(metaRow);
-      body.appendChild(label);
-      body.appendChild(info);
+      body.appendChild(infoRow);
 
       if (expandedTaskId === task.id) {
         const details = buildTaskDetails(task, holidayPresets, openEditModalFn);
