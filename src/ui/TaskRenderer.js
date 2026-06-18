@@ -60,7 +60,7 @@ export function renderTasks({
     const groupTasks = grouped[groupKey];
     if (!groupTasks?.length) return;
 
-    const groupMeta = getTaskGroupMeta(groupKey, groupTasks.length);
+    const groupMeta = getTaskGroupMeta(groupKey);
     const section = document.createElement('section');
     section.className = `task-group task-group--${groupKey}`;
 
@@ -70,12 +70,8 @@ export function renderTasks({
     titleWrap.className = 'task-group-copy';
     const title = document.createElement('h3');
     title.className = 'task-group-title';
-    title.textContent = groupMeta.title;
-    const subtitle = document.createElement('p');
-    subtitle.className = 'task-group-subtitle';
-    subtitle.textContent = groupMeta.subtitle;
+    title.textContent = `${groupMeta.title} (${groupTasks.length})`;
     titleWrap.appendChild(title);
-    titleWrap.appendChild(subtitle);
 
     const actions = document.createElement('div');
     actions.className = 'task-group-actions';
@@ -342,12 +338,12 @@ function setGroupEnabled(groupTasks, enabled, tasks, saveTasks, getCleanTasksFn,
   renderTasksFn?.();
 }
 
-function getTaskGroupMeta(groupKey, count) {
+function getTaskGroupMeta(groupKey) {
   const labels = {
-    in_progress: { title: '正在进行', subtitle: `需要你现在关注的 ${count} 条任务` },
-    upcoming: { title: '近期提醒', subtitle: `按触发顺序排好的 ${count} 条航线` },
-    special_dates: { title: '特殊日期', subtitle: `节日与纪念日共 ${count} 条` },
-    disabled: { title: '已停用', subtitle: `当前关闭的 ${count} 条任务` },
+    in_progress: { title: '正在进行', subtitle: '' },
+    upcoming: { title: '近期提醒', subtitle: '' },
+    special_dates: { title: '特殊日期', subtitle: '' },
+    disabled: { title: '已停用', subtitle: '' },
   };
   return labels[groupKey];
 }

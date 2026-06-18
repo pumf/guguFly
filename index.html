@@ -34,65 +34,13 @@
             </div>
           </div>
         </div>
-        <div class="hero-metrics">
-          <div class="metric-card">
-            <span class="metric-label">今日起飞</span>
-            <strong class="metric-value" id="todayCount">0</strong>
-          </div>
-          <div class="metric-card">
-            <span class="metric-label">当前状态</span>
-            <strong class="metric-value metric-text" id="heroStatus">等待下一次起飞</strong>
-          </div>
+        <div class="hero-stats-row">
+          <span class="hero-stat" id="todayCount">0 次起飞</span>
+          <span class="hero-stat-sep">·</span>
+          <span class="hero-stat hero-stat--muted" id="heroStatus">等待起飞</span>
+          <button class="hero-stats-toggle" id="statsToggle" title="飞行统计">📊</button>
         </div>
         <div id="nextUpcoming" class="next-upcoming hidden"></div>
-        <div class="stats-section">
-          <div class="stats-toggle" id="statsToggle">
-            <span>📊 飞行统计</span>
-            <span class="toggle-arrow collapsed" id="statsArrow">▴</span>
-          </div>
-          <div id="statsPanel" class="stats-panel hidden">
-            <div class="stats-cards">
-              <div class="stats-card">
-                <span class="stats-label">累计飞行</span>
-                <strong class="stats-value" id="statsTotal">0</strong>
-                <span class="stats-suffix">次提醒</span>
-              </div>
-              <div class="stats-card">
-                <span class="stats-label">本周</span>
-                <strong class="stats-value" id="statsWeek">0</strong>
-                <span class="stats-trend" id="statsTrend"></span>
-              </div>
-              <div class="stats-card">
-                <span class="stats-label">最常触发</span>
-                <strong class="stats-value stats-value--text" id="statsTopTask">—</strong>
-                <span class="stats-suffix" id="statsTopCount">暂无数据</span>
-              </div>
-            </div>
-            <div class="stats-block">
-              <div class="stats-block-head">
-                <strong>近 7 天</strong>
-                <span id="statsRange"></span>
-              </div>
-              <div class="stats-bars" id="statsBars"></div>
-            </div>
-            <div class="stats-block">
-              <div class="stats-block-head">
-                <strong>类型分布</strong>
-                <span id="statsTotalSub">总计 0 次</span>
-              </div>
-              <div class="stats-types" id="statsTypes"></div>
-            </div>
-            <div id="weeklySummary" class="weekly-summary-stats hidden"></div>
-            <div id="achievementBadges" class="achievement-badges hidden"></div>
-            <div class="stats-block">
-              <div class="stats-block-head">
-                <strong>📋 任务触发历史</strong>
-                <span style="font-size:12px;color:#b2bec3">近 7 天</span>
-              </div>
-              <div id="taskHistoryPanel"></div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="task-section">
@@ -117,23 +65,23 @@
         <div class="task-filter-bar">
           <div class="task-search-wrap">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
-            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索任务名或文案" />
+            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索" />
             <button id="taskSearchClear" class="task-search-clear" type="button" hidden>✕</button>
           </div>
+          <select id="taskGroupSelect" class="task-group-select">
+            <option value="all">全部分组</option>
+            <option value="work">💼 工作</option>
+            <option value="health">💚 健康</option>
+            <option value="life">🏠 生活</option>
+            <option value="other">📌 其他</option>
+            <option value="none">未分组</option>
+          </select>
           <div class="task-type-chips">
             <button class="task-type-chip is-active" data-type="all">全部</button>
             <button class="task-type-chip" data-type="alarm">定时</button>
             <button class="task-type-chip" data-type="countdown">倒计时</button>
             <button class="task-type-chip" data-type="holiday">节假日</button>
             <button class="task-type-chip" data-type="anniversary">纪念日</button>
-          </div>
-          <div class="task-type-chips" style="margin-top:6px">
-            <button class="task-type-chip is-active" data-group="all">全部分组</button>
-            <button class="task-type-chip" data-group="work">💼 工作</button>
-            <button class="task-type-chip" data-group="health">💚 健康</button>
-            <button class="task-type-chip" data-group="life">🏠 生活</button>
-            <button class="task-type-chip" data-group="other">📌 其他</button>
-            <button class="task-type-chip" data-group="none">— 未分组</button>
           </div>
         </div>
 
@@ -644,12 +592,47 @@
             </div>
             <div class="settings-panel">
               <div class="settings-block">
+                <div class="settings-block-title">迷你悬浮窗</div>
+                <p class="settings-hint">在屏幕角落显示下次提醒倒计时，位置可拖动。</p>
+                <div class="form-row" style="margin-top:6px">
+                  <label class="img-toggle">
+                    <input type="checkbox" id="miniWindowToggle" />
+                    <span>启用</span>
+                  </label>
+                </div>
+                <div class="form-row" style="margin-top:10px;align-items:flex-start">
+                  <label style="white-space:nowrap;padding-top:6px">位置</label>
+                  <div class="mini-pos-grid" id="miniPosGrid">
+                    <button type="button" class="mini-pos-cell" data-pos="top-left" title="左上角"><span class="mini-pos-dot dot-tl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-center" title="顶部居中"><span class="mini-pos-dot dot-tc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-right" title="右上角"><span class="mini-pos-dot dot-tr"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-left" title="左下角"><span class="mini-pos-dot dot-bl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-center" title="底部居中"><span class="mini-pos-dot dot-bc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-right" title="右下角"><span class="mini-pos-dot dot-br"></span></button>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-block">
                 <div class="settings-block-title">启动选项</div>
                 <div class="form-row" style="margin-top:10px">
                   <label style="min-width:80px">开机自启</label>
                   <label class="img-toggle">
                     <input type="checkbox" id="autostartToggle" />
                     <span>开机后自动启动</span>
+                  </label>
+                </div>
+              </div>
+              <div class="settings-block">
+                <div class="settings-block-title">静默时段</div>
+                <p class="settings-hint">在指定时间段内自动跳过飞行提醒。</p>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+                  <input type="number" id="quietStartHour" class="time-input" min="0" max="23" value="22" style="width:50px" />
+                  <span style="font-size:12px;color:var(--muted)">:00 —</span>
+                  <input type="number" id="quietEndHour" class="time-input" min="0" max="23" value="8" style="width:50px" />
+                  <span style="font-size:12px;color:var(--muted)">:00</span>
+                  <label class="img-toggle" style="margin-left:4px">
+                    <input type="checkbox" id="quietHoursToggle" />
+                    <span>启用</span>
                   </label>
                 </div>
               </div>
@@ -672,20 +655,6 @@
                 <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">静默时段</div>
-                <p class="settings-hint">在指定时间段内自动跳过飞行提醒。</p>
-                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
-                  <input type="number" id="quietStartHour" class="time-input" min="0" max="23" value="22" style="width:50px" />
-                  <span style="font-size:12px;color:var(--muted)">:00 —</span>
-                  <input type="number" id="quietEndHour" class="time-input" min="0" max="23" value="8" style="width:50px" />
-                  <span style="font-size:12px;color:var(--muted)">:00</span>
-                  <label class="img-toggle" style="margin-left:4px">
-                    <input type="checkbox" id="quietHoursToggle" />
-                    <span>启用</span>
-                  </label>
-                </div>
-              </div>
-              <div class="settings-block">
                 <div class="settings-block-title">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
                   <button id="checkUpdateBtn" class="settings-action-btn">检查更新</button>
@@ -698,27 +667,6 @@
                   <button id="feedbackBtn" class="settings-action-btn">报告问题 / 建议</button>
                 </div>
                 <p class="settings-hint">通过 GitHub Issues 提交问题或功能建议。</p>
-              </div>
-              <div class="settings-block">
-                <div class="settings-block-title">迷你悬浮窗</div>
-                <p class="settings-hint">在屏幕角落显示下次提醒倒计时，位置可拖动。</p>
-                <div class="form-row" style="margin-top:6px">
-                  <label class="img-toggle">
-                    <input type="checkbox" id="miniWindowToggle" />
-                    <span>启用</span>
-                  </label>
-                </div>
-                <div class="form-row" style="margin-top:10px;align-items:flex-start">
-                  <label style="white-space:nowrap;padding-top:6px">位置</label>
-                  <div class="mini-pos-grid" id="miniPosGrid">
-                    <button type="button" class="mini-pos-cell" data-pos="top-left" title="左上角"><span class="mini-pos-dot dot-tl"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="top-center" title="顶部居中"><span class="mini-pos-dot dot-tc"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="top-right" title="右上角"><span class="mini-pos-dot dot-tr"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-left" title="左下角"><span class="mini-pos-dot dot-bl"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-center" title="底部居中"><span class="mini-pos-dot dot-bc"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-right" title="右下角"><span class="mini-pos-dot dot-br"></span></button>
-                  </div>
-                </div>
               </div>
               <div class="settings-block">
                 <div class="settings-block-title">软件说明</div>
@@ -772,6 +720,54 @@
             <button id="updateDownloadBtn" class="save-btn hidden" type="button">前往下载</button>
             <button id="updateOpenReleaseBtn" class="save-btn hidden" type="button">前往发布页面</button>
             <button id="updateCloseActionBtn" class="del-btn" type="button">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats modal -->
+      <div id="statsModal" class="modal hidden">
+        <div class="modal-overlay" id="statsOverlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <span>飞行统计</span>
+            <button id="statsCloseBtn" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div id="statsPanel">
+              <div class="stats-cards">
+                <div class="stats-card">
+                  <span class="stats-label">累计飞行</span>
+                  <strong class="stats-value" id="statsTotal">0</strong>
+                  <span class="stats-suffix">次提醒</span>
+                </div>
+                <div class="stats-card">
+                  <span class="stats-label">本周</span>
+                  <strong class="stats-value" id="statsWeek">0</strong>
+                  <span class="stats-trend" id="statsTrend"></span>
+                </div>
+                <div class="stats-card">
+                  <span class="stats-label">最常触发</span>
+                  <strong class="stats-value stats-value--text" id="statsTopTask">—</strong>
+                  <span class="stats-suffix" id="statsTopCount">暂无数据</span>
+                </div>
+              </div>
+              <div class="stats-block">
+                <div class="stats-block-head">
+                  <strong>近 7 天</strong>
+                  <span id="statsRange"></span>
+                </div>
+                <div class="stats-bars" id="statsBars"></div>
+              </div>
+              <div class="stats-block">
+                <div class="stats-block-head">
+                  <strong>类型分布</strong>
+                  <span id="statsTotalSub">总计 0 次</span>
+                </div>
+                <div class="stats-types" id="statsTypes"></div>
+              </div>
+              <div id="weeklySummary" class="weekly-summary-stats hidden"></div>
+              <div id="achievementBadges" class="achievement-badges hidden"></div>
+            </div>
           </div>
         </div>
       </div>

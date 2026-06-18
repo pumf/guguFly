@@ -110,7 +110,7 @@ export async function applySettings(ctx) {
 
   syncMuteToTray();
 
-  refs.todayCountEl.textContent = cfg.todayCount;
+  refs.todayCountEl.textContent = `${cfg.todayCount} 次起飞`;
   if (cfg.speed) refs.speedSelect.value = cfg.speed;
   if (cfg.height) refs.heightSelect.value = cfg.height;
   if (cfg.display) refs.displaySelect.value = cfg.display;
@@ -146,7 +146,7 @@ export async function applySettings(ctx) {
   const date = new Date().toDateString();
   if (cfg.lastDate !== date) {
     await set('todayCount', 0);
-    refs.todayCountEl.textContent = '0';
+    refs.todayCountEl.textContent = '0 次起飞';
   }
 
   const streakLastDate = await get('streakLastDate');

@@ -13,7 +13,7 @@ export function initSettingsPanel(ctx) {
     speedSelect, heightSelect, effectSelect, planeSelect, particleSelect,
     bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
     useSoundCheckbox, useImageCheckbox,
-    isConfigOpenRef, isMutedRef, isStatsOpenRef, muteBtn,
+    isConfigOpenRef, isMutedRef, muteBtn,
     persistFlightSettings,
   } = ctx;
 
@@ -45,8 +45,6 @@ export function initSettingsPanel(ctx) {
   const updateDownloadBtn = document.getElementById('updateDownloadBtn');
   const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
   const statsToggle = document.getElementById('statsToggle');
-  const statsPanel = document.getElementById('statsPanel');
-  const statsArrow = document.getElementById('statsArrow');
   const modal = document.getElementById('taskModal');
   const previewSoundBtn = document.getElementById('previewSoundBtn');
   const previewFlightBtn = document.getElementById('previewFlightBtn');
@@ -200,12 +198,21 @@ export function initSettingsPanel(ctx) {
 
   if (statsToggle) {
     statsToggle.addEventListener('click', () => {
-      const next = !isStatsOpenRef.get();
-      isStatsOpenRef.set(next);
-      if (statsPanel) statsPanel.classList.toggle('hidden', !next);
-      if (statsArrow) statsArrow.classList.toggle('collapsed', !next);
+      const statsModal = document.getElementById('statsModal');
+      if (statsModal) statsModal.classList.remove('hidden');
     });
   }
+
+  const statsOverlay = document.getElementById('statsOverlay');
+  const statsCloseBtn = document.getElementById('statsCloseBtn');
+  statsOverlay?.addEventListener('click', () => {
+    const statsModal = document.getElementById('statsModal');
+    if (statsModal) statsModal.classList.add('hidden');
+  });
+  statsCloseBtn?.addEventListener('click', () => {
+    const statsModal = document.getElementById('statsModal');
+    if (statsModal) statsModal.classList.add('hidden');
+  });
 
   if (isTauriRuntime) {
     getCurrentVersion().then(v => { if (appVersionDisplay) appVersionDisplay.textContent = `v${v}`; });

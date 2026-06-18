@@ -7,7 +7,7 @@ export function initFlightTrigger(c) {
 export async function registerFlightTrigger() {
   if (!ctx) return 0;
   const count = await ctx.incrementTodayCount();
-  ctx.todayCountEl.textContent = count;
+  if (ctx.todayCountEl) ctx.todayCountEl.textContent = `${count} 次起飞`;
   const today = ctx.getDateKey();
   const lastStreakDate = await ctx.get('streakLastDate');
   let streak = await ctx.get('streak');

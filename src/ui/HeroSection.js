@@ -8,13 +8,15 @@ export function updateHeroStatus() {
   if (!ctx) return;
   const tasks = ctx.tasksRef ? ctx.tasksRef.get() : [];
   const runningCountdown = tasks.find(t => t.type === 'countdown' && t._status === 'running');
-  if (runningCountdown) {
-    ctx.heroStatusEl.textContent = `倒计时进行中 · ${runningCountdown.label || '未命名任务'}`;
-  } else {
-    const enabledCount = tasks.filter(t => t.enabled).length;
-    ctx.heroStatusEl.textContent = enabledCount === 0
-      ? '还没有航线，先创建一条提醒吧'
-      : `已启用 ${enabledCount} 条航线，等待下一次起飞`;
+  if (ctx.heroStatusEl) {
+    if (runningCountdown) {
+      ctx.heroStatusEl.textContent = `倒计时中 · ${runningCountdown.label || '未命名'}`;
+    } else {
+      const enabledCount = tasks.filter(t => t.enabled).length;
+      ctx.heroStatusEl.textContent = enabledCount === 0
+        ? '等待起飞'
+        : `已启用 ${enabledCount} 条`;
+    }
   }
   updateNextUpcoming();
 }

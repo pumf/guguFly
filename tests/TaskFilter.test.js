@@ -29,17 +29,20 @@ describe('TaskFilter', () => {
     };
     const taskSearchClear = { hidden: true, addEventListener: vi.fn((type, handler) => { handlers[`clear:${type}`] = handler; }) };
     const typeChip = createChip({ type: 'alarm' });
-    const groupChip = createChip({ group: 'work' });
+    const taskGroupSelect = {
+      value: 'all',
+      addEventListener: vi.fn((type, handler) => { handlers[`group:${type}`] = handler; }),
+    };
 
     globalThis.document = {
       getElementById: vi.fn((id) => {
         if (id === 'taskSearchInput') return taskSearchInput;
         if (id === 'taskSearchClear') return taskSearchClear;
+        if (id === 'taskGroupSelect') return taskGroupSelect;
         return null;
       }),
       querySelectorAll: vi.fn((selector) => {
         if (selector === '.task-type-chip[data-type]') return [typeChip];
-        if (selector === '.task-type-chip[data-group]') return [groupChip];
         return [];
       }),
     };
@@ -62,8 +65,8 @@ describe('TaskFilter', () => {
     expect(getState().taskTypeFilter).toBe('alarm');
     expect(typeChip.classList.toggle).toHaveBeenCalledWith('is-active', true);
 
-    groupChip.addEventListener.mock.calls[0][1]();
+    taskGroupSelect.value = 'work';
+    handlers['group:change']();
     expect(getState().taskGroupFilter).toBe('work');
-    expect(groupChip.classList.toggle).toHaveBeenCalledWith('is-active', true);
   });
 });

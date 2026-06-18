@@ -408,8 +408,10 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
     try {
       const monitors = await availableMonitors();
       monitorConfigs = monitors.map(m => ({
-        x: m.position.x, y: m.position.y,
-        w: m.size.width, h: m.size.height,
+        x: m.position.x / (m.scaleFactor || 1),
+        y: m.position.y / (m.scaleFactor || 1),
+        w: m.size.width / (m.scaleFactor || 1),
+        h: m.size.height / (m.scaleFactor || 1),
       }));
     } catch (error) {
       console.error('available monitors failed:', error);
@@ -421,10 +423,11 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
       try {
         const monitor = await currentMonitor();
         if (monitor) {
-          mx = monitor.position.x;
-          my = monitor.position.y;
-          mw = monitor.size.width;
-          mh = monitor.size.height;
+          const sf = monitor.scaleFactor || 1;
+          mx = monitor.position.x / sf;
+          my = monitor.position.y / sf;
+          mw = monitor.size.width / sf;
+          mh = monitor.size.height / sf;
         }
       } catch (error) {
         console.error('active monitor lookup failed:', error);
@@ -452,9 +455,16 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
     localStorage.setItem('_flightW', mc.w);
     localStorage.setItem('_flightH', mc.h);
 
+    const urlParams = new URLSearchParams({
+      w: mc.w, h: mc.h,
+      speed, height, effect, plane, particle,
+      bubble, bubblePosition,
+      msg, dir: direction, seq: sequenceId,
+    }).toString();
+
     try {
       const flightWin = new WebviewWindow(`flight-${ts}-${index}`, {
-        url: `/flight.html?w=${mc.w}&h=${mc.h}`,
+        url: `/flight.html?${urlParams}`,
         width: mc.w, height: mc.h, x: mc.x, y: mc.y,
         transparent: true, decorations: false,
         alwaysOnTop: true, skipTaskbar: true,
