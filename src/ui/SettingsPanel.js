@@ -155,7 +155,7 @@ export function initSettingsPanel(ctx) {
       const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
       if (count === 0) { showToast('备份里没有任务数据'); return; }
       const proceed = isTauriRuntime
-        ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) => confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`, { title: '确认导入', kind: 'warning' }))
+        ? window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`)
         : window.confirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
       if (!proceed) return;
       const { tasks: imported, maxId } = hydrateTasks(data.tasks);

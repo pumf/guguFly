@@ -32,7 +32,6 @@ describe('handleDeepLink', () => {
       closeSettingsModal,
       buildTaskFromDeepLink,
       deepLinkTaskContext: {},
-      confirmDialog: vi.fn(),
       saveTasks,
       getCleanTasks: (tasks) => tasks,
       renderTaskView,
@@ -49,7 +48,8 @@ describe('handleDeepLink', () => {
   });
 
   it('stops when tauri confirmation is rejected', async () => {
-    const confirmDialog = vi.fn().mockResolvedValue(false);
+    const originalConfirm = globalThis.confirm;
+    globalThis.confirm = vi.fn().mockReturnValue(false);
 
     await handleDeepLink({
       rawUrl: 'gugufly://add?msg=test',
@@ -62,16 +62,17 @@ describe('handleDeepLink', () => {
       closeSettingsModal,
       buildTaskFromDeepLink,
       deepLinkTaskContext: {},
-      confirmDialog,
       saveTasks,
       getCleanTasks: (tasks) => tasks,
       renderTaskView,
       showToast,
     });
 
-    expect(confirmDialog).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
     expect(state.tasks).toHaveLength(0);
     expect(saveTasks).not.toHaveBeenCalled();
+
+    globalThis.confirm = originalConfirm;
   });
 
   it('ignores non-add deep link', async () => {
@@ -86,7 +87,6 @@ describe('handleDeepLink', () => {
       closeSettingsModal,
       buildTaskFromDeepLink,
       deepLinkTaskContext: {},
-      confirmDialog: vi.fn(),
       saveTasks,
       getCleanTasks: (tasks) => tasks,
       renderTaskView,

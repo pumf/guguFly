@@ -7,7 +7,7 @@ import { getRandomQuote } from './quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
-import { open as openDialog, confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';
@@ -546,7 +546,6 @@ async function init() {
         HOLIDAY_PRESETS,
         formatHolidayLabel,
       },
-      confirmDialog,
       saveTasks,
       getCleanTasks,
       renderTaskView,

@@ -10,7 +10,6 @@ export async function handleDeepLink(ctx) {
     closeSettingsModal,
     buildTaskFromDeepLink,
     deepLinkTaskContext,
-    confirmDialog,
     saveTasks,
     getCleanTasks,
     renderTaskView,
@@ -27,9 +26,9 @@ export async function handleDeepLink(ctx) {
 
   if (isTauriRuntime) {
     try {
-      const confirmed = await confirmDialog(`即将创建任务「${task.label || task.msg || '新任务'}」\n类型：${
+      const confirmed = globalThis.confirm(`即将创建任务「${task.label || task.msg || '新任务'}」\n类型：${
         { alarm: '定时', countdown: '倒计时', holiday: '节假日', anniversary: '纪念日' }[task.type] || task.type
-      }`, { title: '确认创建', kind: 'info' });
+      }`);
       if (!confirmed) return;
     } catch {
       return;
