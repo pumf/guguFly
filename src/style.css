@@ -2114,6 +2114,63 @@ body {
   color: var(--text);
 }
 
+[data-active-theme="dark"] .template-menu {
+  background: rgba(28, 34, 48, 0.97);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.36);
+}
+
+[data-active-theme="dark"] .template-item:hover {
+  background: rgba(95, 160, 255, 0.12);
+}
+
+[data-active-theme="dark"] .config-card {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: var(--border-strong);
+}
+
+[data-active-theme="dark"] .config-action-btn--ghost {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: var(--border-strong);
+  color: var(--soft-muted);
+}
+
+[data-active-theme="dark"] .config-row {
+  background: rgba(20, 26, 38, 0.72);
+  border-color: var(--border-strong);
+}
+
+[data-active-theme="dark"] .task-group-btn {
+  background: rgba(28, 34, 48, 0.72);
+}
+
+[data-active-theme="dark"] .task-group-btn:hover {
+  background: rgba(95, 160, 255, 0.12);
+  border-color: var(--accent);
+}
+
+[data-active-theme="dark"] .task-expand-btn {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: var(--border-strong);
+}
+
+[data-active-theme="dark"] .task-detail-btn {
+  background: rgba(95, 160, 255, 0.1);
+  border-color: rgba(95, 160, 255, 0.2);
+}
+
+[data-active-theme="dark"] .task-detail-btn:hover {
+  background: rgba(95, 160, 255, 0.18);
+  border-color: rgba(95, 160, 255, 0.3);
+}
+
+[data-active-theme="dark"] .task-details {
+  border-top-color: var(--border);
+}
+
+[data-active-theme="dark"] .icon-btn:hover {
+  background: rgba(230, 236, 245, 0.08);
+}
+
 /* === Scene presets === */
 .preset-card {
   margin-bottom: 0;
