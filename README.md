@@ -29,14 +29,14 @@
 
 ## 界面预览
 
-> 仓库首页 `docs/screenshots/` 下有完整截图。
-
 | 浅色主题 | 深色主题 | 飞行设置 |
 |:--------:|:--------:|:--------:|
+| <img src="docs/screenshots/home.png" width="200" alt="浅色主题"> | <img src="docs/screenshots/home-dark.png" width="200" alt="深色主题"> | <img src="docs/screenshots/flight-settings.png" width="200" alt="飞行设置"> |
 | 任务列表 + 搜索/筛选 + Hero 卡片 | 完整深色主题覆盖 | 12 个音色 + 飞行节奏 + 外观样式 |
 
 | 新建任务 | 飞行统计 | 系统设置 |
 |:--------:|:--------:|:--------:|
+| <img src="docs/screenshots/task-modal.png" width="200" alt="新建任务"> | <img src="docs/screenshots/stats.png" width="200" alt="飞行统计"> | <img src="docs/screenshots/settings-modal.png" width="200" alt="系统设置"> |
 | 4 种任务类型 + 节假日预设（法定/节气） | 累计/本周/7 天柱状图/类型分布 | 主题/备份/版本更新 |
 
 ## 功能概览
@@ -158,14 +158,7 @@ open "gugufly://add?msg=站会&type=alarm&hour=10&minute=0&days=1,2,3,4,5"
 
 ## 截图
 
-完整截图见 [`docs/screenshots/`](docs/screenshots/)，README 顶部预览使用了：
-
-- `home.png` — 浅色主题主界面（Hero 卡片 + 任务分组列表 + 搜索筛选）
-- `home-dark.png` — 深色主题主界面
-- `flight-settings.png` — 飞行设置面板
-- `task-modal.png` — 新建任务模态（节假日预设按法定/节气分类）
-- `settings-modal.png` — 设置模态（浅色/深色/跟随系统 + 备份）
-- `stats.png` — 飞行统计面板（7 天柱状图 + 类型分布）
+完整截图见 [`docs/screenshots/`](docs/screenshots/)。
 
 ## 开发
 
