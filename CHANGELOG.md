@@ -4,20 +4,23 @@
 
 ## [0.5.2] - 2026-06-22
 
-### 🐛 修复
-- 修复 Linux 锁屏命令缺失（`xdg-screensaver lock` / `loginctl lock-session`）
-- 修复 Linux 语音播报命令缺失（`spd-say`）
-- 修复 CSP 策略阻止 mini 窗口和飞行后通知窗口的内联脚本（改为外部 JS 文件）
-- 修复 `navigator.platform` 已废弃 API 使用（改用 `navigator.userAgent`）
-- 移除 Cargo.toml 中多余的 `webkit2gtk` 直接依赖
+### ✨ 新功能
+- 新增 Linux 平台支持：锁屏和语音播报现在在 Linux 上也能用了
+- 新增桌面合成器检测：Linux 上无合成器时自动提示，飞行动画不再黑屏
 
 ### 🚀 性能优化
-- 飞行画布分辨率上限 2560×1600，降低 Intel 集成显卡高分辨率屏幕 GPU 压力
-- `backdrop-filter` 模糊从 18px 降至 12px，减少 Intel iGPU 持续负载
+- Intel Mac 飞行动画更流畅：高分辨率屏幕下减少卡顿
+- 界面模糊效果优化：整体操作更丝滑，Intel 集显设备风扇转得更少
+
+### 🐛 修复
+- 修复 Linux 上锁屏和语音播报失效的问题
+- 修复升级版本后系统托盘仍显示旧版本更新红点的问题
+- 修复手动检查更新时缓存未过期导致新版本检测不到的问题
+- 修复 Intel Mac 高分辨率屏幕上飞行动画掉帧的问题
 
 ### 🔧 兼容性
-- 新增 Linux 合成器检测命令 `is_compositor_available`，无合成器时提示用户
-- CI 新增 `cargo check --target x86_64-apple-darwin`，提前发现 Intel Mac 交叉编译问题
+- 完善 Linux 平台支持
+- 优化 Intel Mac 性能表现
 
 ## [0.5.1] - 2026-06-17
 
