@@ -11,7 +11,7 @@
 [![Stars](https://img.shields.io/github/stars/pumf/guguFly)](../../stargazers)
 [![GitHub Sponsors](https://img.shields.io/badge/sponsor-pumf-EA4AAA?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/pumf)
 
-咕咕机长基于 `Tauri 2 + Vite + Vanilla JS` 构建，面向日常提醒、倒计时、节日和纪念日场景。它不只是一条弹出的提醒文字，而是把任务提示做成了更有桌面感的**飞行动画**体验，并支持自定义图片、自定义音频和多种飞行表现形式。
+咕咕机长基于 `Tauri 2 + Vite + Vanilla JS` 构建，面向日常提醒、倒计时、节假日和纪念日场景。它不只是一条弹出的提醒文字，而是把任务提示做成了更有桌面感的**飞行动画**体验，并支持自定义图片、自定义音频和多种飞行表现形式。
 
 [📸 查看截图](#界面预览) · [🚀 快速开始](#快速开始) · [💡 功能概览](#功能概览) · [📦 下载安装](../../releases/latest)
 
@@ -19,35 +19,45 @@
 
 ## ✨ 为什么选择咕咕机长
 
-- 🎯 **桌面原生体验** — 飞行窗口叠加在所有应用之上，关屏也能看到
+- 🎯 **桌面原生体验** — 飞行窗口叠加在所有应用之上，熄屏也能看到
 - 🎨 **高度可定制** — 飞机、轨迹、尾焰、文案框、提示音都能改
 - 🪶 **极致轻量** — 基于 Tauri 2，安装包仅 ~10MB，内存占用 < 50MB
 - 🔌 **本地优先** — 数据完全在本地，无需注册账号即可使用全部核心功能
+- 🌙 **深色主题** — 浅色/深色/跟随系统，护眼省电
+- 📅 **农历支持** — 春节、中秋等农历节假日自动识别，纪念日可切换农历
 - 🔗 **可扩展** — 支持 `gugufly://` URL Scheme 与外部应用联动
 
 ## 界面预览
 
 > 仓库首页 `docs/screenshots/` 下有完整截图。
 
-| 主界面 | 飞行设置 | 统计面板 |
-|:------:|:--------:|:--------:|
-| 任务列表 + 颜色标签 + 起飞按钮 | 12 个音色 + 飞行节奏 + 外观样式 | 累计/本周/类型分布 |
+| 浅色主题 | 深色主题 | 飞行设置 |
+|:--------:|:--------:|:--------:|
+| 任务列表 + 搜索/筛选 + Hero 卡片 | 完整深色主题覆盖 | 12 个音色 + 飞行节奏 + 外观样式 |
+
+| 新建任务 | 飞行统计 | 系统设置 |
+|:--------:|:--------:|:--------:|
+| 4 种任务类型 + 节假日预设（法定/节气） | 累计/本周/7 天柱状图/类型分布 | 主题/备份/版本更新 |
 
 ## 功能概览
 
 ### 任务管理
-- 4 种任务类型：定时 / 倒计时 / 节假日 / 纪念日
-- 任务启用、停用、编辑、删除
+- 4 种任务类型：**定时 / 倒计时 / 节假日 / 纪念日**
+- 任务启用、停用、编辑、删除、颜色标签
+- 节假日预设：**法定假日 + 二十四节气**，自动识别农历
+- 纪念日支持**农历勾选**，按农历日期触发
 - 倒计时：开始 / 暂停 / 停止
-- 重复：每周特定日期
+- 定时任务：按周重复（任意多天）
+- **任务分组**：即将起飞 / 即将到来 / 特殊日期 / 已禁用
+- **即将起飞**：剩余 5 分钟内触发的任务自动进入该分组
 - 搜索框：实时过滤任务名 + 文案
-- 类型筛选 chip：全部 / 定时 / 倒计时 / 节假日 / 纪念日
+- 类型筛选 + 分组筛选下拉
 - 颜色标签：8 种颜色帮助视觉分类
 - 任务级自定义图片（覆盖全局设置）
 - 飞行方式：一次性 / 连续循环 / 间隔循环
 
 ### 飞行动画
-- 4 种飞行节奏效果：经典直穿 / 自然滑过 / 仪式感（弧线）/ 利落提醒 / 活泼一点（S 形）
+- 8 种飞行节奏效果：经典直穿 / 自然滑过 / 仪式感（弧线）/ 利落提醒 / 活泼一点（S 形）/ 螺旋 / 心形 / 8 字
 - 6 套飞机样式：经典 / 火箭 / 蝴蝶 / 喷射 / 纸飞机 / 飞碟
 - 6 套尾焰粒子：飘带 / 火焰 / 星点 / 尾迹 / 闪光 / 云团
 - 6 套文案框样式：圆角 / 锐角 / 柔圆 / 简约条 / 玻璃感 / 贴纸感
@@ -63,18 +73,19 @@
 
 ### 桌面体验
 - 系统通知（macOS Notification Center）
+- **深色主题**：完整覆盖所有 UI 组件
 - 托盘菜单：开始 / 暂停 / 停止 / 静音 / 打开主窗口 / 退出
 - 紧急降落按钮（一键停止所有飞行 + 清空 streak）
 - ESC 快捷键触发紧急降落
 - 本地持久化（自动保存）
-- 浅色 / 深色 / 跟随系统主题
 - 飞行时优化焦点占用，不抢输入
 - 开机自启动
 
 ### 集成
 - URL Scheme `gugufly://add?msg=...` 接受外部唤起
-- 全局快捷键（macOS: ⌘⌥S/P/Q, 其他: Ctrl+Alt+S/P/Q）
-- 飞行统计面板（累计 / 本周 / 7 天柱状图 / 类型分布）
+- **全局快捷键**（macOS: ⌘⌥S/P/Q, 其他: Ctrl+Alt+S/P/Q）
+- **飞行统计面板**（累计 / 本周 / 7 天柱状图 / 类型分布）
+- **飞行后操作**：锁屏 / 打开应用 / 语音播报 / 自定义脚本 / 打开 URL
 
 ### 数据
 - JSON 导入 / 导出（带版本号和校验）
@@ -108,11 +119,12 @@ npm run tauri build
 
 | 平台 | 状态 | 安装包 |
 |---|---|---|
-| **macOS** (Apple Silicon) | ✅ 主要平台，全部能力 | `.dmg` |
+| **macOS** (Apple Silicon + Intel) | ✅ 主要平台，全部能力 | `.dmg` |
 | **Windows** (x64) | ✅ | `.exe` (NSIS) |
 | **Linux** (Ubuntu 24.04) | ✅ | `.AppImage` / `.deb` |
 
-> Linux 上运行需要：`libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf`
+> Linux 上运行需要：`libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf`  
+> Linux 透明窗口需要桌面合成器支持（如 picom/mutter/kwin）
 
 ## 使用说明
 
@@ -125,14 +137,17 @@ open "gugufly://add?msg=开会&type=alarm&hour=15&minute=30"
 # 创建倒计时
 open "gugufly://add?msg=番茄钟&type=countdown&mins=25"
 
-# 创建纪念日
-open "gugufly://add?msg=结婚纪念&type=anniversary&month=5&day=20&hour=9&minute=0"
+# 创建纪念日（农历）
+open "gugufly://add?msg=中秋&type=anniversary&month=8&day=15&hour=9&minute=0&lunar=1"
+
+# 创建节假日
+open "gugufly://add?msg=国庆&type=holiday&holidayKey=national_day"
 
 # 工作日重复
 open "gugufly://add?msg=站会&type=alarm&hour=10&minute=0&days=1,2,3,4,5"
 ```
 
-支持参数：`type`、`msg`、`hour`、`minute`、`mins`、`secs`、`month`、`day`、`days`、`holidayKey`
+支持参数：`type`、`msg`、`hour`、`minute`、`mins`、`secs`、`month`、`day`、`days`、`holidayKey`、`lunar`
 
 ### 全局快捷键
 
@@ -145,11 +160,12 @@ open "gugufly://add?msg=站会&type=alarm&hour=10&minute=0&days=1,2,3,4,5"
 
 完整截图见 [`docs/screenshots/`](docs/screenshots/)，README 顶部预览使用了：
 
-- `home.png` — 主界面（任务列表 + 搜索 + 起飞按钮）
-- `flight-settings.png` — 飞行设置抽屉
-- `task-modal.png` — 新建任务模态
-- `settings-modal.png` — 设置模态（主题 + 备份）
-- `stats.png` — 飞行统计面板
+- `home.png` — 浅色主题主界面（Hero 卡片 + 任务分组列表 + 搜索筛选）
+- `home-dark.png` — 深色主题主界面
+- `flight-settings.png` — 飞行设置面板
+- `task-modal.png` — 新建任务模态（节假日预设按法定/节气分类）
+- `settings-modal.png` — 设置模态（浅色/深色/跟随系统 + 备份）
+- `stats.png` — 飞行统计面板（7 天柱状图 + 类型分布）
 
 ## 开发
 
@@ -157,64 +173,69 @@ open "gugufly://add?msg=站会&type=alarm&hour=10&minute=0&days=1,2,3,4,5"
 
 ```
 guguFly/
-├── index.html              # 主界面
-├── flight.html             # 飞行窗口
+├── index.html                 # 主界面
+├── flight.html                # 飞行窗口
+├── public/
+│   ├── mini.html              # 迷你悬浮窗（无 Vite 构建）
+│   ├── mini.js                # 迷你悬浮窗脚本
+│   ├── postflight-notify.html # 飞行后通知浮窗
+│   └── postflight-notify.js   # 飞行后通知脚本
 ├── src/
-│   ├── main.js             # 主入口 + 模块依赖注入
-│   ├── flight.js           # 飞行动画渲染（Canvas）
-│   ├── style.css           # 全局样式（2500+ 行）
-│   ├── storage.js          # Tauri Store 封装 + localStorage 回退
-│   ├── timer.js            # AccurateTimer 高精度倒计时
-│   ├── sounds.js           # 12 种 Web Audio 音色合成
-│   ├── quotes.js           # 随机文案库
-│   ├── backup.js           # 任务导入/导出
-│   ├── utils.js            # 共享工具函数
-│   ├── tasks/              # 领域模型层
-│   │   ├── TaskFactory.js      # 任务工厂 + ID 生成
-│   │   ├── TaskUtils.js        # 排序/过滤/清洗/日期计算
-│   │   ├── TaskColors.js       # 8 种颜色标签定义
-│   │   ├── CountdownTimer.js   # 倒计时控制
-│   │   ├── AlarmChecker.js     # 定时任务秒级检查
-│   │   └── HolidayPresets.js   # 内置节假日预设
-│   ├── ui/                 # 界面组件
-│   │   ├── TaskRenderer.js     # 任务列表渲染
-│   │   ├── ModalController.js  # 新建/编辑模态框
-│   │   ├── ModalEvents.js      # 模态事件绑定
-│   │   ├── StatsPanel.js       # 飞行统计面板
-│   │   ├── HistoryPanel.js     # 任务触发历史
-│   │   ├── HeroSection.js      # 顶部英雄区
-│   │   ├── Toast.js            # Toast 通知
-│   │   ├── ColorPicker.js      # 颜色选择器
-│   │   ├── Logo.js             # Title Logo 更新
-│   │   ├── AudioSystem.js      # 音频播放管理
+│   ├── main.js                # 主入口 + 模块依赖注入
+│   ├── flight.js              # 飞行动画渲染（Canvas 2D）
+│   ├── style.css              # 全局样式（2600+ 行，含深色主题）
+│   ├── storage.js             # Tauri Store 封装 + localStorage 回退
+│   ├── timer.js               # AccurateTimer 高精度倒计时
+│   ├── sounds.js              # 12 种 Web Audio 音色合成
+│   ├── quotes.js              # 随机文案库
+│   ├── backup.js              # 任务导入/导出
+│   ├── utils.js               # 共享工具函数
+│   ├── tasks/                 # 领域模型层
+│   │   ├── TaskFactory.js         # 任务工厂 + ID 生成
+│   │   ├── TaskUtils.js           # 排序/过滤/清洗/日期/农历
+│   │   ├── TaskColors.js          # 8 种颜色标签定义
+│   │   ├── LunarUtils.js          # 农历↔阳历转换
+│   │   ├── CountdownTimer.js      # 倒计时控制
+│   │   ├── AlarmChecker.js        # 定时任务秒级检查（含农历）
+│   │   └── HolidayPresets.js      # 法定假日 + 二十四节气预设
+│   ├── ui/                   # 界面组件
+│   │   ├── TaskRenderer.js        # 任务列表渲染（分组视图）
+│   │   ├── ModalController.js     # 新建/编辑模态框
+│   │   ├── ModalEvents.js         # 模态事件绑定
+│   │   ├── StatsPanel.js          # 飞行统计面板
+│   │   ├── HistoryPanel.js        # 任务触发历史
+│   │   ├── HeroSection.js         # 顶部英雄区
+│   │   ├── Toast.js               # Toast 通知
+│   │   ├── ColorPicker.js         # 颜色选择器
+│   │   ├── AudioSystem.js         # 音频播放管理
 │   │   ├── NotificationManager.js # 系统通知
-│   │   ├── MediaUpload.js      # 图片/音频上传
-│   │   ├── MiniWindow.js       # 迷你悬浮窗
-│   │   ├── FlightPreview.js    # 飞行预览
-│   │   ├── TaskFilter.js       # 搜索 & 筛选
-│   │   └── SettingsPanel.js    # 设置面板
-│   ├── settings/           # 持久化配置
-│   │   ├── SettingsManager.js  # 设置加载/存储
-│   │   ├── ThemeManager.js     # 主题切换
-│   │   ├── UpdateManager.js    # 版本更新检查
-│   │   └── FlightSync.js       # 飞行配置同步
-│   └── flight/             # 飞行编排
-│       ├── FlightOrchestrator.js # 飞行窗口创建/队列
-│       ├── FlightTrigger.js     # 触发逻辑（计数/连飞）
-│       ├── FlightPresets.js     # 5 个场景预设
-│       ├── Emergency.js         # 紧急降落
-│       ├── DeepLink.js          # URL Scheme 解析
-│       └── TauriListeners.js    # 托盘/快捷键事件
-├── src-tauri/              # Rust 后端
-│   ├── src/lib.rs          # 托盘 + 快捷键 + 11 个命令
+│   │   ├── MediaUpload.js         # 图片/音频上传
+│   │   ├── MiniWindow.js          # 迷你悬浮窗
+│   │   ├── FlightPreview.js       # 飞行预览
+│   │   ├── TaskFilter.js          # 搜索 & 筛选
+│   │   └── SettingsPanel.js       # 设置面板
+│   ├── settings/             # 持久化配置
+│   │   ├── SettingsManager.js     # 设置加载/存储
+│   │   ├── ThemeManager.js        # 主题切换
+│   │   ├── UpdateManager.js       # 版本更新检查
+│   │   └── FlightSync.js          # 飞行配置同步
+│   └── flight/               # 飞行编排
+│       ├── FlightOrchestrator.js  # 飞行窗口创建/队列
+│       ├── FlightTrigger.js       # 触发逻辑（计数/连飞）
+│       ├── FlightPresets.js       # 场景预设
+│       ├── Emergency.js           # 紧急降落
+│       ├── DeepLink.js            # URL Scheme 解析
+│       └── TauriListeners.js      # 托盘/快捷键事件
+├── src-tauri/                # Rust 后端
+│   ├── src/lib.rs            # 托盘 + 快捷键 + 12 个命令
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── capabilities/
 ├── scripts/
 │   └── capture_screenshots.py
 └── .github/workflows/
-    ├── ci.yml
-    └── release.yml
+    ├── ci.yml                # 含 x86_64 交叉编译检查
+    └── release.yml           # 三平台构建发布
 ```
 
 ### 调试
@@ -246,18 +267,20 @@ python3 scripts/capture_screenshots.py
 
 ## 📜 路线图
 
-### v0.6（进行中 — 稳定性 & 安全性 & 用户体验）
+### v0.5（已完成 — 农历 & 深色主题 & 安全性）
+- [x] 农历日期支持（lunar-javascript）
+- [x] 节假日预设拆分法定 + 二十四节气
+- [x] 纪念日农历勾选
+- [x] 深色主题完整覆盖
 - [x] CSP 策略启用
 - [x] `run_script` 白名单安全限制
-- [x] 任务删除确认弹窗
+- [x] 任务删除确认弹窗（自定义 `showConfirm` 替代 Tauri dialog 插件）
 - [x] 图片上传大小限制
 - [x] 工程结构拆分（`main.js` 模块化）
-- [x] 关键交互测试补齐（深链 / 导入 / 倒计时 / 紧急降落等）
-- [ ] 更多飞行动画模板（螺旋 / 心形 / 8 字）
-- [ ] 键盘快捷键（Cmd+N 新建任务）
-- [ ] 应用内 onboarding
-- [ ] 成就系统（连飞 7 天 / 100 次）
-- [ ] 深色主题完整覆盖
+- [x] 关键交互测试补齐（深链 / 导入 / 倒计时 / 紧急降落 / 农历等）
+- [x] 跨平台兼容：Linux 锁屏/TTS + Intel Mac 性能优化
+- [x] 飞行前 5 分钟自动进入「即将起飞」分组
+- [x] 任务列表 sticky 分组头部
 
 ### v1.0（Pro 计划）
 - [ ] ☁️ 云端备份 + 多设备同步（WebDAV 通用协议）

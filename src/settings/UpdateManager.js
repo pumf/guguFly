@@ -64,7 +64,12 @@ export async function autoCheckForUpdate() {
   const currentVer = await getCurrentVersion();
   const cached = getCachedUpdate();
 
-  if (cached && cached.version === currentVer) return;
+  if (cached && cached.version === currentVer) {
+    localStorage.removeItem(UPDATE_CACHE_KEY);
+    if (updateStatus) updateStatus.textContent = '已是最新';
+    showUpdateIndicator(false);
+    return;
+  }
 
   if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
     if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
@@ -114,6 +119,7 @@ export async function checkForUpdate() {
   const cached = getCachedUpdate();
 
   if (cached && cached.version === currentVer) {
+    localStorage.removeItem(UPDATE_CACHE_KEY);
     if (updateLoading) updateLoading.classList.add('hidden');
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
     if (updateModalTitle) updateModalTitle.textContent = '已是最新版本';
@@ -121,31 +127,9 @@ export async function checkForUpdate() {
     return;
   }
 
-  if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
-    if (updateLoading) updateLoading.classList.add('hidden');
-    if (updateInfo) updateInfo.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '发现新版本';
-    if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
-    if (updateLatestVersion) updateLatestVersion.textContent = `v${cached.version}`;
-    if (updateReleaseNotes) {
-      updateReleaseNotes.textContent = '';
-      (cached.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
-        const p = document.createElement('p');
-        p.textContent = line;
-        updateReleaseNotes.appendChild(p);
-      });
-    }
-    if (updateDownloadBtn) {
-      updateDownloadBtn.classList.remove('hidden');
-      updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
-    }
-    if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
-    return;
-  }
-
-  let latestVer = '';
-  let htmlUrl = GITHUB_DOWNLOAD_URL;
-  let notes = '';
+  let latestVer = cached ? cached.version : '';
+  let htmlUrl = cached ? cached.url : GITHUB_DOWNLOAD_URL;
+  let notes = cached ? cached.notes : '';
   const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
   try {

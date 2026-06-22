@@ -45,6 +45,7 @@ describe('UpdateManager', () => {
     globalThis.localStorage = {
       getItem: vi.fn((key) => storage.get(key) ?? null),
       setItem: vi.fn((key, value) => { storage.set(key, value); }),
+      removeItem: vi.fn((key) => { storage.delete(key); }),
     };
 
     globalThis.window = { open: vi.fn() };
@@ -57,7 +58,7 @@ describe('UpdateManager', () => {
     globalThis.localStorage = originalLocalStorage;
   });
 
-  it('shows cached newer release info without network request', async () => {
+  it('shows cached newer release info when network fails', async () => {
     globalThis.localStorage.setItem('_updateCache', JSON.stringify({
       version: '0.6.0',
       url: 'https://example.com/release',
@@ -67,7 +68,7 @@ describe('UpdateManager', () => {
 
     await checkForUpdate();
 
-    expect(document.getElementById('updateModalTitle').textContent).toBe('发现新版本');
+    expect(document.getElementById('updateModalTitle').textContent).toBe('发现新版本（缓存）');
     expect(document.getElementById('updateLatestVersion').textContent).toBe('v0.6.0');
     expect(document.getElementById('updateDownloadBtn').dataset.url).toBe('https://example.com/release');
     expect(document.getElementById('updateInfo').classList.remove).toHaveBeenCalledWith('hidden');
