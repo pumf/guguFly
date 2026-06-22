@@ -60,6 +60,7 @@ export function createHolidayTask() {
     day: 1,
     hour: 9,
     minute: 0,
+    lunar: false,
     _lastTriggeredDate: null,
   };
 }
@@ -71,6 +72,7 @@ export function createAnniversaryTask() {
     day: new Date().getDate(),
     hour: 9,
     minute: 0,
+    lunar: false,
     _lastTriggeredDate: null,
   };
 }

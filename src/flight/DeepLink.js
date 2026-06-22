@@ -32,6 +32,7 @@ export function buildTaskFromDeepLink(params, ctx) {
     task.holidayKey = presetKey; task.label = formatHolidayLabel(preset);
     task.month = preset.month; task.day = preset.day;
     task.hour = hour; task.minute = minute;
+    task.lunar = !!preset.lunar;
     if (msg) task.msg = msg;
     return task;
   } else if (type === 'anniversary') {
@@ -40,6 +41,7 @@ export function buildTaskFromDeepLink(params, ctx) {
     task.month = Math.min(12, Math.max(1, parseInt(params.month, 10) || (d.getMonth() + 1)));
     task.day = Math.min(31, Math.max(1, parseInt(params.day, 10) || d.getDate()));
     task.hour = hour; task.minute = minute;
+    task.lunar = params.lunar === 'true' || params.lunar === '1';
     if (msg) task.msg = msg;
     return task;
   } else {

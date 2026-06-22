@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   pad2,
   formatDuration,
@@ -17,6 +17,8 @@ import {
   computeNextAlarmDate,
   isAlarmDueToday,
   nextTriggerText,
+  getTaskTimeAnchor,
+  getTaskStatusLabel,
 } from '../src/tasks/TaskUtils.js';
 
 describe('pad2', () => {
@@ -103,9 +105,52 @@ describe('getTaskSortScore', () => {
 });
 
 describe('getTaskTimeAnchor', () => {
-  it('returns minute offset for alarm tasks', async () => {
-    const { getTaskTimeAnchor } = await import('../src/tasks/TaskUtils.js');
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('returns minute offset for alarm tasks', () => {
     expect(getTaskTimeAnchor({ type: 'alarm', hour: 9, minute: 30 })).toBe(570);
+  });
+
+  it('returns days until next solar occurrence for lunar anniversary', () => {
+    vi.setSystemTime(new Date(2026, 5, 22, 10, 0, 0)); // solar 2026-06-22
+    const task = { type: 'anniversary', month: 6, day: 22, hour: 9, minute: 0, lunar: true };
+    expect(getTaskTimeAnchor(task)).toBe(43); // lunar 6/22 2026 -> solar 2026-08-04
+  });
+
+  it('returns next year days for lunar anniversary after today time passed', () => {
+    vi.setSystemTime(new Date(2026, 7, 4, 10, 0, 0)); // solar 2026-08-04, time passed
+    const task = { type: 'anniversary', month: 6, day: 22, hour: 9, minute: 0, lunar: true };
+    expect(getTaskTimeAnchor(task)).toBe(355); // next lunar 6/22 2027 -> solar 2027-07-25
+  });
+});
+
+describe('getTaskStatusLabel', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('shows days until next solar occurrence for lunar anniversary', () => {
+    vi.setSystemTime(new Date(2026, 5, 22, 10, 0, 0)); // solar 2026-06-22
+    const task = { type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, lunar: true, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 };
+    expect(getTaskStatusLabel(task)).toBe('还有 43 天');
+  });
+
+  it('shows today time for lunar anniversary when solar date is today and time not passed', () => {
+    vi.setSystemTime(new Date(2026, 7, 4, 8, 0, 0)); // solar 2026-08-04 before 9:00
+    const task = { type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, lunar: true, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 };
+    expect(getTaskStatusLabel(task)).toBe('今天 09:00');
+  });
+
+  it('shows next year days for lunar anniversary when time passed today', () => {
+    vi.setSystemTime(new Date(2026, 7, 4, 10, 0, 0)); // solar 2026-08-04 after 9:00
+    const task = { type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, lunar: true, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 };
+    expect(getTaskStatusLabel(task)).toBe('还有 355 天');
+  });
+
+  it('shows 今天已触发 when lunar anniversary already triggered today', () => {
+    vi.setSystemTime(new Date(2026, 7, 4, 10, 0, 0));
+    const task = { type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, lunar: true, _lastTriggeredDate: new Date().toDateString(), flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 };
+    expect(getTaskStatusLabel(task)).toBe('今天已触发');
   });
 });
 
@@ -144,6 +189,24 @@ describe('getCleanTasks', () => {
     const clean = getCleanTasks(tasks);
     expect(clean[0]._remaining).toBeUndefined();
     expect(clean[0]._status).toBe('idle');
+  });
+
+  it('preserves lunar flag for anniversary', () => {
+    const tasks = [{ id: 1, type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, lunar: true, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 }];
+    const clean = getCleanTasks(tasks);
+    expect(clean[0]).toHaveProperty('lunar', true);
+  });
+
+  it('preserves lunar flag for holiday', () => {
+    const tasks = [{ id: 1, type: 'holiday', label: '春节', enabled: true, holidayKey: 'spring_festival', month: 1, day: 1, hour: 9, minute: 0, lunar: true, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 }];
+    const clean = getCleanTasks(tasks);
+    expect(clean[0]).toHaveProperty('lunar', true);
+  });
+
+  it('defaults missing lunar flag to false', () => {
+    const tasks = [{ id: 1, type: 'anniversary', label: '生日', enabled: true, month: 6, day: 22, hour: 9, minute: 0, flightMode: 'once', loopCount: 3, loopInterval: 5, intervalCount: 10 }];
+    const clean = getCleanTasks(tasks);
+    expect(clean[0]).toHaveProperty('lunar', false);
   });
 });
 

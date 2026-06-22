@@ -80,7 +80,7 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     editHolidayHour, editHolidayMinute, holidayChecklist,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
     editImagePreview, editClearImageBtn, editUseImageCheckbox, editImageInput,
-    deleteTaskBtn,
+    deleteTaskBtn, editAnniLunar,
   } = ctx;
 
   ctx.editingId = task.id;
@@ -135,6 +135,7 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     editAnniDay.value = task.day;
     editAnniHour.value = task.hour;
     editAnniMinute.value = task.minute;
+    if (editAnniLunar) editAnniLunar.checked = !!task.lunar;
   }
 
   ctx.editImageData = task.imageData || '';
@@ -219,6 +220,7 @@ export function openNewModal(editingId, ctx) {
   editAnniDay.value = '1';
   editAnniHour.value = '9';
   editAnniMinute.value = '0';
+  if (ctx.editAnniLunar) ctx.editAnniLunar.checked = false;
 
   ctx.editImageData = '';
   if (editImagePreview) {
@@ -255,7 +257,7 @@ export function saveModal(editingId, ctx) {
     editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
     editUseImageCheckbox,
-    stopCountdownFn,
+    stopCountdownFn, editAnniLunar,
   } = ctx;
 
   clearModalError(modalError);
@@ -313,6 +315,7 @@ export function saveModal(editingId, ctx) {
       task.day = preset ? preset.day : 1;
       task.hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
       task.minute = Math.min(59, Math.max(0, parseInt(editHolidayMinute.value) || 0));
+      task.lunar = preset ? !!preset.lunar : false;
       task.label = task.label || formatHolidayLabel(preset);
       task._lastTriggeredDate = null;
     } else if (type === 'anniversary') {
@@ -322,6 +325,7 @@ export function saveModal(editingId, ctx) {
       task.day = anniversary.day;
       task.hour = anniversary.hour;
       task.minute = anniversary.minute;
+      task.lunar = !!(editAnniLunar && editAnniLunar.checked);
       task._lastTriggeredDate = null;
     }
   } else {
@@ -369,6 +373,7 @@ export function saveModal(editingId, ctx) {
         t.day = preset ? preset.day : 1;
         t.hour = hour;
         t.minute = minute;
+        t.lunar = preset ? !!preset.lunar : false;
         t.imageData = ctx.editImageData || null;
         t.useImage = ctx.editImageData ? !!editUseImageCheckbox?.checked : false;
         t.color = ctx.selectedEditColor;
@@ -392,6 +397,7 @@ export function saveModal(editingId, ctx) {
       task.day = anniversary.day;
       task.hour = anniversary.hour;
       task.minute = anniversary.minute;
+      task.lunar = !!(editAnniLunar && editAnniLunar.checked);
     }
     task.imageData = ctx.editImageData || null;
     task.useImage = ctx.editImageData ? !!editUseImageCheckbox?.checked : false;
@@ -477,6 +483,23 @@ export function validateUpload(file, validTypes, maxSize, kindLabel, btnEl) {
 
 export function initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS) {
   holidayChecklist.innerHTML = '';
+
+  const statutorySection = document.createElement('div');
+  statutorySection.className = 'holiday-subsection';
+
+  const statutoryTitle = document.createElement('div');
+  statutoryTitle.className = 'holiday-subtitle';
+  statutoryTitle.textContent = '法定假日';
+  statutorySection.appendChild(statutoryTitle);
+
+  const solarTermSection = document.createElement('div');
+  solarTermSection.className = 'holiday-subsection';
+
+  const solarTermTitle = document.createElement('div');
+  solarTermTitle.className = 'holiday-subtitle';
+  solarTermTitle.textContent = '二十四节气';
+  solarTermSection.appendChild(solarTermTitle);
+
   for (const [key, preset] of Object.entries(HOLIDAY_PRESETS)) {
     const label = document.createElement('label');
     label.className = 'holiday-item';
@@ -484,8 +507,28 @@ export function initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS) {
     cb.type = 'checkbox';
     cb.value = key;
     label.appendChild(cb);
-    const suffix = preset.approximate ? '，按常用日期' : '';
-    label.appendChild(document.createTextNode(`${preset.label} (${preset.month}月${preset.day}日${suffix})`));
-    holidayChecklist.appendChild(label);
+
+    let displayText = preset.label;
+    if (preset.category === 'solar_term') {
+      displayText += `（${preset.month}月${preset.day}日）`;
+    } else if (preset.lunar) {
+      displayText += '（农历）';
+    } else {
+      displayText += `（${preset.month}月${preset.day}日）`;
+    }
+    label.appendChild(document.createTextNode(displayText));
+
+    if (preset.category === 'solar_term') {
+      solarTermSection.appendChild(label);
+    } else {
+      statutorySection.appendChild(label);
+    }
+  }
+
+  if (statutorySection.childNodes.length > 1) {
+    holidayChecklist.appendChild(statutorySection);
+  }
+  if (solarTermSection.childNodes.length > 1) {
+    holidayChecklist.appendChild(solarTermSection);
   }
 }

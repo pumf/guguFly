@@ -2,7 +2,7 @@ export function initTaskFilter(ctx) {
   const { renderTaskView } = ctx;
   const taskSearchInput = document.getElementById('taskSearchInput');
   const taskSearchClear = document.getElementById('taskSearchClear');
-  const taskTypeChips = document.querySelectorAll('.task-type-chip[data-type]');
+  const taskTypeSelect = document.getElementById('taskTypeSelect');
   const taskGroupSelect = document.getElementById('taskGroupSelect');
 
   let taskSearchKeyword = '';
@@ -35,13 +35,12 @@ export function initTaskFilter(ctx) {
       taskSearchInput.focus();
     });
   }
-  taskTypeChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      taskTypeFilter = chip.dataset.type || 'all';
-      taskTypeChips.forEach(c => c.classList.toggle('is-active', c === chip));
+  if (taskTypeSelect) {
+    taskTypeSelect.addEventListener('change', () => {
+      taskTypeFilter = taskTypeSelect.value || 'all';
       renderTaskView();
     });
-  });
+  }
   if (taskGroupSelect) {
     taskGroupSelect.addEventListener('change', () => {
       taskGroupFilter = taskGroupSelect.value || 'all';

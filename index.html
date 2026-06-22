@@ -19,11 +19,6 @@
               </div>
             </div>
           </div>
-          <div class="hero-mid-stats">
-            <span class="hero-stat" id="todayCount">0 次起飞</span>
-            <span class="hero-stat-sep">·</span>
-            <span class="hero-stat hero-stat--muted" id="heroStatus">等待起飞</span>
-          </div>
           <div class="hero-head-actions">
             <div class="hero-toolbar">
               <button id="emergencyBtn" class="icon-btn icon-btn--warn" type="button" title="紧急降落">
@@ -40,10 +35,10 @@
           </div>
         </div>
         <div id="nextUpcoming" class="next-upcoming">
-          <span class="next-stats">
-            <span class="hero-stat" id="todayCount">0 次起飞</span>
+          <span class="next-stats" id="nextStatsWrap">
+            <span class="hero-stat" id="todayCount" title="">0 次</span>
             <span class="hero-stat-sep">·</span>
-            <span class="hero-stat hero-stat--muted" id="heroStatus">等待起飞</span>
+            <span class="hero-stat hero-stat--muted" id="heroStatus" title="">等待</span>
           </span>
           <span class="next-msg"></span>
           <button class="hero-stats-toggle" id="statsToggle" title="飞行统计">📊</button>
@@ -51,19 +46,7 @@
       </div>
 
       <div class="task-section">
-        <div class="section-head" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;position:relative">
-          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
-          <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
-          <div id="templateMenu" class="template-menu hidden">
-              <button class="template-item" data-template="pomodoro">🍅 番茄钟 25 分钟</button>
-              <button class="template-item" data-template="drink">💧 喝水提醒 · 每小时</button>
-              <button class="template-item" data-template="standup">📋 每日站会 09:30</button>
-              <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
-              <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
-            </div>
-        </div>
-
-        <div class="task-filter-bar">
+        <div class="task-toolbar">
           <div class="task-search-wrap">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
             <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索" />
@@ -77,13 +60,22 @@
             <option value="other">📌 其他</option>
             <option value="none">未分组</option>
           </select>
-          <div class="task-type-chips">
-            <button class="task-type-chip is-active" data-type="all">全部</button>
-            <button class="task-type-chip" data-type="alarm">定时</button>
-            <button class="task-type-chip" data-type="countdown">倒计时</button>
-            <button class="task-type-chip" data-type="holiday">节假日</button>
-            <button class="task-type-chip" data-type="anniversary">纪念日</button>
-          </div>
+          <select id="taskTypeSelect" class="task-group-select">
+            <option value="all">全部类型</option>
+            <option value="alarm">⏰ 定时</option>
+            <option value="countdown">⏱ 倒计时</option>
+            <option value="holiday">📅 节假日</option>
+            <option value="anniversary">💝 纪念日</option>
+          </select>
+          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
+          <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
+          <div id="templateMenu" class="template-menu hidden">
+              <button class="template-item" data-template="pomodoro">🍅 番茄钟 25 分钟</button>
+              <button class="template-item" data-template="drink">💧 喝水提醒 · 每小时</button>
+              <button class="template-item" data-template="standup">📋 每日站会 09:30</button>
+              <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
+              <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
+            </div>
         </div>
 
         <!-- Task list -->
@@ -451,6 +443,10 @@
                 <label>日期</label>
                 <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" placeholder="月" />
                 <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" placeholder="日" />
+                <label class="img-toggle">
+                  <input type="checkbox" id="editAnniLunar" />
+                  <span>农历</span>
+                </label>
               </div>
               <div class="form-row">
                 <label>提醒时间</label>

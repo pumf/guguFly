@@ -123,7 +123,7 @@ describe('applySettings', () => {
 
     expect(state.isMuted).toBe(true);
     expect(refs.muteBtn.innerHTML).toBe('muted');
-    expect(refs.todayCountEl.textContent).toBe('8 次起飞');
+    expect(refs.todayCountEl.textContent).toBe('8 次');
     expect(refs.speedSelect.value).toBe('fast');
     expect(refs.displaySelect.value).toBe('active');
     expect(refs.useSoundCheckbox.checked).toBe(true);

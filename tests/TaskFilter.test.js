@@ -1,14 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { initTaskFilter } from '../src/ui/TaskFilter.js';
 
-function createChip(dataset) {
-  return {
-    dataset,
-    classList: { toggle: vi.fn() },
-    addEventListener: vi.fn(),
-  };
-}
-
 describe('TaskFilter', () => {
   let originalDocument;
 
@@ -20,7 +12,7 @@ describe('TaskFilter', () => {
     globalThis.document = originalDocument;
   });
 
-  it('filters task list through search and chips', () => {
+  it('filters task list through search and selects', () => {
     const handlers = {};
     const taskSearchInput = {
       value: '',
@@ -28,7 +20,10 @@ describe('TaskFilter', () => {
       focus: vi.fn(),
     };
     const taskSearchClear = { hidden: true, addEventListener: vi.fn((type, handler) => { handlers[`clear:${type}`] = handler; }) };
-    const typeChip = createChip({ type: 'alarm' });
+    const taskTypeSelect = {
+      value: 'all',
+      addEventListener: vi.fn((type, handler) => { handlers[`type:${type}`] = handler; }),
+    };
     const taskGroupSelect = {
       value: 'all',
       addEventListener: vi.fn((type, handler) => { handlers[`group:${type}`] = handler; }),
@@ -38,12 +33,9 @@ describe('TaskFilter', () => {
       getElementById: vi.fn((id) => {
         if (id === 'taskSearchInput') return taskSearchInput;
         if (id === 'taskSearchClear') return taskSearchClear;
+        if (id === 'taskTypeSelect') return taskTypeSelect;
         if (id === 'taskGroupSelect') return taskGroupSelect;
         return null;
-      }),
-      querySelectorAll: vi.fn((selector) => {
-        if (selector === '.task-type-chip[data-type]') return [typeChip];
-        return [];
       }),
     };
 
@@ -61,9 +53,9 @@ describe('TaskFilter', () => {
     expect(taskSearchInput.value).toBe('');
     expect(getState().taskSearchKeyword).toBe('');
 
-    typeChip.addEventListener.mock.calls[0][1]();
+    taskTypeSelect.value = 'alarm';
+    handlers['type:change']();
     expect(getState().taskTypeFilter).toBe('alarm');
-    expect(typeChip.classList.toggle).toHaveBeenCalledWith('is-active', true);
 
     taskGroupSelect.value = 'work';
     handlers['group:change']();

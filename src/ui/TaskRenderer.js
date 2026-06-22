@@ -354,7 +354,7 @@ function setGroupEnabled(groupTasks, enabled, tasks, saveTasks, getCleanTasksFn,
 
 function getTaskGroupMeta(groupKey) {
   const labels = {
-    in_progress: { title: '正在进行', subtitle: '' },
+    in_progress: { title: '即将起飞', subtitle: '' },
     upcoming: { title: '近期提醒', subtitle: '' },
     special_dates: { title: '特殊日期', subtitle: '' },
     disabled: { title: '已停用', subtitle: '' },

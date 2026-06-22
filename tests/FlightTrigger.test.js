@@ -48,7 +48,7 @@ describe('FlightTrigger', () => {
   it('registers today count and initializes first streak', async () => {
     await registerFlightTrigger();
 
-    expect(todayCountEl.textContent).toBe('3 次起飞');
+    expect(todayCountEl.textContent).toBe('3 次');
     expect(store.get('streak')).toBe(1);
     expect(store.get('streakLastDate')).toBe('2026-06-17');
   });

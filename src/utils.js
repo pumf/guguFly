@@ -11,7 +11,7 @@ export function showConfirm(message, title = '确认') {
     textColor = s.getPropertyValue('--text').trim() || textColor;
     softMuted = s.getPropertyValue('--soft-muted').trim() || softMuted;
     accent = s.getPropertyValue('--accent').trim() || accent;
-  } catch {}
+  } catch { /* ignore */ }
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center';

@@ -22,6 +22,7 @@ export function getMainDomRefs() {
     editAnniDay: document.getElementById('editAnniDay'),
     editAnniHour: document.getElementById('editAnniHour'),
     editAnniMinute: document.getElementById('editAnniMinute'),
+    editAnniLunar: document.getElementById('editAnniLunar'),
     editFlightMode: document.getElementById('editFlightMode'),
     editLoopCount: document.getElementById('editLoopCount'),
     editLoopInterval: document.getElementById('editLoopInterval'),

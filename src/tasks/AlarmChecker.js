@@ -1,4 +1,5 @@
 import { computeNextAlarmDate } from './TaskUtils.js';
+import { getNextSolarFromLunar } from './LunarUtils.js';
 
 let alarmInterval = null;
 const previewedTasks = new Set();
@@ -57,8 +58,22 @@ export async function getNextUpcomingTask() {
       const diff = Math.round((target - now) / 1000);
       if (diff < bestSec) { bestSec = diff; bestTask = task; }
     } else if (task.type === 'holiday' || task.type === 'anniversary') {
-      const target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
-      if (target <= now) target.setFullYear(target.getFullYear() + 1);
+      let target;
+      if (task.lunar) {
+        const solar = getNextSolarFromLunar(task.month, task.day, now);
+        if (!solar) continue;
+        target = new Date(solar.year, solar.solarMonth - 1, solar.solarDay, task.hour, task.minute);
+        if (target <= now) {
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const solar2 = getNextSolarFromLunar(task.month, task.day, tomorrow);
+          if (!solar2) continue;
+          target = new Date(solar2.year, solar2.solarMonth - 1, solar2.solarDay, task.hour, task.minute);
+        }
+      } else {
+        target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
+        if (target <= now) target.setFullYear(target.getFullYear() + 1);
+      }
       const diff = Math.round((target - now) / 1000);
       if (diff < bestSec) { bestSec = diff; bestTask = task; }
     } else if (task.type === 'countdown' && task._status === 'running') {
@@ -83,8 +98,16 @@ function checkPreTrigger() {
       if (repeat.type === 'weekly' && !repeat.days.includes(now.getDay())) return;
       triggerMin = task.hour * 60 + task.minute;
     } else if (task.type === 'holiday' || task.type === 'anniversary') {
-      if (task.month !== now.getMonth() + 1 || task.day !== now.getDate()) return;
-      triggerMin = task.hour * 60 + task.minute;
+      if (task.lunar) {
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const solar = getNextSolarFromLunar(task.month, task.day, nowDate);
+        if (solar && solar.solarMonth === now.getMonth() + 1 && solar.solarDay === now.getDate()) {
+          triggerMin = task.hour * 60 + task.minute;
+        }
+      } else {
+        if (task.month !== now.getMonth() + 1 || task.day !== now.getDate()) return;
+        triggerMin = task.hour * 60 + task.minute;
+      }
     }
     if (triggerMin == null) return;
     const diff = triggerMin - currentMinutes;
@@ -113,7 +136,17 @@ export function startAlarmChecker() {
           doTriggerFlightFn(task);
         }
       } else if (task.type === 'holiday' || task.type === 'anniversary') {
-        if (task.month === now.getMonth() + 1 && task.day === now.getDate() && task.hour === h && task.minute === m) {
+        let lunarMatch = false;
+        if (task.lunar) {
+          const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const solar = getNextSolarFromLunar(task.month, task.day, nowDate);
+          if (solar && solar.solarMonth === now.getMonth() + 1 && solar.solarDay === now.getDate()) {
+            lunarMatch = true;
+          }
+        } else {
+          lunarMatch = task.month === now.getMonth() + 1 && task.day === now.getDate();
+        }
+        if (lunarMatch && task.hour === h && task.minute === m) {
           task._lastTriggeredDate = today;
           debouncedSave();
           doTriggerFlightFn(task);
