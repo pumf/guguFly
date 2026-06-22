@@ -1,6 +1,6 @@
 [package]
 name = "gugufly"
-version = "0.5.1"
+version = "0.5.2"
 description = "咕咕机长 - 桌面定时提醒小工具"
 authors = ["you"]
 license = "MIT"
@@ -29,9 +29,6 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 rfd = "0.15"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-webkit2gtk = "2"
 
 [target.'cfg(target_os = "linux")'.build-dependencies]
 pkg-config = "0.3"

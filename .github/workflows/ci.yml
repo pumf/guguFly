@@ -38,6 +38,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -50,6 +52,10 @@ jobs:
       - name: Build frontend (required by Tauri)
         run: npm run build
 
-      - name: Check
+      - name: Check (native)
         working-directory: src-tauri
         run: cargo check
+
+      - name: Check (x86_64 cross-compile)
+        working-directory: src-tauri
+        run: cargo check --target x86_64-apple-darwin

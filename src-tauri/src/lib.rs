@@ -29,6 +29,34 @@ fn get_app_version() -> String {
 }
 
 #[tauri::command]
+fn is_compositor_available() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(xdg_session_type) = std::env::var("XDG_SESSION_TYPE") {
+            if xdg_session_type.contains("wayland") {
+                return true;
+            }
+        }
+        let compositors = ["mutter", "compiz", "kwin", "picom", "compton", "sway", "weston"];
+        if let Ok(output) = std::process::Command::new("sh")
+            .arg("-c")
+            .arg("ps -e -o comm= 2>/dev/null")
+            .output()
+        {
+            if let Ok(stdout) = std::str::from_utf8(&output.stdout) {
+                let processes = stdout.to_lowercase();
+                return compositors.iter().any(|c| processes.contains(c));
+            }
+        }
+        return false;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
+#[tauri::command]
 fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
@@ -43,13 +71,15 @@ fn is_script_allowed(script: &str) -> bool {
     }
     let allowed = &[
         "pmset displaysleepnow",
+        "xdg-screensaver lock",
+        "loginctl lock-session",
         "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
         "rundll32.exe user32.dll,LockWorkStation",
     ];
     if allowed.contains(&trimmed) {
         return true;
     }
-    if trimmed.starts_with("say ") || trimmed.starts_with("osascript -e ") || trimmed.starts_with("mshta vbscript:Execute(") {
+    if trimmed.starts_with("say ") || trimmed.starts_with("osascript -e ") || trimmed.starts_with("mshta vbscript:Execute(") || trimmed.starts_with("spd-say ") {
         return true;
     }
     false
@@ -450,7 +480,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, open_url_in_browser, open_app, pick_file, pick_folder, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

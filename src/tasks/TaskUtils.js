@@ -367,7 +367,7 @@ export function getTaskGroupKey(task) {
   return 'upcoming';
 }
 
-function isWithinMinutes(task, maxMinutes) {
+export function isWithinMinutes(task, maxMinutes) {
   const today = new Date().toDateString();
   if (task._lastTriggeredDate === today) return false;
   const now = new Date();

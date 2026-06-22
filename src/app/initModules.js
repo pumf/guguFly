@@ -131,6 +131,7 @@ export async function initCoreModules(ctx) {
     getCleanTasks: (tasks) => getCleanTasks(tasks),
     doTriggerFlight: deps.doTriggerFlight,
     showToast,
+    renderTasks: renderTaskView,
     updateNextUpcoming: deps.updateNextUpcoming,
     updateMiniWindow: deps.updateMiniWindow,
     isInQuietHours: deps.isInQuietHours,

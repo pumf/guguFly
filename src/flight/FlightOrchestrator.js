@@ -449,6 +449,17 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   localStorage.setItem('_flightDir', direction);
   localStorage.setItem('_flightSeq', sequenceId);
 
+  const ua = navigator.userAgent;
+  const isLinux = ua.includes('Linux') && !ua.includes('Android');
+  if (isLinux && isTauriRuntime()) {
+    try {
+      const compositorOk = await invoke('is_compositor_available');
+      if (!compositorOk) {
+        showToast('Linux 环境下透明窗口需要桌面合成器支持，如飞行动画显示为黑屏请启用合成器（如 picom/mutter/kwin）', 6000);
+      }
+    } catch { /* ignore */ }
+  }
+
   const ts = Date.now();
   for (const [index, mc] of monitorConfigs.entries()) {
     localStorage.setItem('_flightW', mc.w);
@@ -492,8 +503,13 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'lock') {
       const confirmed = await window.showConfirm('即将锁屏，是否继续？');
       if (!confirmed) return;
-      const lockScript = navigator.platform.includes('Win')
+      const ua = navigator.userAgent;
+      const isWin = ua.includes('Win');
+      const isLinux = ua.includes('Linux') && !ua.includes('Android');
+      const lockScript = isWin
         ? 'rundll32.exe user32.dll,LockWorkStation'
+        : isLinux
+        ? 'xdg-screensaver lock'
         : 'pmset displaysleepnow';
       await invoke('run_script', { script: lockScript });
     } else if (postFlight.action === 'folder' && postFlight.folder) {
@@ -502,8 +518,13 @@ export async function executePostFlightAction(postFlight) {
       const confirmed = await window.showConfirm('将执行语音播报，是否继续？');
       if (!confirmed) return;
       const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
-      const ttsScript = navigator.platform.includes('Win')
+      const ua = navigator.userAgent;
+      const isWin = ua.includes('Win');
+      const isLinux = ua.includes('Linux') && !ua.includes('Android');
+      const ttsScript = isWin
         ? `mshta vbscript:Execute("CreateObject(""SAPI.SpVoice"").Speak(""${ttsText}"" ) :close")`
+        : isLinux
+        ? `spd-say "${ttsText}"`
         : `say "${ttsText}"`;
       await invoke('run_script', { script: ttsScript });
     } else if (postFlight.action === 'script' && postFlight.script) {

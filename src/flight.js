@@ -31,8 +31,10 @@ const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');
 
 const params = new URLSearchParams(window.location.search);
-const W = parseInt(params.get('w') || localStorage.getItem('_flightW')) || 1920;
-const H = parseInt(params.get('h') || localStorage.getItem('_flightH')) || 1080;
+const MAX_CANVAS_W = 2560;
+const MAX_CANVAS_H = 1600;
+const W = Math.min(parseInt(params.get('w') || localStorage.getItem('_flightW')) || 1920, MAX_CANVAS_W);
+const H = Math.min(parseInt(params.get('h') || localStorage.getItem('_flightH')) || 1080, MAX_CANVAS_H);
 
 const speedMap = { vslow: 0.1, slow: 0.2, normal: 0.35, fast: 0.6 };
 const heightMap = { top: 0.25, center: 0.5, bottom: 0.75 };

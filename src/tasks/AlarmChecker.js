@@ -1,4 +1,4 @@
-import { computeNextAlarmDate } from './TaskUtils.js';
+import { computeNextAlarmDate, isWithinMinutes } from './TaskUtils.js';
 import { getNextSolarFromLunar } from './LunarUtils.js';
 
 let alarmInterval = null;
@@ -13,6 +13,9 @@ let updateNextUpcomingFn;
 let updateMiniWindowFn;
 let normalizeRepeatFn;
 let isAlarmDueTodayFn;
+let renderTasksFn;
+
+let prevInProgressIds = new Set();
 
 let saveDebounceTimer = null;
 function debouncedSave() {
@@ -33,6 +36,7 @@ export function initAlarmChecker(ctx) {
   updateMiniWindowFn = ctx.updateMiniWindow;
   normalizeRepeatFn = ctx.normalizeRepeat;
   isAlarmDueTodayFn = ctx.isAlarmDueToday;
+  renderTasksFn = ctx.renderTasks;
 }
 
 export function destroyAlarmChecker() {
@@ -154,6 +158,24 @@ export function startAlarmChecker() {
       }
     });
     checkPreTrigger();
+    if (renderTasksFn) {
+      const newInProgressIds = new Set();
+      getTasksFn().forEach(task => {
+        if (task.enabled && isWithinMinutes(task, 5)) {
+          newInProgressIds.add(task.id);
+        }
+      });
+      let changed = prevInProgressIds.size !== newInProgressIds.size;
+      if (!changed) {
+        for (const id of prevInProgressIds) {
+          if (!newInProgressIds.has(id)) { changed = true; break; }
+        }
+      }
+      if (changed) {
+        renderTasksFn();
+        prevInProgressIds = newInProgressIds;
+      }
+    }
     updateNextUpcomingFn();
     updateMiniWindowFn(getNextUpcomingTask);
   }, 1000);
