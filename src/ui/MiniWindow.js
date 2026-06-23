@@ -1,9 +1,10 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { LogicalPosition } from '@tauri-apps/api/window';
-import { get } from '../storage.js';
+import { get, set } from '../storage.js';
 import { isTauriRuntime } from '../utils.js';
 
 let miniWindow = null;
+let cleanupFn = null;
 
 const MINI_POSITIONS = {
   'top-left': { x: 12, y: 12 },
@@ -20,8 +21,7 @@ const MINI_WIN_HEIGHT = 48;
 export function getMiniPositions() { return MINI_POSITIONS; }
 
 async function computeMiniPos(posKey) {
-  const pos = MINI_POSITIONS[posKey] || MINI_POSITIONS['top-right'];
-  let screenX = 0, screenY = 0, screenW = 1440, screenH = 900;
+  let screenX = 0, screenY = 0, screenW = 1440, screenH = 900, scaleFactor = 1;
   try {
     const { currentMonitor, primaryMonitor } = await import('@tauri-apps/api/window');
     const m = (await currentMonitor()) || (await primaryMonitor());
@@ -30,6 +30,7 @@ async function computeMiniPos(posKey) {
       screenY = m.position.y;
       screenW = m.size.width;
       screenH = m.size.height;
+      scaleFactor = m.scaleFactor || 1;
     }
   } catch (error) {
     console.error('mini monitor lookup failed:', error);
@@ -37,6 +38,18 @@ async function computeMiniPos(posKey) {
   const margin = 12;
   const maxX = screenX + screenW - MINI_WIN_WIDTH - margin;
   const maxY = screenY + screenH - MINI_WIN_HEIGHT - margin;
+
+  if (posKey && typeof posKey === 'object' && typeof posKey.x === 'number' && typeof posKey.y === 'number') {
+    let x = posKey.x / scaleFactor;
+    let y = posKey.y / scaleFactor;
+    if (x < screenX) x = screenX;
+    if (y < screenY) y = screenY;
+    if (x > maxX) x = maxX;
+    if (y > maxY) y = maxY;
+    return { x, y };
+  }
+
+  const pos = MINI_POSITIONS[posKey] || MINI_POSITIONS['top-right'];
   let x = screenX + margin;
   let y = screenY + margin;
   if (pos.x === 'center-x') x = screenX + Math.round((screenW - MINI_WIN_WIDTH) / 2);
@@ -72,6 +85,18 @@ export async function createMiniWindow() {
       resizable: false, focus: false, visible: true,
     });
     miniWindow.once('tauri://error', (e) => console.error('mini error:', e));
+    miniWindow.onCloseRequested(async () => {
+      miniWindow = null;
+      if (cleanupFn) { cleanupFn(); cleanupFn = null; }
+    });
+    const { listen } = await import('@tauri-apps/api/event');
+    const unlisten = await listen('mini-drag-end', async (event) => {
+      const p = event.payload;
+      if (p && typeof p.x === 'number' && typeof p.y === 'number') {
+        await set('miniWindowPosition', { x: Math.round(p.x), y: Math.round(p.y) });
+      }
+    });
+    cleanupFn = unlisten;
   } catch (e) { console.error('mini create failed:', e); miniWindow = null; }
 }
 
@@ -84,6 +109,7 @@ export async function closeMiniWindow() {
     console.error('mini close failed:', error);
   }
   miniWindow = null;
+  if (cleanupFn) { cleanupFn(); cleanupFn = null; }
 }
 
 export async function positionMiniWindow(posKey) {
@@ -109,18 +135,21 @@ export function formatUpcomingTime(sec) {
   return d + '天后';
 }
 
-export async function updateMiniWindow(getNextUpcomingTaskFn) {
+export async function updateMiniWindow(allUpcoming) {
   if (!miniWindow) return;
-  const upcoming = await getNextUpcomingTaskFn();
   try {
     const { emit } = await import('@tauri-apps/api/event');
-    if (upcoming && upcoming.seconds <= 86400) {
-      const icon = upcoming.task.type === 'alarm' ? '⏰' : upcoming.task.type === 'countdown' ? '⏱' : '📅';
-      const label = upcoming.task.label || '提醒';
-      const time = formatUpcomingTime(upcoming.seconds);
-      await emit('mini-set-content', { icon, text: label, detail: time });
+    if (allUpcoming && allUpcoming.length > 0) {
+      const tasks = allUpcoming.map(u => {
+        const icon = u.task.type === 'alarm' ? '⏰' : u.task.type === 'countdown' ? '⏱' : '📅';
+        const label = u.task.label || '提醒';
+        const time = formatUpcomingTime(u.seconds);
+        const urgent = u.seconds <= 300 || u.task._status === 'running';
+        return { icon, text: label, detail: time, urgent };
+      });
+      await emit('mini-set-content', { tasks });
     } else {
-      await emit('mini-set-content', { icon: '📋', text: '暂无提醒', detail: '' });
+      await emit('mini-set-content', { tasks: [] });
     }
   } catch (error) {
     console.error('mini update failed:', error);

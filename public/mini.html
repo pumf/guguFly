@@ -4,11 +4,18 @@
 html,body{height:100%;overflow:hidden}
 body{background:transparent;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;font-family:"PingFang SC","Hiragino Sans GB","Avenir Next",sans-serif;cursor:grab}
 body.dragging{cursor:grabbing}
-#m{display:flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
+#m{display:flex;align-items:center;gap:10px;padding:10px 20px;border-radius:999px;
 background:linear-gradient(135deg,#667eea,#764ba2);
-color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4)}
-#i{font-size:18px}#t{font-weight:700;font-size:14px}#d{opacity:.8;font-size:13px;margin-left:2px}
+color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4);
+position:relative;transition:background 0.3s;max-width:100%;overflow:hidden}
+#m.urgent{background:linear-gradient(135deg,#e74c3c,#c0392b);box-shadow:0 8px 32px rgba(231,76,60,0.5)}
+#m.urgent #pulse{display:block}
+#pulse{display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#ff6b6b;border:2px solid #fff;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.7}}
+#i{font-size:18px;flex-shrink:0}
+#t{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#d{opacity:.8;font-size:13px;margin-left:2px;flex-shrink:0}
 </style></head><body>
-<div id="m"><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
+<div id="m"><span id="pulse"></span><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
 <script src="mini.js"></script>
 </body></html>

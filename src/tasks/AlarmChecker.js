@@ -88,6 +88,44 @@ export async function getNextUpcomingTask() {
   return bestTask ? { task: bestTask, seconds: bestSec, minutes: Math.floor(bestSec / 60) } : null;
 }
 
+export function getAllUpcomingTasks() {
+  const now = new Date();
+  const result = [];
+  for (const task of getTasksFn()) {
+    if (!task.enabled) continue;
+    let diff = null;
+    if (task.type === 'alarm') {
+      const target = computeNextAlarmDate(task, now);
+      if (target) diff = Math.round((target - now) / 1000);
+    } else if (task.type === 'holiday' || task.type === 'anniversary') {
+      let target;
+      if (task.lunar) {
+        const solar = getNextSolarFromLunar(task.month, task.day, now);
+        if (!solar) continue;
+        target = new Date(solar.year, solar.solarMonth - 1, solar.solarDay, task.hour, task.minute);
+        if (target <= now) {
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const solar2 = getNextSolarFromLunar(task.month, task.day, tomorrow);
+          if (!solar2) continue;
+          target = new Date(solar2.year, solar2.solarMonth - 1, solar2.solarDay, task.hour, task.minute);
+        }
+      } else {
+        target = new Date(now.getFullYear(), task.month - 1, task.day, task.hour, task.minute);
+        if (target <= now) target.setFullYear(target.getFullYear() + 1);
+      }
+      if (target) diff = Math.round((target - now) / 1000);
+    } else if (task.type === 'countdown' && task._status === 'running') {
+      diff = Math.max(0, Math.round(task._remaining || 0));
+    }
+    if (diff !== null && diff <= 86400) {
+      result.push({ task, seconds: diff, minutes: Math.floor(diff / 60) });
+    }
+  }
+  result.sort((a, b) => a.seconds - b.seconds);
+  return result;
+}
+
 function checkPreTrigger() {
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes(), today = now.toDateString();
@@ -177,6 +215,7 @@ export function startAlarmChecker() {
       }
     }
     updateNextUpcomingFn();
-    updateMiniWindowFn(getNextUpcomingTask);
+    const allUpcoming = getAllUpcomingTasks();
+    updateMiniWindowFn(allUpcoming);
   }, 1000);
 }
