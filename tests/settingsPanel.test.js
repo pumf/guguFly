@@ -58,9 +58,13 @@ describe('initSettingsPanel import flow', () => {
     const heightSelect = { value: 'top', addEventListener: vi.fn() };
     const effectSelect = { value: 'steady', addEventListener: vi.fn() };
     const planeSelect = { value: 'rocket', addEventListener: vi.fn() };
+    const planeSizeSelect = { value: '1', addEventListener: vi.fn() };
     const particleSelect = { value: 'spark', addEventListener: vi.fn() };
     const bubbleSelect = { value: 'glass', addEventListener: vi.fn() };
     const bubblePositionSelect = { value: 'bottom', addEventListener: vi.fn() };
+    const bubbleSizeSelect = { value: '1', addEventListener: vi.fn() };
+    const bubbleBgColor = { value: '#ffffff', addEventListener: vi.fn() };
+    const bubbleFontColor = { value: '#333333', addEventListener: vi.fn() };
     const soundSelect = { value: 'ring', addEventListener: vi.fn() };
     const soundModeSelect = { value: 'loop', addEventListener: vi.fn() };
     const useSoundCheckbox = { checked: false, addEventListener: vi.fn() };
@@ -134,9 +138,13 @@ describe('initSettingsPanel import flow', () => {
       heightSelect,
       effectSelect,
       planeSelect,
+      planeSizeSelect,
       particleSelect,
       bubbleSelect,
       bubblePositionSelect,
+      bubbleSizeSelect,
+      bubbleBgColor,
+      bubbleFontColor,
       soundSelect,
       soundModeSelect,
       useSoundCheckbox,

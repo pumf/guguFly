@@ -140,7 +140,7 @@ export async function previewCustomSound() {
   const data = getCustomAudioDataFn();
   if (!data) { showToastFn('请先选择一段自定义音频'); return; }
   if (previewAudioHandle) {
-    if (stopPreviewAudioFn) stopPreviewAudioFn();
+    try { previewAudioHandle.pause(); } catch {}
     previewAudioHandle = null;
     showToastFn('已结束试听');
     updateSoundMeta();

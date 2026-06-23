@@ -14,7 +14,7 @@ import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';
 import { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from './tasks/TaskUtils.js';
 import { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from './flight/FlightPresets.js';
-import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl } from './flight/FlightOrchestrator.js';
+import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb } from './flight/FlightOrchestrator.js';
 import { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard } from './ui/TaskRenderer.js';
 import { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from './tasks/CountdownTimer.js';
 import { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from './tasks/AlarmChecker.js';
@@ -92,6 +92,19 @@ const {
   postFlightUrlField,
   postFlightFolderField,
   postFlightScriptField,
+  editPostFlightVideoEnable,
+  editPostFlightVideoSelect,
+  editPostFlightVideoPath,
+  editPostFlightVideoDurationMin,
+  editPostFlightVideoDurationSec,
+  postFlightVideoEnableField,
+  postFlightVideoSelectField,
+  postFlightVideoCustomField,
+  postFlightVideoDurationField,
+  editPostFlightVideoSpeed,
+  postFlightVideoSpeedField,
+  editPostFlightVideoScale,
+  postFlightVideoScaleField,
   deleteTaskBtn,
   todayCountEl,
   heroStatusEl,
@@ -112,14 +125,20 @@ const {
   configArrow,
   effectSelect,
   planeSelect,
+  planeSizeSelect,
   particleSelect,
   bubbleSelect,
   bubblePositionSelect,
+  bubbleSizeSelect,
+  bubbleBgColor,
+  bubbleFontColor,
   imageBtn,
   imageInput,
   clearImageBtn,
   imagePreview,
   useImageCheckbox,
+  customizeImageBtn,
+  imageCollapse,
   editImageBtn,
   editImageInput,
   editClearImageBtn,
@@ -135,6 +154,8 @@ const {
   soundMeta,
   soundNameEl,
   previewSoundBtn,
+  customizeSoundBtn,
+  soundCollapse,
 } = getMainDomRefs();
 
 const state = createAppState();
@@ -201,6 +222,19 @@ const taskActions = createTaskActions({
     postFlightUrlField,
     postFlightFolderField,
     postFlightScriptField,
+    editPostFlightVideoEnable,
+    editPostFlightVideoSelect,
+    editPostFlightVideoPath,
+    editPostFlightVideoDurationMin,
+    editPostFlightVideoDurationSec,
+    postFlightVideoEnableField,
+    postFlightVideoSelectField,
+    postFlightVideoCustomField,
+    postFlightVideoDurationField,
+    editPostFlightVideoSpeed,
+    postFlightVideoSpeedField,
+    editPostFlightVideoScale,
+    postFlightVideoScaleField,
     deleteTaskBtn,
     editImagePreview,
     editClearImageBtn,
@@ -275,9 +309,13 @@ async function init() {
       heightSelect,
       effectSelect,
       planeSelect,
+      planeSizeSelect,
       particleSelect,
       bubbleSelect,
       bubblePositionSelect,
+      bubbleSizeSelect,
+      bubbleBgColor,
+      bubbleFontColor,
       soundSelect,
       soundModeSelect,
       useSoundCheckbox,
@@ -289,7 +327,11 @@ async function init() {
       displaySelect,
       clearImageBtn,
       clearSoundBtn,
+      customizeSoundBtn,
+      soundCollapse,
       imagePreview,
+      customizeImageBtn,
+      imageCollapse,
       autostartToggle,
       quietHoursToggle,
       quietStartHour,
@@ -297,6 +339,7 @@ async function init() {
       miniWindowToggle,
     },
     flightPresets: FLIGHT_PRESETS,
+    defaultFlightSettings: DEFAULT_FLIGHT_SETTINGS,
     persistFlightSettings,
     persistSetting,
     showToast,
@@ -389,14 +432,20 @@ async function init() {
       displaySelect,
       effectSelect,
       planeSelect,
+      planeSizeSelect,
       particleSelect,
       bubbleSelect,
       bubblePositionSelect,
+      bubbleSizeSelect,
+      bubbleBgColor,
+      bubbleFontColor,
       imageBtn,
       imageInput,
       clearImageBtn,
       imagePreview,
       useImageCheckbox,
+      customizeImageBtn,
+      imageCollapse,
       editImageBtn,
       editImageInput,
       editClearImageBtn,
@@ -408,6 +457,8 @@ async function init() {
       soundInput,
       clearSoundBtn,
       useSoundCheckbox,
+      customizeSoundBtn,
+      soundCollapse,
       todayCountEl,
       quietHoursToggle,
       quietStartHour,
@@ -528,6 +579,14 @@ async function init() {
     initColorPickerModule,
     syncPresetButtons,
     renderStatsPanel,
+  });
+
+  setUpdateTaskFlightCb((taskId, remaining) => {
+    const task = state.tasks.find(t => t.id === taskId);
+    if (task) {
+      task._flightRemaining = remaining;
+      renderTaskView();
+    }
   });
 
   listen('deep-link', (event) => {

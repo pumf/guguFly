@@ -1,6 +1,6 @@
 export function initWindowEvents(ctx) {
   const { saveTasks, getCleanTasks, tasks, set, speedSelect, heightSelect, effectSelect,
-    planeSelect, particleSelect, bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
+    planeSelect, planeSizeSelect, particleSelect, bubbleSelect, bubblePositionSelect, bubbleSizeSelect, bubbleBgColor, bubbleFontColor, soundSelect, soundModeSelect,
     useSoundCheckbox, useImageCheckbox,
     showToast, getCustomImageData, getCustomAudioData, getCustomAudioName } = ctx;
 
@@ -10,9 +10,13 @@ export function initWindowEvents(ctx) {
     await set('height', heightSelect.value);
     await set('effect', effectSelect.value);
     await set('plane', planeSelect.value);
+    await set('planeSize', planeSizeSelect.value);
     await set('particle', particleSelect.value);
     await set('bubble', bubbleSelect.value);
     await set('bubblePosition', bubblePositionSelect.value);
+    await set('bubbleSize', bubbleSizeSelect.value);
+    await set('bubbleBgColor', bubbleBgColor.value);
+    await set('bubbleFontColor', bubbleFontColor.value);
     await set('sound', soundSelect.value);
     await set('soundMode', soundModeSelect.value);
     await set('useSound', useSoundCheckbox.checked);

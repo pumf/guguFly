@@ -74,7 +74,11 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     loopTimesField, loopIntervalField,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
+    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoScale,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
+    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
+    selectVideoBtn, clearVideoPathBtn, selectVideoInput, isTauriRuntime,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute, holidayChecklist,
@@ -103,10 +107,35 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
   editPostFlightUrl.value = task.postFlightUrl || '';
   editPostFlightFolder.value = task.postFlightFolder || '';
   editPostFlightScript.value = task.postFlightScript || '';
+  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = task.postFlightVideoEnable !== false;
+  const d = task.postFlightVideoDuration || 30;
+  if (editPostFlightVideoDurationMin) editPostFlightVideoDurationMin.value = Math.floor(d / 60);
+  if (editPostFlightVideoDurationSec) editPostFlightVideoDurationSec.value = d % 60;
+  if (editPostFlightVideoSpeed) editPostFlightVideoSpeed.value = String(task.postFlightVideoSpeed || 1);
+  if (editPostFlightVideoScale) {
+    editPostFlightVideoScale.value = String(task.postFlightVideoScale || 1);
+    document.getElementById('postFlightVideoScaleValue').textContent = Math.round((task.postFlightVideoScale || 1) * 100) + '%';
+  }
+  const builtinVideos = ['cat.mov', 'dog.mov'];
+  const videoFile = task.postFlightVideoFile || 'cat.mov';
+  if (builtinVideos.includes(videoFile)) {
+    if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = videoFile;
+    if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
+  } else {
+    if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = '';
+    if (editPostFlightVideoPath) editPostFlightVideoPath.value = videoFile;
+  }
   postFlightAppField.classList.toggle('hidden', editPostFlightAction.value !== 'app');
   postFlightUrlField.classList.toggle('hidden', editPostFlightAction.value !== 'url');
   postFlightFolderField.classList.toggle('hidden', editPostFlightAction.value !== 'folder');
   postFlightScriptField.classList.toggle('hidden', editPostFlightAction.value !== 'script' && editPostFlightAction.value !== 'lock');
+  const isVideo = editPostFlightAction.value === 'video';
+  postFlightVideoEnableField?.classList.toggle('hidden', !isVideo);
+  postFlightVideoSelectField?.classList.toggle('hidden', !isVideo);
+  postFlightVideoCustomField?.classList.toggle('hidden', !isVideo);
+  postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
+  postFlightVideoSpeedField?.classList.toggle('hidden', !isVideo);
+  postFlightVideoScaleField?.classList.toggle('hidden', !isVideo);
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === task.type);
@@ -165,7 +194,10 @@ export function openNewModal(editingId, ctx) {
     loopTimesField, loopIntervalField,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
+    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoScale,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
+    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute,
@@ -195,10 +227,26 @@ export function openNewModal(editingId, ctx) {
   editPostFlightUrl.value = '';
   editPostFlightFolder.value = '';
   editPostFlightScript.value = '';
+  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = true;
+  if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = 'cat.mov';
+  if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
+  if (editPostFlightVideoDurationMin) editPostFlightVideoDurationMin.value = 0;
+  if (editPostFlightVideoDurationSec) editPostFlightVideoDurationSec.value = 30;
+  if (editPostFlightVideoSpeed) editPostFlightVideoSpeed.value = '1';
+  if (editPostFlightVideoScale) {
+    editPostFlightVideoScale.value = '1';
+    document.getElementById('postFlightVideoScaleValue').textContent = '100%';
+  }
   postFlightAppField.classList.add('hidden');
   postFlightUrlField.classList.add('hidden');
   postFlightFolderField.classList.add('hidden');
   postFlightScriptField.classList.add('hidden');
+  postFlightVideoEnableField?.classList.add('hidden');
+  postFlightVideoSelectField?.classList.add('hidden');
+  postFlightVideoCustomField?.classList.add('hidden');
+  postFlightVideoDurationField?.classList.add('hidden');
+  postFlightVideoSpeedField?.classList.add('hidden');
+  postFlightVideoScaleField?.classList.add('hidden');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === 'alarm');
@@ -253,6 +301,8 @@ export function saveModal(editingId, ctx) {
     editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
+    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoScale,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
@@ -290,6 +340,11 @@ export function saveModal(editingId, ctx) {
     task.postFlightUrl = editPostFlightUrl.value.trim();
     task.postFlightFolder = editPostFlightFolder.value.trim();
     task.postFlightScript = editPostFlightScript.value.trim();
+    task.postFlightVideoFile = (editPostFlightVideoPath?.value || editPostFlightVideoSelect?.value || 'cat.mov').trim();
+    task.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
+    task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
+    task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
+    task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -369,6 +424,11 @@ export function saveModal(editingId, ctx) {
         t.postFlightAction = editPostFlightAction.value;
         t.postFlightAppPath = editPostFlightAppPath.value.trim();
         t.postFlightUrl = editPostFlightUrl.value.trim();
+        t.postFlightVideoFile = (editPostFlightVideoPath?.value || editPostFlightVideoSelect?.value || 'cat.mov').trim();
+        t.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
+        t.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
+        t.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
+        t.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
         t.month = preset ? preset.month : 1;
         t.day = preset ? preset.day : 1;
         t.hour = hour;
@@ -408,6 +468,11 @@ export function saveModal(editingId, ctx) {
     task.postFlightUrl = editPostFlightUrl.value.trim();
     task.postFlightFolder = editPostFlightFolder.value.trim();
     task.postFlightScript = editPostFlightScript.value.trim();
+    task.postFlightVideoFile = (editPostFlightVideoPath?.value || editPostFlightVideoSelect?.value || 'cat.mov').trim();
+    task.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
+    task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
+    task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
+    task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
     tasks.push(task);
   }
 

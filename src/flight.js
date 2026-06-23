@@ -55,9 +55,13 @@ const effectStyle = params.get('effect') || localStorage.getItem('_flightEffect'
 const effectConfig = effectMap[effectStyle] || effectMap.steady;
 const customMsg = params.get('msg') || localStorage.getItem('_flightMsg') || '';
 const planeStyle = params.get('plane') || localStorage.getItem('_flightPlane') || 'classic';
+const planeSize = parseFloat(params.get('size') || localStorage.getItem('_flightPlaneSize')) || 1;
 const particleStyle = params.get('particle') || localStorage.getItem('_flightParticle') || 'classic';
 const bubbleStyle = params.get('bubble') || localStorage.getItem('_flightBubble') || 'classic';
 const bubblePosition = params.get('bubblePosition') || localStorage.getItem('_flightBubblePos') || 'top';
+const bubbleSize = parseFloat(params.get('bubbleSize') || localStorage.getItem('_flightBubbleSize')) || 1;
+const bubbleBgColor = localStorage.getItem('_flightBubbleBgColor') || '';
+const bubbleFontColor = localStorage.getItem('_flightBubbleFontColor') || '';
 const imageData = localStorage.getItem('_flightImage') || '';
 const useImage = localStorage.getItem('_flightUseImage') === '1';
 const direction = params.get('dir') || localStorage.getItem('_flightDir') || 'ltr';
@@ -85,10 +89,22 @@ const plane = {
 
 const particles = [];
 
-// --- Custom image (DOM img for GIF support) ---
+// --- Custom image + GIF plane (DOM img for animated GIF support) ---
 let customImg = null;
+let gifPlaneBuiltin = null;
 const gifImg = document.getElementById('gifPlane');
-if (useImage && imageData) {
+
+if (planeStyle === 'gif') {
+  gifImg.src = '/airplane.gif';
+  gifImg.style.position = 'absolute';
+  gifImg.style.left = '0';
+  gifImg.style.top = '0';
+  gifImg.style.pointerEvents = 'none';
+  gifImg.style.transformOrigin = 'center center';
+  gifImg.style.display = 'block';
+  gifImg.style.willChange = 'transform, opacity';
+  gifPlaneBuiltin = gifImg;
+} else if (useImage && imageData) {
   gifImg.src = imageData;
   customImg = gifImg;
   gifImg.style.position = 'absolute';
@@ -251,12 +267,12 @@ function classicParticle(x, y) {
   const colors = ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#4DABF7', '#9775FA', '#F783AC'];
   for (let i = 0; i < 5; i++) {
     particles.push({
-      x: x + (Math.random() - 0.5) * 16,
-      y: y + (Math.random() - 0.5) * 16,
-      vx: flightDirection * -(3 + Math.random() * 4),
-      vy: (Math.random() - 0.5) * 3,
+      x: x + (Math.random() - 0.5) * 16 * planeSize,
+      y: y + (Math.random() - 0.5) * 16 * planeSize,
+      vx: flightDirection * -(3 + Math.random() * 4) * planeSize,
+      vy: (Math.random() - 0.5) * 3 * planeSize,
       life: 1,
-      size: 4 + Math.random() * 6,
+      size: (4 + Math.random() * 6) * planeSize,
       color: colors[i % colors.length],
       decay: 0.006 + Math.random() * 0.006,
     });
@@ -266,12 +282,12 @@ function classicParticle(x, y) {
 function rocketParticle(x, y) {
   for (let i = 0; i < 6; i++) {
     particles.push({
-      x: x - 20 + Math.random() * 10,
-      y: y + (Math.random() - 0.5) * 20,
-      vx: flightDirection * -(1 + Math.random() * 3),
-      vy: (Math.random() - 0.5) * 2,
+      x: x - 20 * planeSize + Math.random() * 10 * planeSize,
+      y: y + (Math.random() - 0.5) * 20 * planeSize,
+      vx: flightDirection * -(1 + Math.random() * 3) * planeSize,
+      vy: (Math.random() - 0.5) * 2 * planeSize,
       life: 1,
-      size: 3 + Math.random() * 8,
+      size: (3 + Math.random() * 8) * planeSize,
       color: ['#FF6B35', '#FFD700', '#FF4500', '#FF8C42'][i % 4],
       decay: 0.008 + Math.random() * 0.006,
     });
@@ -281,14 +297,14 @@ function rocketParticle(x, y) {
 function butterflyParticle(x, y) {
   for (let i = 0; i < 4; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 2;
+    const speed = (1 + Math.random() * 2) * planeSize;
     particles.push({
-      x: x + (Math.random() - 0.5) * 30,
-      y: y + (Math.random() - 0.5) * 30,
+      x: x + (Math.random() - 0.5) * 30 * planeSize,
+      y: y + (Math.random() - 0.5) * 30 * planeSize,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 1,
+      vy: Math.sin(angle) * speed - 1 * planeSize,
       life: 1,
-      size: 2 + Math.random() * 3,
+      size: (2 + Math.random() * 3) * planeSize,
       color: ['#FFD700', '#FF69B4', '#9B59B6', '#F1C40F'][i % 4],
       decay: 0.004 + Math.random() * 0.004,
     });
@@ -298,12 +314,12 @@ function butterflyParticle(x, y) {
 function jetParticle(x, y) {
   for (let i = 0; i < 3; i++) {
     particles.push({
-      x: x - 30 + Math.random() * 15,
-      y: y + (Math.random() - 0.5) * 8,
-      vx: flightDirection * -(2 + Math.random() * 5),
-      vy: (Math.random() - 0.5) * 0.5,
+      x: x - 30 * planeSize + Math.random() * 15 * planeSize,
+      y: y + (Math.random() - 0.5) * 8 * planeSize,
+      vx: flightDirection * -(2 + Math.random() * 5) * planeSize,
+      vy: (Math.random() - 0.5) * 0.5 * planeSize,
       life: 1,
-      size: 3 + Math.random() * 5,
+      size: (3 + Math.random() * 5) * planeSize,
       color: ['#dfe6e9', '#74b9ff', '#a29bfe', '#dfe6e9'][i % 4],
       decay: 0.01 + Math.random() * 0.008,
     });
@@ -313,14 +329,14 @@ function jetParticle(x, y) {
 function sparkParticle(x, y) {
   for (let i = 0; i < 6; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 2 + Math.random() * 4;
+    const speed = (2 + Math.random() * 4) * planeSize;
     particles.push({
       x,
       y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 1,
-      size: 2 + Math.random() * 2,
+      size: (2 + Math.random() * 2) * planeSize,
       color: ['#fff3b0', '#ffd166', '#ff9f1c', '#ffffff'][i % 4],
       decay: 0.02 + Math.random() * 0.01,
     });
@@ -330,12 +346,12 @@ function sparkParticle(x, y) {
 function cloudParticle(x, y) {
   for (let i = 0; i < 5; i++) {
     particles.push({
-      x: x + (Math.random() - 0.5) * 18,
-      y: y + (Math.random() - 0.5) * 10,
-      vx: flightDirection * -(0.6 + Math.random() * 1.4),
-      vy: (Math.random() - 0.5) * 0.4,
+      x: x + (Math.random() - 0.5) * 18 * planeSize,
+      y: y + (Math.random() - 0.5) * 10 * planeSize,
+      vx: flightDirection * -(0.6 + Math.random() * 1.4) * planeSize,
+      vy: (Math.random() - 0.5) * 0.4 * planeSize,
       life: 0.85,
-      size: 8 + Math.random() * 8,
+      size: (8 + Math.random() * 8) * planeSize,
       color: ['rgba(255,255,255,0.65)', 'rgba(214,230,255,0.55)', 'rgba(235,243,255,0.6)'][i % 3],
       decay: 0.006 + Math.random() * 0.004,
     });
@@ -438,10 +454,20 @@ const selectedBubble = bubbleDrawers[bubbleStyle] || bubbleDrawers.classic;
 // --- Drawing ---
 
 function drawPlane(x, y, t) {
+  if (gifPlaneBuiltin && gifPlaneBuiltin.complete && gifPlaneBuiltin.naturalWidth > 0) {
+    const aspect = gifPlaneBuiltin.naturalWidth / gifPlaneBuiltin.naturalHeight;
+    const iw = Math.round(60 * SCALE * planeSize);
+    const ih = Math.round(iw / aspect);
+    gifImg.style.width = `${iw}px`;
+    gifImg.style.height = `${ih}px`;
+    gifImg.style.opacity = '1';
+    gifImg.style.transform = `translate(${x - iw / 2}px, ${y - ih / 2}px) scaleX(${isRtl ? -1 : 1})`;
+    return;
+  }
   if (useImage && customImg && customImg.complete && customImg.naturalWidth > 0) {
     const aspect = customImg.naturalWidth / customImg.naturalHeight;
-    const iw = 60 * SCALE;
-    const ih = iw / aspect;
+    const iw = Math.round(60 * SCALE * planeSize);
+    const ih = Math.round(iw / aspect);
     gifImg.style.width = `${iw}px`;
     gifImg.style.height = `${ih}px`;
     gifImg.style.opacity = '1';
@@ -454,7 +480,7 @@ function drawPlane(x, y, t) {
   ctx.save();
   ctx.translate(x, y);
   if (isRtl) ctx.scale(-1, 1);
-  ctx.scale(SCALE, SCALE);
+  ctx.scale(SCALE * planeSize, SCALE * planeSize);
   selectedPlane(x, y, t);
   ctx.restore();
 }
@@ -469,20 +495,33 @@ function addParticle(x, y) {
 function drawQuote(x, y) {
   const text = customMsg;
   if (!text) return;
-  ctx.font = `bold ${18 * SCALE}px -apple-system, "PingFang SC", sans-serif`;
+  const bs = bubbleSize;
+  ctx.font = `bold ${18 * SCALE * bs}px -apple-system, "PingFang SC", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const padding = 14 * SCALE;
+  const padding = 14 * SCALE * bs;
   const textWidth = ctx.measureText(text).width + padding * 2;
-  const textHeight = 44 * SCALE;
+  const textHeight = 44 * SCALE * bs;
   const bx = x;
   const offsetMap = {
-    top: -40 * SCALE - textHeight / 2,
+    top: -(40 * SCALE + textHeight / 2),
     center: 0,
     bottom: 40 * SCALE + textHeight / 2,
   };
   const by = y + (offsetMap[bubblePosition] ?? offsetMap.top);
+  ctx.save();
   selectedBubble(bx, by, text, textWidth, textHeight);
+  if (bubbleBgColor) {
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = bubbleBgColor;
+    ctx.fillRect(bx - textWidth / 2, by - textHeight / 2, textWidth, textHeight);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (bubbleFontColor) {
+    ctx.fillStyle = bubbleFontColor;
+    ctx.fillText(text, bx, by);
+  }
+  ctx.restore();
 }
 
 function easeOutCubic(t) {

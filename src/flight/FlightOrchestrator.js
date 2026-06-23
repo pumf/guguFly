@@ -25,9 +25,13 @@ let speedSelectEl = null;
 let heightSelectEl = null;
 let effectSelectEl = null;
 let planeSelectEl = null;
+let planeSizeSelectEl = null;
 let particleSelectEl = null;
 let bubbleSelectEl = null;
 let bubblePositionSelectEl = null;
+let bubbleSizeSelectEl = null;
+let bubbleBgColorEl = null;
+let bubbleFontColorEl = null;
 let displaySelectEl = null;
 let customImageData_ = '';
 let useImageCheckboxEl = null;
@@ -37,6 +41,10 @@ let loopOscInterval = null;
 let customAudioProbe = null;
 let previewAudioHandle = null;
 
+let updateTaskFlightCb = null;
+
+export function setUpdateTaskFlightCb(cb) { updateTaskFlightCb = cb; }
+
 export function initFlightOrchestrator(config) {
   soundSelectEl = config.soundSelect;
   soundModeSelectEl = config.soundModeSelect;
@@ -45,9 +53,13 @@ export function initFlightOrchestrator(config) {
   heightSelectEl = config.heightSelect;
   effectSelectEl = config.effectSelect;
   planeSelectEl = config.planeSelect;
+  planeSizeSelectEl = config.planeSizeSelect;
   particleSelectEl = config.particleSelect;
   bubbleSelectEl = config.bubbleSelect;
   bubblePositionSelectEl = config.bubblePositionSelect;
+  bubbleSizeSelectEl = config.bubbleSizeSelect;
+  bubbleBgColorEl = config.bubbleBgColor;
+  bubbleFontColorEl = config.bubbleFontColor;
   displaySelectEl = config.displaySelect;
   useImageCheckboxEl = config.useImageCheckbox;
 }
@@ -279,7 +291,10 @@ async function showPostFlightNotify(action) {
       resizable: false, focus: false, visible: true,
     });
 
-    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本' };
+    const pfVideoFile = activeFlightJob?.postFlight?.videoFile || 'cat.mov';
+    const builtinLabels = { 'cat.mov': '播放猫咪', 'dog.mov': '播放狗狗' };
+    const videoLabel = (action === 'video') ? (builtinLabels[pfVideoFile] || '播放视频') : '';
+    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本', video: videoLabel };
     const label = labels[action] || action;
     const fullText = '飞行后' + label;
 
@@ -394,9 +409,11 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   const height = heightSelectEl.value;
   const effect = effectSelectEl.value;
   const plane = planeSelectEl.value;
+  const planeSize = planeSizeSelectEl?.value || '1';
   const particle = particleSelectEl.value;
   const bubble = bubbleSelectEl.value;
   const bubblePosition = bubblePositionSelectEl.value;
+  const bubbleSize = bubbleSizeSelectEl?.value || '1';
 
   const effectiveImage = taskImageData !== null ? taskImageData : customImageData_;
   const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckboxEl.checked;
@@ -442,9 +459,13 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   localStorage.setItem('_flightHeight', height);
   localStorage.setItem('_flightEffect', effect);
   localStorage.setItem('_flightPlane', plane);
+  localStorage.setItem('_flightPlaneSize', planeSize);
   localStorage.setItem('_flightParticle', particle);
   localStorage.setItem('_flightBubble', bubble);
   localStorage.setItem('_flightBubblePos', bubblePosition);
+  localStorage.setItem('_flightBubbleSize', bubbleSize);
+  localStorage.setItem('_flightBubbleBgColor', bubbleBgColorEl?.value || '');
+  localStorage.setItem('_flightBubbleFontColor', bubbleFontColorEl?.value || '');
   localStorage.setItem('_flightMsg', msg);
   localStorage.setItem('_flightDir', direction);
   localStorage.setItem('_flightSeq', sequenceId);
@@ -531,6 +552,30 @@ export async function executePostFlightAction(postFlight) {
       const confirmed = await window.showConfirm('将执行自定义脚本，是否继续？');
       if (!confirmed) return;
       await invoke('run_script', { script: postFlight.script });
+    } else if (postFlight.action === 'video') {
+      if (postFlight.videoEnable === false) return;
+      let videoFile = postFlight.videoFile || 'cat.mov';
+      const builtinVideos = ['cat.mov', 'dog.mov'];
+      if (builtinVideos.includes(videoFile) && isTauriRuntime()) {
+        try {
+          videoFile = await invoke('download_builtin_video', { name: videoFile });
+        } catch (e) { console.error('download video failed, fallback to remote:', e); }
+      }
+      const monitor = await currentMonitor().catch(() => null);
+      const scale = monitor?.scaleFactor || 1;
+      const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
+      const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
+      const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
+      const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
+      const label = postFlight.taskMsg || '休息一下';
+      const videoWin = new WebviewWindow('video-' + Date.now(), {
+        url: `/video.html?file=${encodeURIComponent(videoFile)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}`,
+        width: sw, height: sh, x: sx, y: sy,
+        transparent: true, decorations: false,
+        alwaysOnTop: true, skipTaskbar: true,
+        resizable: false, visible: true, focus: true, shadow: false,
+      });
+      videoWin.once('tauri://error', (e) => console.error('video window error:', e));
     }
   } catch (e) {
     console.error('Post-flight action failed:', e);
@@ -548,6 +593,11 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
     url: task.postFlightUrl || '',
     folder: task.postFlightFolder || '',
     script: task.postFlightScript || '',
+    videoFile: task.postFlightVideoFile || 'cat.mov',
+    videoDuration: task.postFlightVideoDuration || 30,
+    videoSpeed: parseFloat(task.postFlightVideoSpeed) || 1,
+    videoScale: parseFloat(task.postFlightVideoScale) || 1,
+    videoEnable: task.postFlightVideoEnable !== false,
     taskMsg: msg,
   };
 
@@ -566,6 +616,8 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
   if (mode === 'loop_times') {
     const sequenceId = createSequenceId(task.id);
     const totalLoopMs = task.loopCount * 10000 + 60000;
+    task._flightRemaining = task.loopCount || 3;
+    updateTaskFlightCb?.(task.id, task._flightRemaining);
     flightSequences.set(sequenceId, {
       active: true, sequenceId, taskId: task.id, taskMsg: msg,
       taskImage, taskUseImage, postFlight,
@@ -583,6 +635,8 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
   if (mode === 'loop_interval') {
     const sequenceId = createSequenceId(task.id);
     const totalIntervalMs = (task.intervalCount - 1) * task.loopInterval * 60 * 1000 + 60000;
+    task._flightRemaining = task.intervalCount || 10;
+    updateTaskFlightCb?.(task.id, task._flightRemaining);
     flightSequences.set(sequenceId, {
       active: true, sequenceId, taskId: task.id, taskMsg: msg,
       taskImage, taskUseImage, postFlight,
@@ -615,6 +669,7 @@ export async function initFlightListeners() {
 
     if (inLoop && loopState.mode === 'loop_times') {
       loopState.remaining--;
+      updateTaskFlightCb?.(loopState.taskId, loopState.remaining);
       if (loopState.remaining > 0) {
         loopState.direction = loopState.direction === 'ltr' ? 'rtl' : 'ltr';
         continued = true;
@@ -625,6 +680,7 @@ export async function initFlightListeners() {
       }
     } else if (inLoop && loopState.mode === 'loop_interval') {
       loopState.remaining--;
+      updateTaskFlightCb?.(loopState.taskId, loopState.remaining);
       if (loopState.remaining > 0) {
         stopLoopSound();
         const elapsed = Date.now() - loopState.lastStart;

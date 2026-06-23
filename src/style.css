@@ -1204,7 +1204,7 @@ body {
 }
 
 .config-panel:not(.hidden) {
-  max-height: 420px;
+  max-height: min(560px, calc(100vh - 220px));
   opacity: 1;
   padding-top: 4px;
   overflow-y: auto;
@@ -1230,8 +1230,18 @@ body {
 .config-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 6px;
+  flex-wrap: nowrap;
+}
+
+.config-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .config-action-btn {
@@ -1261,13 +1271,16 @@ body {
 .config-stack {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .config-card {
-  padding: 8px;
-  border-radius: 18px;
+  padding: 8px 10px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.52);
   border: 1px solid rgba(129, 149, 182, 0.12);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .config-card-head {
@@ -1275,12 +1288,15 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
+  padding: 2px 2px 0;
 }
 
 .config-card-head strong {
-  font-size: 12px;
-  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
 }
 
 .config-card-head span {
@@ -1299,6 +1315,14 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.config-grid--appearance {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.config-grid--appearance > .config-row:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
 .config-row {
   display: flex;
   align-items: center;
@@ -1306,10 +1330,25 @@ body {
   gap: 6px;
   margin-bottom: 0;
   min-width: 0;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(129, 149, 182, 0.14);
-  border-radius: 16px;
+  padding: 8px 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(129, 149, 182, 0.10);
+  border-radius: 0;
+}
+
+.config-row:last-child {
+  border-bottom: 0;
+}
+
+.config-grid .config-row {
+  border-bottom: 0;
+  overflow: hidden;
+}
+
+.config-grid .config-row select {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .config-row label {
@@ -1421,6 +1460,62 @@ body {
 .cfg-btn.field-error {
   color: var(--danger);
   background: rgba(221, 109, 88, 0.08);
+}
+
+/* === Custom media collapse === */
+.customize-toggle {
+  margin-left: auto;
+  color: var(--accent);
+  border-color: rgba(45, 127, 249, 0.28);
+  background: rgba(45, 127, 249, 0.06);
+}
+
+.customize-toggle:hover {
+  background: rgba(45, 127, 249, 0.12);
+}
+
+.customize-toggle.is-open {
+  color: var(--muted);
+  border-color: rgba(135, 151, 184, 0.22);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.customize-toggle--block {
+  width: 100%;
+  margin: 6px 0 0;
+  justify-content: center;
+  display: flex;
+}
+
+.media-collapse {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 4px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(129, 149, 182, 0.18);
+  border-radius: 0;
+}
+
+.media-collapse.hidden {
+  display: none;
+}
+
+[data-active-theme="dark"] .customize-toggle {
+  background: rgba(45, 127, 249, 0.14);
+  border-color: rgba(95, 160, 255, 0.32);
+  color: var(--accent);
+}
+
+[data-active-theme="dark"] .customize-toggle.is-open {
+  background: rgba(28, 34, 48, 0.72);
+  border-color: var(--border-strong);
+  color: var(--soft-muted);
+}
+
+[data-active-theme="dark"] .media-collapse {
+  border-top-color: rgba(129, 149, 182, 0.22);
 }
 
 .modal {
@@ -2025,8 +2120,12 @@ body {
   }
 
   .config-actions {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .config-actions-right {
+    margin-left: 0;
+    justify-content: flex-end;
   }
 
   .config-card-head {
@@ -2142,8 +2241,8 @@ body {
 }
 
 [data-active-theme="dark"] .config-row {
-  background: rgba(20, 26, 38, 0.72);
-  border-color: var(--border-strong);
+  background: transparent;
+  border-bottom-color: rgba(129, 149, 182, 0.18);
 }
 
 [data-active-theme="dark"] .task-group-btn {
@@ -2179,30 +2278,33 @@ body {
 }
 
 /* === Scene presets === */
-.preset-card {
-  margin-bottom: 0;
+.preset-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.preset-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  margin-top: 6px;
+.preset-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .preset-btn {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 8px 4px;
+  gap: 3px;
+  padding: 5px 10px;
   font-size: 11px;
   font-weight: 600;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.4);
   color: var(--text);
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
@@ -2228,32 +2330,17 @@ body {
 }
 
 .preset-emoji {
-  font-size: 18px;
+  font-size: 13px;
   line-height: 1;
-}
-
-.preset-name {
-  font-size: 11px;
-  font-weight: 700;
-  margin-top: 2px;
-}
-
-.preset-desc {
-  font-size: 9px;
-  font-weight: 500;
-  opacity: 0.7;
-  letter-spacing: 0.2px;
-}
-
-.preset-btn.is-active .preset-desc {
-  opacity: 0.9;
 }
 
 /* === Effect picker === */
 .config-row--effect {
   flex-direction: column;
   align-items: stretch;
-  margin-top: 5px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(129, 149, 182, 0.10);
 }
 
 .config-row--effect > label {
@@ -2266,14 +2353,18 @@ body {
   flex-wrap: wrap;
 }
 
+.effect-picker::-webkit-scrollbar {
+  display: none;
+}
+
 .effect-card {
-  flex: 1 1 calc(33% - 6px);
-  min-width: 90px;
+  flex: 0 0 calc(25% - 5px);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 8px 6px 6px;
+  padding: 6px 4px;
   font-size: 11px;
   font-weight: 600;
   border: 1px solid var(--border);

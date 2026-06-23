@@ -38,6 +38,7 @@ export async function applySettings(ctx) {
     updateSoundMeta,
     revokeCustomAudioObjectUrl,
     updateTitleLogo,
+    defaultFlightSettings,
   } = ctx;
 
   state.isMuted = cfg.muted;
@@ -57,17 +58,22 @@ export async function applySettings(ctx) {
     heightSelect: refs.heightSelect,
     effectSelect: refs.effectSelect,
     planeSelect: refs.planeSelect,
+    planeSizeSelect: refs.planeSizeSelect,
     particleSelect: refs.particleSelect,
     bubbleSelect: refs.bubbleSelect,
     bubblePositionSelect: refs.bubblePositionSelect,
+    bubbleSizeSelect: refs.bubbleSizeSelect,
+    bubbleBgColor: refs.bubbleBgColor,
+    bubbleFontColor: refs.bubbleFontColor,
     soundSelect: refs.soundSelect,
     soundModeSelect: refs.soundModeSelect,
     useSoundCheckbox: refs.useSoundCheckbox,
     useImageCheckbox: refs.useImageCheckbox,
     effectCards: (document.getElementById('effectPicker')?.querySelectorAll('.effect-card')) || [],
     presetButtons: document.querySelectorAll('.preset-btn'),
-    presetWatchSelectors: [refs.speedSelect, refs.heightSelect, refs.effectSelect, refs.planeSelect, refs.particleSelect, refs.bubbleSelect, refs.bubblePositionSelect, refs.soundSelect, refs.soundModeSelect],
+    presetWatchSelectors: [refs.speedSelect, refs.heightSelect, refs.effectSelect, refs.planeSelect, refs.planeSizeSelect, refs.particleSelect, refs.bubbleSelect, refs.bubblePositionSelect, refs.bubbleSizeSelect, refs.bubbleBgColor, refs.bubbleFontColor, refs.soundSelect, refs.soundModeSelect],
     FLIGHT_PRESETS: flightPresets,
+    DEFAULT_FLIGHT_SETTINGS: defaultFlightSettings,
     persistFlightSettings,
     persistSetting,
     showToast,
@@ -116,6 +122,10 @@ export async function applySettings(ctx) {
   if (cfg.display) refs.displaySelect.value = cfg.display;
   if (cfg.effect) { refs.effectSelect.value = cfg.effect; syncEffectPicker(cfg.effect); }
   if (cfg.plane) refs.planeSelect.value = cfg.plane;
+  if (cfg.planeSize) refs.planeSizeSelect.value = cfg.planeSize;
+  if (cfg.bubbleSize) refs.bubbleSizeSelect.value = cfg.bubbleSize;
+  if (cfg.bubbleBgColor) refs.bubbleBgColor.value = cfg.bubbleBgColor;
+  if (cfg.bubbleFontColor) refs.bubbleFontColor.value = cfg.bubbleFontColor;
   if (cfg.particle) refs.particleSelect.value = cfg.particle;
   if (cfg.bubble) refs.bubbleSelect.value = cfg.bubble;
   if (cfg.bubblePosition) refs.bubblePositionSelect.value = cfg.bubblePosition;
@@ -141,6 +151,16 @@ export async function applySettings(ctx) {
     refs.imagePreview.classList.remove('hidden');
   }
   refs.useImageCheckbox.closest('.img-toggle').classList.toggle('hidden', !state.customImageData);
+  if (state.customImageData && refs.customizeImageBtn && refs.imageCollapse) {
+    refs.imageCollapse.classList.remove('hidden');
+    refs.customizeImageBtn.classList.add('is-open');
+    refs.customizeImageBtn.textContent = '▾ 收起';
+  }
+  if (state.customAudioData && refs.customizeSoundBtn && refs.soundCollapse) {
+    refs.soundCollapse.classList.remove('hidden');
+    refs.customizeSoundBtn.classList.add('is-open');
+    refs.customizeSoundBtn.textContent = '▾ 收起';
+  }
   updateTitleLogo();
 
   const date = new Date().toDateString();

@@ -28,8 +28,19 @@ export function initModalEvents(ctx) {
   const postFlightUrlField = document.getElementById('postFlightUrlField');
   const postFlightFolderField = document.getElementById('postFlightFolderField');
   const postFlightScriptField = document.getElementById('postFlightScriptField');
+  const postFlightVideoEnableField = document.getElementById('postFlightVideoEnableField');
+  const postFlightVideoSelectField = document.getElementById('postFlightVideoSelectField');
+  const postFlightVideoCustomField = document.getElementById('postFlightVideoCustomField');
+  const postFlightVideoDurationField = document.getElementById('postFlightVideoDurationField');
+  const postFlightVideoSpeedField = document.getElementById('postFlightVideoSpeedField');
+  const postFlightVideoScaleField = document.getElementById('postFlightVideoScaleField');
   const selectAppBtn = document.getElementById('selectAppBtn');
   const selectFolderBtn = document.getElementById('selectFolderBtn');
+  const selectVideoBtn = document.getElementById('selectVideoBtn');
+  const clearVideoPathBtn = document.getElementById('clearVideoPathBtn');
+  const selectVideoInput = document.getElementById('selectVideoInput');
+  const editPostFlightVideoSelect = document.getElementById('editPostFlightVideoSelect');
+  const editPostFlightVideoPath = document.getElementById('editPostFlightVideoPath');
   const editPostFlightAppPath = document.getElementById('editPostFlightAppPath');
   const editPostFlightUrl = document.getElementById('editPostFlightUrl');
   const editPostFlightFolder = document.getElementById('editPostFlightFolder');
@@ -46,7 +57,19 @@ export function initModalEvents(ctx) {
       loopTimesField, loopIntervalField,
       editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
       editPostFlightFolder, editPostFlightScript,
+      editPostFlightVideoEnable: document.getElementById('editPostFlightVideoEnable'),
+      editPostFlightVideoSelect: document.getElementById('editPostFlightVideoSelect'),
+      editPostFlightVideoPath: document.getElementById('editPostFlightVideoPath'),
+      editPostFlightVideoDurationMin: document.getElementById('editPostFlightVideoDurationMin'),
+      editPostFlightVideoDurationSec: document.getElementById('editPostFlightVideoDurationSec'),
+      editPostFlightVideoSpeed: document.getElementById('editPostFlightVideoSpeed'),
+      editPostFlightVideoScale: document.getElementById('editPostFlightVideoScale'),
       postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
+      postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
+      selectVideoBtn: document.getElementById('selectVideoBtn'),
+      clearVideoPathBtn: document.getElementById('clearVideoPathBtn'),
+      selectVideoInput: document.getElementById('selectVideoInput'),
+      isTauriRuntime,
       alarmFields: document.getElementById('alarmFields'),
       countdownFields: document.getElementById('countdownFields'),
       holidayFields: document.getElementById('holidayFields'),
@@ -131,6 +154,18 @@ export function initModalEvents(ctx) {
     postFlightUrlField?.classList.toggle('hidden', v !== 'url');
     postFlightFolderField?.classList.toggle('hidden', v !== 'folder');
     postFlightScriptField?.classList.toggle('hidden', v !== 'script' && v !== 'lock');
+    const isVideo = v === 'video';
+    postFlightVideoEnableField?.classList.toggle('hidden', !isVideo);
+    postFlightVideoSelectField?.classList.toggle('hidden', !isVideo);
+    postFlightVideoCustomField?.classList.toggle('hidden', !isVideo);
+    postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
+    postFlightVideoSpeedField?.classList.toggle('hidden', !isVideo);
+    postFlightVideoScaleField?.classList.toggle('hidden', !isVideo);
+  });
+
+  document.getElementById('editPostFlightVideoScale')?.addEventListener('input', function(e) {
+    const val = parseFloat(e.target.value);
+    document.getElementById('postFlightVideoScaleValue').textContent = Math.round(val * 100) + '%';
   });
 
   selectAppBtn?.addEventListener('click', async () => {
@@ -147,6 +182,22 @@ export function initModalEvents(ctx) {
       const selected = await invoke('pick_folder');
       if (selected) editPostFlightFolder.value = selected;
     } catch (e) { console.error('Folder dialog failed:', e); }
+  });
+
+  selectVideoBtn?.addEventListener('click', async () => {
+    if (!isTauriRuntime) return;
+    try {
+      const selected = await invoke('pick_file');
+      if (selected) {
+        if (editPostFlightVideoPath) editPostFlightVideoPath.value = selected;
+        if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = '';
+      }
+    } catch (e) { console.error('Video file dialog failed:', e); }
+  });
+
+  clearVideoPathBtn?.addEventListener('click', () => {
+    if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
+    if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = 'cat.mov';
   });
 
   document.querySelectorAll('.day-btn').forEach(btn => {

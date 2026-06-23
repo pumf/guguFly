@@ -278,8 +278,14 @@ export function getTaskInfoText(task, holidayPresets) {
     if (task.lunar) infoText += '（农历）';
   }
 
-  const modeLabel = { once: '', loop_times: ' 🔁循环', loop_interval: ' ⏰间隔' };
-  if (task.flightMode !== 'once') infoText += modeLabel[task.flightMode];
+  if (task.flightMode !== 'once') {
+    if (task.flightMode === 'loop_times') {
+      infoText += ` 🔁连续${task.loopCount}次`;
+    } else if (task.flightMode === 'loop_interval') {
+      infoText += ` ⏰每${task.loopInterval}min×${task.intervalCount}次`;
+    }
+  }
+  if (task._flightRemaining > 0) infoText += ` 🛩剩余${task._flightRemaining}次`;
   if (task.msg) infoText += ` 💬${task.msg}`;
   return infoText;
 }
@@ -454,6 +460,11 @@ export function getCleanTasks(tasks) {
       postFlightUrl: t.postFlightUrl || '',
       postFlightFolder: t.postFlightFolder || '',
       postFlightScript: t.postFlightScript || '',
+      postFlightVideoFile: t.postFlightVideoFile || 'cat.mov',
+      postFlightVideoDuration: t.postFlightVideoDuration || 30,
+      postFlightVideoSpeed: parseFloat(t.postFlightVideoSpeed) || 1,
+      postFlightVideoScale: parseFloat(t.postFlightVideoScale) || 1,
+      postFlightVideoEnable: t.postFlightVideoEnable !== false,
       group: t.group || '', imageData: t.imageData || null,
       useImage: !!t.useImage, color: t.color || null,
     };
@@ -487,6 +498,11 @@ export function hydrateTasks(saved) {
       postFlightUrl: t.postFlightUrl || '',
       postFlightFolder: t.postFlightFolder || '',
       postFlightScript: t.postFlightScript || '',
+      postFlightVideoFile: t.postFlightVideoFile || 'cat.mov',
+      postFlightVideoDuration: t.postFlightVideoDuration || 30,
+      postFlightVideoSpeed: parseFloat(t.postFlightVideoSpeed) || 1,
+      postFlightVideoScale: parseFloat(t.postFlightVideoScale) || 1,
+      postFlightVideoEnable: t.postFlightVideoEnable !== false,
       group: t.group || '',
       imageData: t.imageData || null,
       useImage: !!t.useImage,

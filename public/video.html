@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Video</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:transparent;user-select:none;-webkit-user-select:none}
+canvas{display:block;position:fixed;top:-1px;left:-1px;width:calc(100vw + 2px);height:calc(100vh + 2px);pointer-events:none;border:none;outline:none}
+#overlay{position:fixed;bottom:0;left:0;right:0;padding:40px 48px;
+  background:linear-gradient(transparent,rgba(0,0,0,.7));
+  pointer-events:none}
+#clock{position:fixed;top:32px;left:50%;transform:translateX(-50%);font-family:"Avenir Next",sans-serif;
+  font-size:80px;font-weight:800;color:#fff;letter-spacing:6px;text-shadow:0 2px 32px rgba(0,0,0,.7)}
+#label{font-size:22px;font-weight:600;color:#fff;margin-bottom:8px;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+#countdown{font-size:36px;font-weight:300;color:rgba(255,255,255,.85);text-shadow:0 2px 12px rgba(0,0,0,.5)}
+#countdown strong{font-weight:600;color:#fff}
+#close-btn{position:fixed;top:20px;left:20px;width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+  color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .2s;pointer-events:auto}
+#close-btn:hover{background:rgba(255,255,255,.25)}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div id="label">🐱 休息一下</div>
+  <div id="countdown">还剩 <strong id="remaining">0</strong> 秒</div>
+</div>
+<div id="clock"></div>
+<button id="close-btn">✕</button>
+<script src="video.js"></script>
+</body></html>

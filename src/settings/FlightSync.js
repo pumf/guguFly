@@ -45,6 +45,30 @@ export function syncPresetButtons() {
 }
 
 export function applyPreset(presetKey) {
+  const active = detectActivePreset();
+  if (active === presetKey) {
+    const def = ctx.DEFAULT_FLIGHT_SETTINGS;
+    ctx.speedSelect.value = def.speed;
+    ctx.heightSelect.value = def.height;
+    ctx.effectSelect.value = def.effect;
+    ctx.planeSelect.value = def.plane;
+    ctx.particleSelect.value = def.particle;
+    ctx.bubbleSelect.value = def.bubble;
+    ctx.bubblePositionSelect.value = def.bubblePosition;
+    ctx.soundSelect.value = def.sound;
+    ctx.soundModeSelect.value = def.soundMode;
+    syncEffectPicker(def.effect);
+    syncPresetButtons();
+    ctx.persistFlightSettings({
+      speed: def.speed, height: def.height, effect: def.effect,
+      plane: def.plane, particle: def.particle, bubble: def.bubble,
+      bubblePosition: def.bubblePosition, sound: def.sound,
+      soundMode: def.soundMode, useSound: ctx.useSoundCheckbox.checked,
+      useImage: ctx.useImageCheckbox.checked,
+    });
+    ctx.showToast('已取消预设选择');
+    return;
+  }
   const preset = ctx.FLIGHT_PRESETS[presetKey];
   if (!preset) return;
   ctx.speedSelect.value = preset.speed;

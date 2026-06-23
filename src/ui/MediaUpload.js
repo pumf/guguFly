@@ -8,8 +8,10 @@ const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 export function initMediaUpload(ctx) {
   const {
     imageBtn, imageInput, clearImageBtn, imagePreview, useImageCheckbox,
+    customizeImageBtn, imageCollapse,
     editImageBtn, editImageInput, editClearImageBtn, editImagePreview, editUseImageCheckbox,
     soundBtn, soundInput, clearSoundBtn, useSoundCheckbox,
+    customizeSoundBtn, soundCollapse,
     updateTitleLogo, setCustomImageData, persistSetting, showToast,
     buildCustomAudioObjectUrl, syncAudioObjectUrlTo, updateSoundMeta,
     setCustomAudioData, setCustomAudioObjectUrl,
@@ -17,6 +19,28 @@ export function initMediaUpload(ctx) {
     unlockAudioIfNeeded, validateCustomAudioPreview,
     customImageDataRef, editImageDataRef, customAudioDataRef, customAudioNameRef,
   } = ctx;
+
+  const toggleImageCollapse = (open) => {
+    if (!customizeImageBtn || !imageCollapse) return;
+    const shouldOpen = open ?? imageCollapse.classList.contains('hidden');
+    imageCollapse.classList.toggle('hidden', !shouldOpen);
+    customizeImageBtn.classList.toggle('is-open', shouldOpen);
+    customizeImageBtn.textContent = shouldOpen ? '▾ 收起' : '＋ 自定义图片';
+  };
+  if (customizeImageBtn) {
+    customizeImageBtn.addEventListener('click', () => toggleImageCollapse());
+  }
+
+  const toggleSoundCollapse = (open) => {
+    if (!customizeSoundBtn || !soundCollapse) return;
+    const shouldOpen = open ?? soundCollapse.classList.contains('hidden');
+    soundCollapse.classList.toggle('hidden', !shouldOpen);
+    customizeSoundBtn.classList.toggle('is-open', shouldOpen);
+    customizeSoundBtn.textContent = shouldOpen ? '▾ 收起' : '＋ 自定义音频';
+  };
+  if (customizeSoundBtn) {
+    customizeSoundBtn.addEventListener('click', () => toggleSoundCollapse());
+  }
 
   imageBtn.addEventListener('click', () => imageInput.click());
   imageInput.addEventListener('change', () => {
@@ -31,6 +55,7 @@ export function initMediaUpload(ctx) {
       imagePreview.src = data; imagePreview.classList.remove('hidden');
       useImageCheckbox.closest('.img-toggle').classList.remove('hidden');
       useImageCheckbox.checked = true;
+      toggleImageCollapse(true);
       updateTitleLogo();
       setCustomImageData(data);
       persistSetting('customImage', data);
@@ -45,6 +70,7 @@ export function initMediaUpload(ctx) {
     useImageCheckbox.closest('.img-toggle').classList.add('hidden');
     useImageCheckbox.checked = false;
     imageInput.value = '';
+    toggleImageCollapse(false);
     updateTitleLogo();
     setCustomImageData('');
     persistSetting('customImage', '');
@@ -93,6 +119,7 @@ export function initMediaUpload(ctx) {
       syncAudioObjectUrlTo(audioUrl);
       clearSoundBtn.classList.remove('hidden');
       useSoundCheckbox.checked = true;
+      toggleSoundCollapse(true);
       updateSoundMeta();
       setCustomAudioData(audioData);
       persistSetting('customAudio', audioData);
@@ -111,6 +138,7 @@ export function initMediaUpload(ctx) {
     clearSoundBtn.classList.add('hidden');
     useSoundCheckbox.checked = false;
     soundInput.value = '';
+    toggleSoundCollapse(false);
     updateSoundMeta();
     setCustomAudioData(''); setCustomAudioObjectUrl('');
     syncAudioObjectUrlTo('');

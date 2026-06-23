@@ -155,6 +155,28 @@ fn pick_folder() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+async fn download_builtin_video(name: String, app: tauri::AppHandle) -> Result<String, String> {
+    use std::fs;
+    let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
+    let videos_dir = data_dir.join("videos");
+    fs::create_dir_all(&videos_dir).map_err(|e| format!("mkdir: {}", e))?;
+    let dest = videos_dir.join(&name);
+    if dest.exists() {
+        return Ok(dest.to_string_lossy().to_string());
+    }
+    let base_url = "https://fly.pumf.top/resource";
+    let url = format!("{}/{}", base_url, name);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("HTTP client: {}", e))?;
+    let resp = client.get(&url).send().await.map_err(|e| format!("download failed: {}", e))?;
+    let bytes = resp.bytes().await.map_err(|e| format!("read body: {}", e))?;
+    fs::write(&dest, &bytes).map_err(|e| format!("write file: {}", e))?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 fn open_app(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -480,7 +502,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

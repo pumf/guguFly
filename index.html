@@ -76,7 +76,7 @@
               <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
               <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
             </div>
-        </div>
+          </div>
 
         <!-- Task list -->
         <div id="taskList" class="task-list"></div>
@@ -90,52 +90,28 @@
         </div>
         <div id="configPanel" class="config-panel hidden">
           <div class="config-actions">
-            <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
-            <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
+            <div class="preset-chips">
+              <button class="preset-btn" type="button" data-preset="work"><span class="preset-emoji">🏢</span>工作</button>
+              <button class="preset-btn" type="button" data-preset="quick"><span class="preset-emoji">⚡</span>速战</button>
+              <button class="preset-btn" type="button" data-preset="festive"><span class="preset-emoji">🎉</span>节日</button>
+              <button class="preset-btn" type="button" data-preset="anniversary"><span class="preset-emoji">💝</span>纪念日</button>
+              <button class="preset-btn" type="button" data-preset="night"><span class="preset-emoji">🌙</span>夜间</button>
+            </div>
+            <div class="config-actions-right">
+              <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
+              <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
+            </div>
           </div>
-          <section class="config-card preset-card">
-            <div class="config-card-head">
-              <strong>场景预设</strong>
-              <span>一键应用一套飞行风格</span>
-            </div>
-            <div class="preset-grid">
-              <button class="preset-btn" type="button" data-preset="work">
-                <span class="preset-emoji">🏢</span>
-                <span class="preset-name">工作模式</span>
-                <span class="preset-desc">稳重克制</span>
-              </button>
-              <button class="preset-btn" type="button" data-preset="quick">
-                <span class="preset-emoji">⚡</span>
-                <span class="preset-name">速战速决</span>
-                <span class="preset-desc">快速擦过</span>
-              </button>
-              <button class="preset-btn" type="button" data-preset="festive">
-                <span class="preset-emoji">🎉</span>
-                <span class="preset-name">节日氛围</span>
-                <span class="preset-desc">S 形 + 鸟鸣</span>
-              </button>
-              <button class="preset-btn" type="button" data-preset="anniversary">
-                <span class="preset-emoji">💝</span>
-                <span class="preset-name">纪念日</span>
-                <span class="preset-desc">仪式感</span>
-              </button>
-              <button class="preset-btn" type="button" data-preset="night">
-                <span class="preset-emoji">🌙</span>
-                <span class="preset-name">夜间低调</span>
-                <span class="preset-desc">底部慢速</span>
-              </button>
-            </div>
-          </section>
           <div class="config-stack">
             <section class="config-card">
               <div class="config-card-head">
                 <strong>外观样式</strong>
-                <span>调整飞机、尾焰和文案框</span>
               </div>
-              <div class="config-grid">
+              <div class="config-grid config-grid--appearance">
                 <div class="config-row">
                   <label>飞机</label>
                   <select id="planeSelect">
+                    <option value="gif">🛩 飞机</option>
                     <option value="classic">经典</option>
                     <option value="rocket">火箭</option>
                     <option value="butterfly">蝴蝶</option>
@@ -143,14 +119,17 @@
                     <option value="paper">纸飞机</option>
                     <option value="ufo">飞碟</option>
                   </select>
-                  <button id="imageBtn" class="cfg-btn">📷 图片</button>
-                  <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
-                  <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
-                  <img id="imagePreview" class="img-preview hidden" alt="飞行图片预览" />
-                  <label class="img-toggle">
-                    <input type="checkbox" id="useImageCheckbox" />
-                    <span>图片</span>
-                  </label>
+                </div>
+                <div class="config-row">
+                  <label>飞机大小</label>
+                  <select id="planeSizeSelect">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2">2x</option>
+                  </select>
                 </div>
                 <div class="config-row">
                   <label>尾焰</label>
@@ -178,14 +157,38 @@
                     <option value="center">居中</option>
                     <option value="bottom">下方</option>
                   </select>
+                  <select id="bubbleSizeSelect">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2">2x</option>
+                  </select>
                 </div>
+                <div class="config-row">
+                  <label>气泡颜色</label>
+                  <input type="color" id="bubbleBgColor" value="#ffffff" style="width:36px;height:28px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer" />
+                  <label style="font-size:12px;color:var(--text-muted)">文字</label>
+                  <input type="color" id="bubbleFontColor" value="#333333" style="width:36px;height:28px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer" />
+                </div>
+              </div>
+              <button id="customizeImageBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button">＋ 自定义图片</button>
+              <div id="imageCollapse" class="media-collapse hidden">
+                <button id="imageBtn" class="cfg-btn">📷 选择图片</button>
+                <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
+                <img id="imagePreview" class="img-preview hidden" alt="飞行图片预览" />
+                <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
+                <label class="img-toggle">
+                  <input type="checkbox" id="useImageCheckbox" />
+                  <span>启用</span>
+                </label>
               </div>
             </section>
 
             <section class="config-card">
               <div class="config-card-head">
                 <strong>飞行节奏</strong>
-                <span>控制速度、高度和飞过屏幕的整体感觉</span>
               </div>
               <div class="config-grid config-grid--basic">
                 <div class="config-row">
@@ -219,42 +222,34 @@
                     <button class="effect-card" type="button" data-effect="linear">
                       <span class="effect-preview effect-preview--linear"><span class="effect-dot"></span></span>
                       <span class="effect-name">经典直穿</span>
-                      <span class="effect-desc">直线</span>
                     </button>
                     <button class="effect-card is-active" type="button" data-effect="steady">
                       <span class="effect-preview effect-preview--steady"><span class="effect-dot"></span></span>
                       <span class="effect-name">自然滑过</span>
-                      <span class="effect-desc">缓入缓出</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="ceremony">
                       <span class="effect-preview effect-preview--ceremony"><span class="effect-dot"></span></span>
                       <span class="effect-name">仪式感</span>
-                      <span class="effect-desc">弧线</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="swift">
                       <span class="effect-preview effect-preview--swift"><span class="effect-dot"></span></span>
                       <span class="effect-name">利落提醒</span>
-                      <span class="effect-desc">快速</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="playful">
                       <span class="effect-preview effect-preview--playful"><span class="effect-dot"></span></span>
                       <span class="effect-name">活泼一点</span>
-                      <span class="effect-desc">S 形</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="spiral">
                       <span class="effect-preview effect-preview--spiral"><span class="effect-dot"></span></span>
                       <span class="effect-name">螺旋</span>
-                      <span class="effect-desc">旋转</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="heart">
                       <span class="effect-preview effect-preview--heart"><span class="effect-dot"></span></span>
                       <span class="effect-name">心形</span>
-                      <span class="effect-desc">爱心轨迹</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="figure8">
                       <span class="effect-preview effect-preview--figure8"><span class="effect-dot"></span></span>
                       <span class="effect-name">8 字</span>
-                      <span class="effect-desc">∞ 轨迹</span>
                     </button>
                   </div>
                   <select id="effectSelect" hidden>
@@ -274,7 +269,6 @@
             <section class="config-card">
               <div class="config-card-head">
                 <strong>提示音</strong>
-                <span>设置音色、循环方式和自定义音频</span>
               </div>
               <div class="config-row">
                 <label>音色</label>
@@ -296,17 +290,20 @@
                   <option value="once">一次</option>
                   <option value="loop">循环</option>
                 </select>
-                <button id="soundBtn" class="cfg-btn">🎵 音乐</button>
+              </div>
+              <button id="customizeSoundBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button">＋ 自定义音频</button>
+              <div id="soundCollapse" class="media-collapse hidden">
+                <button id="soundBtn" class="cfg-btn">🎵 选择音频</button>
                 <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
-                <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
-                <label class="img-toggle sound-toggle">
-                  <input type="checkbox" id="useSoundCheckbox" />
-                  <span>自定义音频</span>
-                </label>
                 <div id="soundMeta" class="sound-meta">
                   <span id="soundName" class="sound-name">未选择音频</span>
                   <button id="previewSoundBtn" class="cfg-btn sound-preview-btn" type="button">试听</button>
                 </div>
+                <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
+                <label class="img-toggle sound-toggle">
+                  <input type="checkbox" id="useSoundCheckbox" />
+                  <span>启用</span>
+                </label>
               </div>
             </section>
           </div>
@@ -500,6 +497,7 @@
                 <option value="folder">打开文件夹</option>
                 <option value="tts">语音播报文案</option>
                 <option value="script">运行脚本</option>
+                <option value="video">播放视频</option>
               </select>
             </div>
             <div id="postFlightAppField" class="form-row hidden">
@@ -521,6 +519,50 @@
             <div id="postFlightScriptField" class="form-row hidden">
               <label style="white-space:nowrap">脚本命令</label>
               <input type="text" id="editPostFlightScript" class="edit-input" placeholder="pmset displaysleepnow" />
+            </div>
+            <div id="postFlightVideoEnableField" class="form-row hidden">
+              <label class="img-toggle">
+                <input type="checkbox" id="editPostFlightVideoEnable" checked />
+                <span>启用视频</span>
+              </label>
+            </div>
+            <div id="postFlightVideoSelectField" class="form-row hidden">
+              <label style="white-space:nowrap">内置视频</label>
+              <select id="editPostFlightVideoSelect" class="edit-input">
+                <option value="cat.mov">🐱 猫咪</option>
+                <option value="dog.mov">🐶 狗狗</option>
+              </select>
+              <span style="color:var(--text-muted);font-size:12px">或</span>
+              <input type="file" id="selectVideoInput" accept="video/mov,video/mp4,video/quicktime" hidden />
+              <button id="selectVideoBtn" class="cfg-btn" type="button">📁 选本地视频</button>
+            </div>
+            <div id="postFlightVideoCustomField" class="form-row hidden">
+              <label style="white-space:nowrap">自定义路径</label>
+              <input type="text" id="editPostFlightVideoPath" class="edit-input" placeholder="" style="flex:1" readonly />
+              <button id="clearVideoPathBtn" class="cfg-btn small" type="button">✕</button>
+            </div>
+            <div id="postFlightVideoDurationField" class="form-row hidden">
+              <label>播放时长</label>
+              <input type="number" id="editPostFlightVideoDurationMin" class="edit-input" value="0" min="0" max="30" style="width:60px" />
+              <span style="color:var(--text-muted);font-size:13px">分</span>
+              <input type="number" id="editPostFlightVideoDurationSec" class="edit-input" value="30" min="0" max="59" style="width:60px" />
+              <span style="color:var(--text-muted);font-size:13px">秒</span>
+            </div>
+            <div id="postFlightVideoSpeedField" class="form-row hidden">
+              <label>播放速度</label>
+              <select id="editPostFlightVideoSpeed" class="edit-input" style="width:100px">
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+            </div>
+            <div id="postFlightVideoScaleField" class="form-row hidden">
+              <label>视频尺寸</label>
+              <input type="range" id="editPostFlightVideoScale" class="edit-input" min="0.2" max="1" step="0.1" value="1" style="width:100px" />
+              <span id="postFlightVideoScaleValue" style="color:var(--text-muted);font-size:13px;min-width:40px">100%</span>
             </div>
           </div>
           <div class="form-block">

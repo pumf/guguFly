@@ -74,6 +74,8 @@ export async function autoCheckForUpdate() {
   if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
     if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
     showUpdateIndicator(true);
+    void checkForUpdate();
+    return;
   }
 
   try {
@@ -86,6 +88,7 @@ export async function autoCheckForUpdate() {
     setCachedUpdate({ version: latestVer, url: release.html_url || GITHUB_DOWNLOAD_URL, notes: release.notes || '' });
     if (updateStatus) updateStatus.textContent = `发现 v${latestVer}`;
     showUpdateIndicator(true);
+    void checkForUpdate();
   } catch {
     if (updateStatus) updateStatus.textContent = '检查暂不可用';
   }

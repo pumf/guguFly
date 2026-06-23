@@ -10,8 +10,8 @@ export function initSettingsPanel(ctx) {
     checkForUpdate, openFeedbackPage, openReleasePage, getCurrentVersion,
     showToast, previewCustomSound, previewFlight, resetFlightSettings,
     invoke,
-    speedSelect, heightSelect, effectSelect, planeSelect, particleSelect,
-    bubbleSelect, bubblePositionSelect, soundSelect, soundModeSelect,
+    speedSelect, heightSelect, effectSelect, planeSelect, planeSizeSelect, particleSelect,
+    bubbleSelect, bubblePositionSelect, bubbleSizeSelect, bubbleBgColor, bubbleFontColor, soundSelect, soundModeSelect,
     useSoundCheckbox, useImageCheckbox,
     isConfigOpenRef, isMutedRef, muteBtn,
     persistFlightSettings,
@@ -111,9 +111,13 @@ export function initSettingsPanel(ctx) {
   displaySelect.addEventListener('change', () => persistSetting('display', displaySelect.value));
   effectSelect.addEventListener('change', () => persistSetting('effect', effectSelect.value));
   planeSelect.addEventListener('change', () => persistSetting('plane', planeSelect.value));
+  planeSizeSelect.addEventListener('change', () => persistSetting('planeSize', planeSizeSelect.value));
   particleSelect.addEventListener('change', () => persistSetting('particle', particleSelect.value));
   bubbleSelect.addEventListener('change', () => persistSetting('bubble', bubbleSelect.value));
   bubblePositionSelect.addEventListener('change', () => persistSetting('bubblePosition', bubblePositionSelect.value));
+  bubbleSizeSelect.addEventListener('change', () => persistSetting('bubbleSize', bubbleSizeSelect.value));
+  bubbleBgColor.addEventListener('input', () => persistSetting('bubbleBgColor', bubbleBgColor.value));
+  bubbleFontColor.addEventListener('input', () => persistSetting('bubbleFontColor', bubbleFontColor.value));
   soundSelect.addEventListener('change', () => persistSetting('sound', soundSelect.value));
   soundModeSelect.addEventListener('change', () => persistSetting('soundMode', soundModeSelect.value));
   useSoundCheckbox.addEventListener('change', () => persistSetting('useSound', useSoundCheckbox.checked));
