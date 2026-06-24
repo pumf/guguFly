@@ -75,9 +75,9 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
     editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
-    editPostFlightVideoScale,
+    editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
+    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
     selectVideoBtn, clearVideoPathBtn, selectVideoInput, isTauriRuntime,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
@@ -107,7 +107,8 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
   editPostFlightUrl.value = task.postFlightUrl || '';
   editPostFlightFolder.value = task.postFlightFolder || '';
   editPostFlightScript.value = task.postFlightScript || '';
-  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = task.postFlightVideoEnable !== false;
+  if (editPostFlightEffectType) editPostFlightEffectType.value = task.postFlightEffectType || 'fireworks';
+  if (editPostFlightEffectDuration) editPostFlightEffectDuration.value = String(task.postFlightEffectDuration || 15);  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = task.postFlightVideoEnable !== false;
   const d = task.postFlightVideoDuration || 30;
   if (editPostFlightVideoDurationMin) editPostFlightVideoDurationMin.value = Math.floor(d / 60);
   if (editPostFlightVideoDurationSec) editPostFlightVideoDurationSec.value = d % 60;
@@ -136,6 +137,11 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
   postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
   postFlightVideoSpeedField?.classList.toggle('hidden', !isVideo);
   postFlightVideoScaleField?.classList.toggle('hidden', !isVideo);
+  const isEffect = editPostFlightAction.value === 'effect';
+  const pfEffectField = postFlightEffectField || document.getElementById('postFlightEffectField');
+  const pfEffectDurField = postFlightEffectDurationField || document.getElementById('postFlightEffectDurationField');
+  if (pfEffectField) pfEffectField.classList.toggle('hidden', !isEffect);
+  if (pfEffectDurField) pfEffectDurField.classList.toggle('hidden', !isEffect);
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === task.type);
@@ -195,9 +201,9 @@ export function openNewModal(editingId, ctx) {
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
     editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
-    editPostFlightVideoScale,
+    editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
+    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute,
@@ -247,6 +253,8 @@ export function openNewModal(editingId, ctx) {
   postFlightVideoDurationField?.classList.add('hidden');
   postFlightVideoSpeedField?.classList.add('hidden');
   postFlightVideoScaleField?.classList.add('hidden');
+  postFlightEffectField?.classList.add('hidden');
+  postFlightEffectDurationField?.classList.add('hidden');
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === 'alarm');
@@ -302,7 +310,7 @@ export function saveModal(editingId, ctx) {
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
     editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
-    editPostFlightVideoScale,
+    editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
     editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
@@ -345,6 +353,8 @@ export function saveModal(editingId, ctx) {
     task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
     task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
     task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
+    task.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
+    task.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
 
     if (type === 'alarm') {
       task.hour = Math.min(23, Math.max(0, parseInt(editHour.value) || 0));
@@ -429,6 +439,8 @@ export function saveModal(editingId, ctx) {
         t.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
         t.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
         t.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
+        t.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
+        t.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
         t.month = preset ? preset.month : 1;
         t.day = preset ? preset.day : 1;
         t.hour = hour;
@@ -473,6 +485,8 @@ export function saveModal(editingId, ctx) {
     task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
     task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
     task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
+    task.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
+    task.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
     tasks.push(task);
   }
 

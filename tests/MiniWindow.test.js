@@ -19,10 +19,10 @@ describe('MiniWindow helpers', () => {
   });
 
   it('formats upcoming time across ranges', () => {
-    expect(formatUpcomingTime(30)).toBe('30秒后');
-    expect(formatUpcomingTime(120)).toBe('2分钟后');
-    expect(formatUpcomingTime(3660)).toBe('1小时1分钟后');
-    expect(formatUpcomingTime(90000)).toBe('1天后');
+    expect(formatUpcomingTime(30)).toBe('30s');
+    expect(formatUpcomingTime(120)).toBe('2min');
+    expect(formatUpcomingTime(3660)).toBe('1h1m');
+    expect(formatUpcomingTime(90000)).toBe('1d');
   });
 
   it('updates active grid cell for selected mini position', () => {

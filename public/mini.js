@@ -2,6 +2,7 @@
   var tasks = [];
   var taskIndex = 0;
   var isUrgent = false;
+  var lastScrollTime = 0;
 
   function setContent(icon, text, detail) {
     try {
@@ -22,6 +23,8 @@
     isUrgent = t.urgent || false;
     document.getElementById('m').classList.toggle('urgent', isUrgent);
     document.getElementById('pulse').style.display = isUrgent ? 'block' : 'none';
+    var hintEl = document.getElementById('hint');
+    if (hintEl) hintEl.style.display = tasks.length > 1 ? '' : 'none';
   }
 
   function getWin() {
@@ -36,8 +39,12 @@
         if (!p) return;
         if (p.tasks) {
           tasks = p.tasks;
-          taskIndex = 0;
-          showTask(0);
+          if (Date.now() - lastScrollTime > 3000) {
+            taskIndex = 0;
+            showTask(0);
+          } else {
+            showTask(taskIndex % tasks.length);
+          }
         } else {
           tasks = [];
           showTask(0);
@@ -73,6 +80,7 @@
     } else {
       taskIndex = (taskIndex - 1 + tasks.length) % tasks.length;
     }
+    lastScrollTime = Date.now();
     showTask(taskIndex);
   }, { passive: true });
 

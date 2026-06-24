@@ -34,6 +34,8 @@ export function initModalEvents(ctx) {
   const postFlightVideoDurationField = document.getElementById('postFlightVideoDurationField');
   const postFlightVideoSpeedField = document.getElementById('postFlightVideoSpeedField');
   const postFlightVideoScaleField = document.getElementById('postFlightVideoScaleField');
+  const postFlightEffectField = document.getElementById('postFlightEffectField');
+  const postFlightEffectDurationField = document.getElementById('postFlightEffectDurationField');
   const selectAppBtn = document.getElementById('selectAppBtn');
   const selectFolderBtn = document.getElementById('selectFolderBtn');
   const selectVideoBtn = document.getElementById('selectVideoBtn');
@@ -64,8 +66,10 @@ export function initModalEvents(ctx) {
       editPostFlightVideoDurationSec: document.getElementById('editPostFlightVideoDurationSec'),
       editPostFlightVideoSpeed: document.getElementById('editPostFlightVideoSpeed'),
       editPostFlightVideoScale: document.getElementById('editPostFlightVideoScale'),
+      editPostFlightEffectType: document.getElementById('editPostFlightEffectType'),
+      editPostFlightEffectDuration: document.getElementById('editPostFlightEffectDuration'),
       postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-      postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField,
+      postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
       selectVideoBtn: document.getElementById('selectVideoBtn'),
       clearVideoPathBtn: document.getElementById('clearVideoPathBtn'),
       selectVideoInput: document.getElementById('selectVideoInput'),
@@ -161,6 +165,9 @@ export function initModalEvents(ctx) {
     postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
     postFlightVideoSpeedField?.classList.toggle('hidden', !isVideo);
     postFlightVideoScaleField?.classList.toggle('hidden', !isVideo);
+    const isEffect = v === 'effect';
+    postFlightEffectField?.classList.toggle('hidden', !isEffect);
+    postFlightEffectDurationField?.classList.toggle('hidden', !isEffect);
   });
 
   document.getElementById('editPostFlightVideoScale')?.addEventListener('input', function(e) {

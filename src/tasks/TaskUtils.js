@@ -465,6 +465,8 @@ export function getCleanTasks(tasks) {
       postFlightVideoSpeed: parseFloat(t.postFlightVideoSpeed) || 1,
       postFlightVideoScale: parseFloat(t.postFlightVideoScale) || 1,
       postFlightVideoEnable: t.postFlightVideoEnable !== false,
+      postFlightEffectType: t.postFlightEffectType || 'fireworks',
+      postFlightEffectDuration: t.postFlightEffectDuration || 15,
       group: t.group || '', imageData: t.imageData || null,
       useImage: !!t.useImage, color: t.color || null,
     };

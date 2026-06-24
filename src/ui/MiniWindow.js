@@ -124,15 +124,15 @@ export async function positionMiniWindow(posKey) {
 }
 
 export function formatUpcomingTime(sec) {
-  if (sec < 60) return sec + '秒后';
-  if (sec < 3600) return Math.floor(sec / 60) + '分钟后';
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.floor(sec / 60) + 'min';
   if (sec < 86400) {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
-    return m > 0 ? h + '小时' + m + '分钟后' : h + '小时后';
+    return m > 0 ? h + 'h' + m + 'm' : h + 'h';
   }
   const d = Math.floor(sec / 86400);
-  return d + '天后';
+  return d + 'd';
 }
 
 export async function updateMiniWindow(allUpcoming) {

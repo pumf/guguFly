@@ -498,6 +498,7 @@
                 <option value="tts">语音播报文案</option>
                 <option value="script">运行脚本</option>
                 <option value="video">播放视频</option>
+                <option value="effect">播放特效动画</option>
               </select>
             </div>
             <div id="postFlightAppField" class="form-row hidden">
@@ -563,6 +564,26 @@
               <label>视频尺寸</label>
               <input type="range" id="editPostFlightVideoScale" class="edit-input" min="0.2" max="1" step="0.1" value="1" style="width:100px" />
               <span id="postFlightVideoScaleValue" style="color:var(--text-muted);font-size:13px;min-width:40px">100%</span>
+            </div>
+            <div id="postFlightEffectField" class="form-row hidden">
+              <label>特效类型</label>
+              <select id="editPostFlightEffectType" class="edit-input" style="flex:1">
+                <option value="fireworks">🎆 烟花</option>
+                <option value="firecrackers">🧨 爆竹</option>
+                <option value="emojis">😊 表情包</option>
+                <option value="rainbow">🌈 彩虹</option>
+                <option value="bubbles">🫧 气泡</option>
+              </select>
+            </div>
+            <div id="postFlightEffectDurationField" class="form-row hidden">
+              <label>持续时间</label>
+              <select id="editPostFlightEffectDuration" class="edit-input" style="width:120px">
+                <option value="10">10 秒</option>
+                <option value="15" selected>15 秒</option>
+                <option value="20">20 秒</option>
+                <option value="30">30 秒</option>
+                <option value="60">60 秒</option>
+              </select>
             </div>
           </div>
           <div class="form-block">

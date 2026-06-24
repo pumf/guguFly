@@ -15,6 +15,12 @@ let pendingPfCancel = null;
 let pfAutoClosing = false;
 let pfUnlistenClick = null;
 
+let activeVideoWin = null;
+// Cache of already-downloaded built-in video local paths, keyed by
+// video name (e.g. 'cat.mov'). Filled by successful background downloads
+// in the video branch, consumed by future plays to skip the network.
+const builtInVideoCache = new Map();
+
 let isMuted = false;
 let soundSelectEl = null;
 let soundModeSelectEl = null;
@@ -292,9 +298,12 @@ async function showPostFlightNotify(action) {
     });
 
     const pfVideoFile = activeFlightJob?.postFlight?.videoFile || 'cat.mov';
+    const pfEffectType = activeFlightJob?.postFlight?.effectType || 'fireworks';
     const builtinLabels = { 'cat.mov': '播放猫咪', 'dog.mov': '播放狗狗' };
     const videoLabel = (action === 'video') ? (builtinLabels[pfVideoFile] || '播放视频') : '';
-    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本', video: videoLabel };
+    const effectLabels = { fireworks: '播放烟花', firecrackers: '播放爆竹', emojis: '播放表情包', rainbow: '播放彩虹', bubbles: '播放气泡' };
+    const effectLabel = (action === 'effect') ? (effectLabels[pfEffectType] || '播放特效') : '';
+    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本', video: videoLabel, effect: effectLabel };
     const label = labels[action] || action;
     const fullText = '飞行后' + label;
 
@@ -552,15 +561,73 @@ export async function executePostFlightAction(postFlight) {
       const confirmed = await window.showConfirm('将执行自定义脚本，是否继续？');
       if (!confirmed) return;
       await invoke('run_script', { script: postFlight.script });
+    } else if (postFlight.action === 'effect') {
+      if (activeVideoWin) {
+        try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
+        activeVideoWin = null;
+      }
+      const effectType = postFlight.effectType || 'fireworks';
+      const effectDuration = postFlight.effectDuration || 15;
+      const taskMsg = postFlight.taskMsg || '';
+      const monitor = await currentMonitor().catch(() => null);
+      const scale = monitor?.scaleFactor || 1;
+      const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
+      const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
+      const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
+      const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
+      const effectWin = new WebviewWindow('gugufly-video', {
+        url: `/effect.html?type=${encodeURIComponent(effectType)}&duration=${effectDuration}&msg=${encodeURIComponent(taskMsg)}&v=${Date.now()}`,
+        width: sw, height: sh, x: sx, y: sy,
+        transparent: true, decorations: false,
+        alwaysOnTop: true, skipTaskbar: true,
+        resizable: false, visible: true, focus: true, shadow: false,
+      });
+      effectWin.once('tauri://created', () => {
+        activeVideoWin = effectWin;
+        // Note: we do NOT call setIgnoreCursorEvents here. The effect.html
+        // CSS already handles event pass-through via pointer-events:none
+        // on body and canvas, with pointer-events:auto only on the close
+        // button. setIgnoreCursorEvents would override that and break
+        // the close button.
+      });
+      effectWin.once('tauri://error', (e) => console.error('effect window error:', e));
+      effectWin.onCloseRequested(() => { activeVideoWin = null; });
     } else if (postFlight.action === 'video') {
       if (postFlight.videoEnable === false) return;
-      let videoFile = postFlight.videoFile || 'cat.mov';
-      const builtinVideos = ['cat.mov', 'dog.mov'];
-      if (builtinVideos.includes(videoFile) && isTauriRuntime()) {
-        try {
-          videoFile = await invoke('download_builtin_video', { name: videoFile });
-        } catch (e) { console.error('download video failed, fallback to remote:', e); }
+      if (activeVideoWin) {
+        try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
+        activeVideoWin = null;
       }
+      const originalFile = postFlight.videoFile || 'cat.mov';
+      const builtinVideos = ['cat.mov', 'dog.mov'];
+      const isBuiltin = builtinVideos.includes(originalFile);
+
+      // For built-in videos: try to use the in-memory cache of
+      // downloaded local paths to play from disk immediately. The
+      // cache is populated by background downloads on previous plays.
+      // If the cache is cold (first play, or cache cleared on app
+      // restart), the cache lookup will return undefined — in that
+      // case we open the player with a remote URL and trigger a
+      // background download to warm the cache for the next play.
+      //
+      // We NEVER block on the download here; the player always opens
+      // immediately. The user's experience is:
+      //   1st play: remote URL plays, file downloads in background
+      //   2nd+ play: cached local file plays instantly, no network
+      let initialFile = originalFile;
+      let needsBackgroundDownload = false;
+      if (isBuiltin) {
+        const cachedLocalPath = builtInVideoCache.get(originalFile);
+        if (cachedLocalPath) {
+          initialFile = cachedLocalPath;
+        } else {
+          // Cold cache. Open with remote URL so the user sees something
+          // immediately, and start the download in the background.
+          initialFile = 'https://fly.pumf.top/resource/' + originalFile;
+          needsBackgroundDownload = true;
+        }
+      }
+
       const monitor = await currentMonitor().catch(() => null);
       const scale = monitor?.scaleFactor || 1;
       const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
@@ -568,14 +635,34 @@ export async function executePostFlightAction(postFlight) {
       const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
       const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
       const label = postFlight.taskMsg || '休息一下';
-      const videoWin = new WebviewWindow('video-' + Date.now(), {
-        url: `/video.html?file=${encodeURIComponent(videoFile)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}`,
+      const videoWin = new WebviewWindow('gugufly-video', {
+        url: `/video.html?file=${encodeURIComponent(initialFile)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}&v=${Date.now()}`,
         width: sw, height: sh, x: sx, y: sy,
         transparent: true, decorations: false,
         alwaysOnTop: true, skipTaskbar: true,
         resizable: false, visible: true, focus: true, shadow: false,
       });
+      videoWin.once('tauri://created', () => {
+        activeVideoWin = videoWin;
+        // Note: we do NOT call setIgnoreCursorEvents here. The video.html
+        // CSS already handles event pass-through via pointer-events:none
+        // on body and canvas, with pointer-events:auto only on the close
+        // button. setIgnoreCursorEvents would override the HTML-level
+        // pointer-events and break the close button.
+        // Background cache warm-up. We always kick this off for built-in
+        // videos — if it's already cached, the backend returns the
+        // local path immediately (free). If not, it downloads in the
+        // background and we cache the result for the next play.
+        if (isBuiltin && isTauriRuntime()) {
+          invoke('download_builtin_video', { name: originalFile })
+            .then((localPath) => {
+              builtInVideoCache.set(originalFile, localPath);
+            })
+            .catch((e) => console.warn('background video download failed:', e));
+        }
+      });
       videoWin.once('tauri://error', (e) => console.error('video window error:', e));
+      videoWin.onCloseRequested(() => { activeVideoWin = null; });
     }
   } catch (e) {
     console.error('Post-flight action failed:', e);
@@ -598,6 +685,8 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
     videoSpeed: parseFloat(task.postFlightVideoSpeed) || 1,
     videoScale: parseFloat(task.postFlightVideoScale) || 1,
     videoEnable: task.postFlightVideoEnable !== false,
+    effectType: task.postFlightEffectType || 'fireworks',
+    effectDuration: task.postFlightEffectDuration || 15,
     taskMsg: msg,
   };
 

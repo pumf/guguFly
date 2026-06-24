@@ -15,7 +15,12 @@ position:relative;transition:background 0.3s;max-width:100%;overflow:hidden}
 #i{font-size:18px;flex-shrink:0}
 #t{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #d{opacity:.8;font-size:13px;margin-left:2px;flex-shrink:0}
+#hint{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  padding:4px 10px;border-radius:6px;background:rgba(0,0,0,.75);color:#fff;
+  font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;
+  transition:opacity .2s;font-weight:500}
+#m:hover #hint{opacity:1}
 </style></head><body>
-<div id="m"><span id="pulse"></span><span id="i">📋</span><span id="t">加载中</span><span id="d"></span></div>
+<div id="m"><span id="pulse"></span><span id="i">📋</span><span id="t">加载中</span><span id="d"></span><span id="hint">🔄 滚动切换任务</span></div>
 <script src="mini.js"></script>
 </body></html>
