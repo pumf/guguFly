@@ -60,7 +60,7 @@ describe('UpdateManager', () => {
 
   it('shows cached newer release info when network fails', async () => {
     globalThis.localStorage.setItem('_updateCache', JSON.stringify({
-      version: '0.6.0',
+      version: '0.7.0',
       url: 'https://example.com/release',
       notes: 'Fix A\nFix B',
       timestamp: Date.now(),
@@ -69,7 +69,7 @@ describe('UpdateManager', () => {
     await checkForUpdate();
 
     expect(document.getElementById('updateModalTitle').textContent).toBe('发现新版本（缓存）');
-    expect(document.getElementById('updateLatestVersion').textContent).toBe('v0.6.0');
+    expect(document.getElementById('updateLatestVersion').textContent).toBe('v0.7.0');
     expect(document.getElementById('updateDownloadBtn').dataset.url).toBe('https://example.com/release');
     expect(document.getElementById('updateInfo').classList.remove).toHaveBeenCalledWith('hidden');
   });
