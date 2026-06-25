@@ -51,4 +51,26 @@ describe('AccurateTimer', () => {
     expect(timer.remaining).toBe(10000);
     expect(timer.running).toBe(false);
   });
+
+  it('forceUpdate fires onTick immediately when running', async () => {
+    const onTick = vi.fn();
+    const timer = new AccurateTimer(5000, onTick, () => {});
+    timer.start();
+    onTick.mockClear();
+    timer.forceUpdate();
+    expect(onTick).toHaveBeenCalled();
+    expect(timer.remaining).toBeLessThanOrEqual(5000);
+    timer.stop();
+  });
+
+  it('forceUpdate is no-op when paused', () => {
+    const onTick = vi.fn();
+    const timer = new AccurateTimer(5000, onTick, () => {});
+    timer.start();
+    timer.pause();
+    onTick.mockClear();
+    timer.forceUpdate();
+    expect(onTick).not.toHaveBeenCalled();
+    timer.stop();
+  });
 });

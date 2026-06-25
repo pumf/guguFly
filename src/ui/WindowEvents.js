@@ -30,7 +30,23 @@ export function initWindowEvents(ctx) {
     const reason = event.reason;
     const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
     console.error('[unhandledrejection]', message);
-    if (typeof showToast === 'function') showToast(`后台任务出错了：${reason?.message || reason}`);
+    if (typeof showToast === 'function') {
+      // Long-press / double-click on the toast copies the full stack
+      // to the clipboard so the user can share it with developers.
+      const brief = reason?.message || String(reason).slice(0, 80);
+      const fullStack = message;
+      const toastEl = showToast(`后台任务出错了：${brief}`);
+      if (toastEl && navigator.clipboard && fullStack) {
+        const onDblClick = () => {
+          navigator.clipboard.writeText(fullStack).then(() => {
+            showToast('错误栈已复制到剪贴板');
+          }).catch(() => {});
+        };
+        // Use both dblclick and a touch-based fallback for touchscreens
+        toastEl.addEventListener('dblclick', onDblClick);
+        toastEl.addEventListener('contextmenu', (e) => { e.preventDefault(); onDblClick(); });
+      }
+    }
   });
 
   window.addEventListener('error', (event) => {

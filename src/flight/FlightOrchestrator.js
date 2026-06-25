@@ -6,6 +6,7 @@ import { getRandomQuote } from '../quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from '../sounds.js';
 import { dataUrlToArrayBuffer, isTauriRuntime } from '../utils.js';
 import { getAudioContext, unlockAudioIfNeeded } from '../ui/AudioManager.js';
+import { setMuted as setAudioSystemMuted, setCustomAudioObjectUrl as setAudioSystemObjectUrl, revokeCustomAudioObjectUrl as revokeAudioSystemObjectUrl } from '../ui/AudioSystem.js';
 
 let activeFlightJob = null;
 const flightQueue = [];
@@ -15,11 +16,28 @@ let pendingPfCancel = null;
 let pfAutoClosing = false;
 let pfUnlistenClick = null;
 
+// Set to true while an emergency landing is in progress. Used by the
+// flight-ended listener to suppress post-flight actions that would
+// otherwise create new video/effect windows while we're cleaning up.
+let emergencyLandingActive = false;
+
+export function setEmergencyLandingActive(active) {
+  emergencyLandingActive = !!active;
+}
+
+export function isEmergencyLandingActive() {
+  return emergencyLandingActive;
+}
+
 let activeVideoWin = null;
-// Cache of already-downloaded built-in video local paths, keyed by
-// video name (e.g. 'cat.mov'). Filled by successful background downloads
-// in the video branch, consumed by future plays to skip the network.
+// Simple mutex guard for the activeVideoWin check-and-close pattern.
+// Prevents TOCTOU races when two post-flight actions fire concurrently.
+let videoWinMutex = false;
 const builtInVideoCache = new Map();
+// In-flight cache lookups. If multiple flights fire simultaneously
+// and request the same video, share a single backend call instead of
+// each one calling download_builtin_video independently.
+const builtInVideoCacheInFlight = new Map();
 
 let isMuted = false;
 let soundSelectEl = null;
@@ -48,8 +66,12 @@ let customAudioProbe = null;
 let previewAudioHandle = null;
 
 let updateTaskFlightCb = null;
+let isInQuietHoursFn = null;
+let skipPostFlight = false; // Set by skipCurrentFlight to suppress post-flight
 
 export function setUpdateTaskFlightCb(cb) { updateTaskFlightCb = cb; }
+export function setIsInQuietHoursFn(fn) { isInQuietHoursFn = fn; }
+export function setSkipPostFlight(skip) { skipPostFlight = !!skip; }
 
 export function initFlightOrchestrator(config) {
   soundSelectEl = config.soundSelect;
@@ -80,8 +102,69 @@ function stopSource(source) {
 
 export function setCustomImageData(data) { customImageData_ = data; }
 export function setCustomAudioData(data) { customAudioData_ = data; }
-export function setCustomAudioObjectUrl(url) { customAudioObjectUrl_ = url; }
-export function setMuted(muted) { isMuted = muted; }
+export function setCustomAudioObjectUrl(url) {
+  // Revoke the previous URL before overwriting to avoid leaking the
+  // blob-backed ObjectURL each time the audio is changed. This is
+  // the canonical setter — use it from any module to update the
+  // shared ObjectURL reference.
+  if (customAudioObjectUrl_ && customAudioObjectUrl_ !== url) {
+    try { URL.revokeObjectURL(customAudioObjectUrl_); } catch (e) {
+      console.error('revoke old custom audio URL failed:', e);
+    }
+  }
+  customAudioObjectUrl_ = url || '';
+  // Keep AudioSystem in sync — both modules hold the same ObjectURL
+  // so that playCustomAudio and revokeCustomAudioObjectUrl see the
+  // same value in either context. AudioSystem's setter also revokes
+  // its previous URL, but since the URLs are the same instance we
+  // don't double-revoke.
+  setAudioSystemObjectUrl(url);
+}
+
+// Look up (or fetch) the local cached path for a built-in video.
+// Returns the absolute path on disk if the file exists or after
+// downloading it; returns null on error. Multiple concurrent callers
+// requesting the same video share a single backend invocation.
+export async function resolveBuiltinVideoPath(name) {
+  if (!name || !isTauriRuntime()) return null;
+  // In-memory cache hit — instant, no IPC.
+  const cached = builtInVideoCache.get(name);
+  if (cached) return cached;
+  // Dedup: share a single in-flight lookup if one is already running.
+  const inFlight = builtInVideoCacheInFlight.get(name);
+  if (inFlight) return inFlight;
+  // Otherwise call the backend. Rust returns immediately if the file
+  // is already on disk, so this is fast for warm-cache scenarios.
+  const { invoke } = await import('@tauri-apps/api/core');
+  const promise = (async () => {
+    try {
+      const path = await invoke('download_builtin_video', { name });
+      builtInVideoCache.set(name, path);
+      return path;
+    } catch (e) {
+      console.warn('resolveBuiltinVideoPath failed for', name, e);
+      return null;
+    } finally {
+      builtInVideoCacheInFlight.delete(name);
+    }
+  })();
+  builtInVideoCacheInFlight.set(name, promise);
+  return promise;
+}
+export function revokeCustomAudioObjectUrl() {
+  if (customAudioObjectUrl_) {
+    URL.revokeObjectURL(customAudioObjectUrl_);
+    customAudioObjectUrl_ = '';
+  }
+  // Also clear AudioSystem's copy so revoke is consistent.
+  revokeAudioSystemObjectUrl();
+}
+export function setMuted(muted) {
+  isMuted = muted;
+  // Keep AudioSystem in sync so that AudioSystem.playCustomAudio
+  // (used in modal preview) honors the same mute state.
+  setAudioSystemMuted(muted);
+}
 
 export function createSequenceId(taskId) {
   return `seq-${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -117,17 +200,62 @@ export function hasActiveSequences() {
   return flightSequences.size > 0;
 }
 
+// Reset video/effect window state after emergency landing.
+// The window's onCloseRequested handler normally sets activeVideoWin=null,
+// but in an emergency we close windows directly, so we need to reset
+// the reference and the mutex to prevent stale references.
+export function resetVideoWindowState() {
+  activeVideoWin = null;
+  videoWinMutex = false;
+}
+
+// Register cleanup hooks on a video/effect window so that the
+// activeVideoWin reference is cleared whether the window is closed
+// via the user (Escape key → onCloseRequested), the OS, or destroyed
+// by Tauri's internals (tauri://destroyed). Without this, an
+// externally-killed window leaves a stale reference and the next
+// flight blocks for up to 1s on the videoWinMutex.
+function bindVideoWindowCleanup(win) {
+  if (!win) return;
+  const clear = () => {
+    if (activeVideoWin === win) {
+      activeVideoWin = null;
+    }
+  };
+  try { win.onCloseRequested(clear); } catch (e) {
+    console.error('video window onCloseRequested bind failed:', e);
+  }
+  try { win.once('tauri://destroyed', clear); } catch (e) {
+    console.error('video window destroyed bind failed:', e);
+  }
+}
+
+// Wait for the video/effect mutex to release. The mutex is only held
+// during window creation (a few ms), so if it's locked, the previous
+// operation should complete imminently. We wait up to 1s before
+// giving up. This prevents silently dropping post-flight actions when
+// two flights fire in rapid succession.
+async function waitForVideoMutex(timeoutMs = 1000) {
+  const start = Date.now();
+  while (videoWinMutex && (Date.now() - start) < timeoutMs) {
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+
+// Reset post-flight notify window state. Same rationale as above.
+export function resetPfNotifyState() {
+  pfNotifyWin = null;
+  pfAutoClosing = false;
+  if (pfUnlistenClick) {
+    try { pfUnlistenClick(); } catch (pfErr) { console.error('pfUnlistenClick failed:', pfErr); }
+  }
+}
+
 export function isMutedFn() { return isMuted; }
 
 export function getActiveFlightJob() { return activeFlightJob; }
 
 const KNOWN_SOUND_VALUES = new Set(SOUND_PRESETS.map(p => p.value));
-
-function revokeCustomAudioObjectUrl() {
-  if (!customAudioObjectUrl_) return;
-  URL.revokeObjectURL(customAudioObjectUrl_);
-  customAudioObjectUrl_ = '';
-}
 
 function buildCustomAudioObjectUrl() {
   revokeCustomAudioObjectUrl();
@@ -266,25 +394,31 @@ async function playOscillator(sound, playPresetSound) {
 let showToast = (msg) => { console.log(msg); };
 export function setToastFn(fn) { showToast = fn; }
 
+// Single canonical cleanup for the post-flight notify window. Closes
+// the window, detaches the click listener, and clears the references.
+// Callers should never duplicate this logic inline.
+async function cleanupPostFlightNotify() {
+  if (pfUnlistenClick) {
+    try { pfUnlistenClick(); } catch (error) {
+      console.error('post-flight unlisten failed:', error);
+    }
+    pfUnlistenClick = null;
+  }
+  if (pfNotifyWin) {
+    pfAutoClosing = true;
+    try { await pfNotifyWin.close(); } catch (error) {
+      console.error('post-flight close failed:', error);
+    }
+    pfNotifyWin = null;
+  }
+  pfAutoClosing = false;
+}
+
 async function showPostFlightNotify(action) {
   if (!isTauriRuntime()) return;
   try {
-    if (pfNotifyWin) {
-      try {
-        await pfNotifyWin.close();
-      } catch (error) {
-        console.error('post-flight notify close failed:', error);
-      }
-      pfNotifyWin = null;
-    }
-    if (pfUnlistenClick) {
-      try {
-        pfUnlistenClick();
-      } catch (error) {
-        console.error('post-flight unlisten failed:', error);
-      }
-      pfUnlistenClick = null;
-    }
+    // Always clean up any prior notify window before creating a new one.
+    await cleanupPostFlightNotify();
 
     const sw = screen.availWidth || 1440;
     const sh = screen.availHeight || 900;
@@ -324,10 +458,9 @@ async function showPostFlightNotify(action) {
     });
     pfNotifyWin.once('tauri://error', (error) => console.error('post-flight notify window error:', error));
 
+    // Defensive: if any stale unlisten remains, clean it before registering new one.
     if (pfUnlistenClick) {
-      try {
-        pfUnlistenClick();
-      } catch (error) {
+      try { pfUnlistenClick(); } catch (error) {
         console.error('post-flight stale unlisten failed:', error);
       }
       pfUnlistenClick = null;
@@ -337,67 +470,48 @@ async function showPostFlightNotify(action) {
         pendingPfCancel();
         pendingPfCancel = null;
       }
-      await closePostFlightNotifyLocal();
+      await cleanupPostFlightNotify();
       showToast('已取消飞行后操作');
     });
     pfUnlistenClick = unlisten;
   } catch (e) { console.error('showPostFlightNotify failed:', e); }
 }
 
-async function closePostFlightNotifyLocal() {
-  if (pfUnlistenClick) {
-    try {
-      pfUnlistenClick();
-    } catch (error) {
-      console.error('post-flight local unlisten failed:', error);
-    }
-    pfUnlistenClick = null;
-  }
-  try {
-    if (pfNotifyWin) {
-      pfAutoClosing = true;
-      await pfNotifyWin.close();
-      pfNotifyWin = null;
-    }
-  } catch (error) {
-    console.error('post-flight local close failed:', error);
-  }
-  pfAutoClosing = false;
-}
-
 export async function closePostFlightNotify() {
-  if (pfUnlistenClick) {
-    try {
-      pfUnlistenClick();
-    } catch (error) {
-      console.error('post-flight unlisten cleanup failed:', error);
-    }
-    pfUnlistenClick = null;
-  }
-  try {
-    if (pfNotifyWin) {
-      pfAutoClosing = true;
-      await pfNotifyWin.close();
-      pfNotifyWin = null;
-    }
-  } catch (error) {
-    console.error('post-flight close failed:', error);
-  }
-  pfAutoClosing = false;
+  await cleanupPostFlightNotify();
 }
 
 export function setPendingPfCancel(fn) { pendingPfCancel = fn; }
 export function getPendingPfCancel() { return pendingPfCancel; }
+// Clear the pendingPfCancel without invoking it. Used by emergency
+// landing to ensure stale closures don't reference a no-longer-active
+// flight job.
+export function clearPendingPfCancel() {
+  pendingPfCancel = null;
+}
 
 async function processFlightQueue() {
   if (activeFlightJob || !flightQueue.length) return;
   const nextJob = flightQueue.shift();
   activeFlightJob = nextJob;
-  if (nextJob.playSound && !isMuted) await playSound();
-  await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
-  if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
-    pendingPfCancel = () => { nextJob.postFlight.action = 'none'; };
-    showPostFlightNotify(nextJob.postFlight.action);
+  try {
+    if (nextJob.playSound && !isMuted) await playSound();
+    await createFlightWindow(nextJob.msg, nextJob.direction, nextJob.sequenceId, nextJob.imageData, nextJob.useImage);
+    // Bail out if an emergency landing was triggered during the flight.
+    // Without this, an in-flight processFlightQueue would still try
+    // to open the post-flight notify window while the emergency flow
+    // is closing everything.
+    if (emergencyLandingActive) {
+      activeFlightJob = null;
+      return;
+    }
+    if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
+      pendingPfCancel = () => { nextJob.postFlight.action = 'none'; };
+      showPostFlightNotify(nextJob.postFlight.action);
+    }
+  } catch (e) {
+    console.error('flight job failed:', e);
+    releaseFlightQueue();
   }
 }
 
@@ -525,11 +639,35 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
 export async function executePostFlightAction(postFlight) {
   if (!postFlight || postFlight.action === 'none') return;
   if (!isTauriRuntime()) return;
+  // Respect the quiet-hours setting for post-flight actions too. The
+  // user has explicitly opted out of disruptive reminders during
+  // configured hours, so we suppress the follow-up as well.
+  if (isInQuietHoursFn && typeof isInQuietHoursFn === 'function') {
+    try {
+      if (isInQuietHoursFn()) return;
+    } catch (qhErr) {
+      console.error('quiet hours check failed:', qhErr);
+    }
+  }
   try {
     if (postFlight.action === 'app' && postFlight.appPath) {
+      // Reject any path with shell metacharacters to prevent command
+      // injection. The Rust side has its own allowlist, but defense
+      // in depth is cheap.
+      if (/[;&|`$<>\\]/.test(postFlight.appPath)) {
+        if (typeof showToast === 'function') showToast('应用路径包含非法字符');
+        return;
+      }
       await invoke('open_app', { path: postFlight.appPath });
     } else if (postFlight.action === 'url' && postFlight.url) {
-      await invoke('open_url_in_browser', { url: postFlight.url });
+      // Restrict to http(s) URLs to prevent javascript: and other
+      // dangerous schemes from being passed to the OS browser opener.
+      const url = String(postFlight.url).trim();
+      if (!/^https?:\/\//i.test(url)) {
+        if (typeof showToast === 'function') showToast('只支持 http(s) 链接');
+        return;
+      }
+      await invoke('open_url_in_browser', { url });
     } else if (postFlight.action === 'lock') {
       const confirmed = await window.showConfirm('即将锁屏，是否继续？');
       if (!confirmed) return;
@@ -562,69 +700,106 @@ export async function executePostFlightAction(postFlight) {
       if (!confirmed) return;
       await invoke('run_script', { script: postFlight.script });
     } else if (postFlight.action === 'effect') {
-      if (activeVideoWin) {
-        try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
-        activeVideoWin = null;
+      if (videoWinMutex) await waitForVideoMutex();
+      if (videoWinMutex) return;
+      videoWinMutex = true;
+      try {
+        if (activeVideoWin) {
+          try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
+          activeVideoWin = null;
+        }
+        const effectType = postFlight.effectType || 'fireworks';
+        const effectDuration = postFlight.effectDuration || 15;
+        const taskMsg = postFlight.taskMsg || '';
+        const monitor = await currentMonitor().catch(() => null);
+        const scale = monitor?.scaleFactor || 1;
+        const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
+        const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
+        const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
+        const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
+        const effectWin = new WebviewWindow('gugufly-effect', {
+          url: `/effect.html?type=${encodeURIComponent(effectType)}&duration=${effectDuration}&msg=${encodeURIComponent(taskMsg)}&v=${Date.now()}`,
+          width: sw, height: sh, x: sx, y: sy,
+          transparent: true, decorations: false,
+          alwaysOnTop: true, skipTaskbar: true,
+          resizable: false, visible: true, focus: true, shadow: false,
+        });
+        effectWin.once('tauri://created', async () => {
+          activeVideoWin = effectWin;
+          try { await effectWin.setIgnoreCursorEvents(true); } catch (e) { /* ignore */ }
+        });
+        effectWin.once('tauri://error', (e) => console.error('effect window error:', e));
+        bindVideoWindowCleanup(effectWin);
+      } catch (e) {
+        console.error('effect window creation failed:', e);
+      } finally {
+        videoWinMutex = false;
       }
-      const effectType = postFlight.effectType || 'fireworks';
-      const effectDuration = postFlight.effectDuration || 15;
-      const taskMsg = postFlight.taskMsg || '';
-      const monitor = await currentMonitor().catch(() => null);
-      const scale = monitor?.scaleFactor || 1;
-      const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
-      const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
-      const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
-      const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
-      const effectWin = new WebviewWindow('gugufly-video', {
-        url: `/effect.html?type=${encodeURIComponent(effectType)}&duration=${effectDuration}&msg=${encodeURIComponent(taskMsg)}&v=${Date.now()}`,
-        width: sw, height: sh, x: sx, y: sy,
-        transparent: true, decorations: false,
-        alwaysOnTop: true, skipTaskbar: true,
-        resizable: false, visible: true, focus: true, shadow: false,
-      });
-      effectWin.once('tauri://created', () => {
-        activeVideoWin = effectWin;
-        // Note: we do NOT call setIgnoreCursorEvents here. The effect.html
-        // CSS already handles event pass-through via pointer-events:none
-        // on body and canvas, with pointer-events:auto only on the close
-        // button. setIgnoreCursorEvents would override that and break
-        // the close button.
-      });
-      effectWin.once('tauri://error', (e) => console.error('effect window error:', e));
-      effectWin.onCloseRequested(() => { activeVideoWin = null; });
     } else if (postFlight.action === 'video') {
       if (postFlight.videoEnable === false) return;
-      if (activeVideoWin) {
-        try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
-        activeVideoWin = null;
-      }
-      const originalFile = postFlight.videoFile || 'cat.mov';
-      const builtinVideos = ['cat.mov', 'dog.mov'];
-      const isBuiltin = builtinVideos.includes(originalFile);
+      if (videoWinMutex) await waitForVideoMutex();
+      if (videoWinMutex) return;
+      videoWinMutex = true;
+      try {
+        const builtinVideos = ['cat.mov', 'dog.mov'];
+        const selectedFile = postFlight.videoFile || 'cat.mov';
+        const isBuiltinVideo = builtinVideos.includes(selectedFile);
+        if (!isBuiltinVideo) {
+          const localPath = selectedFile;
+          if (activeVideoWin) {
+            try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
+            activeVideoWin = null;
+          }
+          const monitor = await currentMonitor().catch(() => null);
+          const scale = monitor?.scaleFactor || 1;
+          const sw = monitor ? Math.round(monitor.size.width / scale) : 1280;
+          const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
+          const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
+          const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
+          const label = postFlight.taskMsg || '休息一下';
+          const videoWin = new WebviewWindow('gugufly-video', {
+            url: `/video.html?file=${encodeURIComponent(localPath)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}&v=${Date.now()}`,
+            width: sw, height: sh, x: sx, y: sy,
+            transparent: true, decorations: false,
+            alwaysOnTop: true, skipTaskbar: true,
+            resizable: false, visible: true, focus: true, shadow: false,
+          });
+          videoWin.once('tauri://created', async () => {
+            activeVideoWin = videoWin;
+            try { await videoWin.setIgnoreCursorEvents(true); } catch (e) { /* ignore */ }
+          });
+          videoWin.once('tauri://error', (e) => console.error('video window error:', e));
+          bindVideoWindowCleanup(videoWin);
+          return;
+        }
+        // Fallback path: builtin video (cat.mov / dog.mov) with cache
+        if (activeVideoWin) {
+          try { await activeVideoWin.close(); } catch (e) { /* ignore */ }
+          activeVideoWin = null;
+        }
+      // isBuiltinVideo is already declared above (line 603). Here we
+      // know isBuiltinVideo is true (the !isBuiltinVideo branch above
+      // has already returned).
+      const originalFile = selectedFile;
 
-      // For built-in videos: try to use the in-memory cache of
-      // downloaded local paths to play from disk immediately. The
-      // cache is populated by background downloads on previous plays.
-      // If the cache is cold (first play, or cache cleared on app
-      // restart), the cache lookup will return undefined — in that
-      // case we open the player with a remote URL and trigger a
-      // background download to warm the cache for the next play.
-      //
-      // We NEVER block on the download here; the player always opens
-      // immediately. The user's experience is:
-      //   1st play: remote URL plays, file downloads in background
-      //   2nd+ play: cached local file plays instantly, no network
+      // For built-in videos: resolve the local path (using the cache
+      // or the backend) BEFORE opening the player window. The backend
+      // returns instantly when the file is already on disk, so the
+      // first play after an app restart will use the local file too.
+      // We still use the remote URL only when there is no local file
+      // and the download would block startup — which only happens
+      // when the user has explicitly cleared the cache.
       let initialFile = originalFile;
-      let needsBackgroundDownload = false;
-      if (isBuiltin) {
-        const cachedLocalPath = builtInVideoCache.get(originalFile);
-        if (cachedLocalPath) {
-          initialFile = cachedLocalPath;
+      if (isBuiltinVideo) {
+        const localPath = await resolveBuiltinVideoPath(originalFile);
+        if (localPath) {
+          initialFile = localPath;
         } else {
-          // Cold cache. Open with remote URL so the user sees something
-          // immediately, and start the download in the background.
+          // Cache miss AND download failed — fall back to remote.
+          // The video.js page will retry the download in the
+          // background, so this branch is only hit on first-ever play
+          // with no network.
           initialFile = 'https://fly.pumf.top/resource/' + originalFile;
-          needsBackgroundDownload = true;
         }
       }
 
@@ -642,27 +817,22 @@ export async function executePostFlightAction(postFlight) {
         alwaysOnTop: true, skipTaskbar: true,
         resizable: false, visible: true, focus: true, shadow: false,
       });
-      videoWin.once('tauri://created', () => {
+      videoWin.once('tauri://created', async () => {
         activeVideoWin = videoWin;
-        // Note: we do NOT call setIgnoreCursorEvents here. The video.html
-        // CSS already handles event pass-through via pointer-events:none
-        // on body and canvas, with pointer-events:auto only on the close
-        // button. setIgnoreCursorEvents would override the HTML-level
-        // pointer-events and break the close button.
-        // Background cache warm-up. We always kick this off for built-in
-        // videos — if it's already cached, the backend returns the
-        // local path immediately (free). If not, it downloads in the
-        // background and we cache the result for the next play.
-        if (isBuiltin && isTauriRuntime()) {
-          invoke('download_builtin_video', { name: originalFile })
-            .then((localPath) => {
-              builtInVideoCache.set(originalFile, localPath);
-            })
-            .catch((e) => console.warn('background video download failed:', e));
-        }
+        // Use OS-level ignore-cursor-events so the video window truly
+        // passes mouse events through to the windows behind it (the
+        // main app window).
+        try { await videoWin.setIgnoreCursorEvents(true); } catch (e) { /* ignore */ }
+        // The cache is now populated by resolveBuiltinVideoPath() which
+        // ran above. No need to re-invoke the backend here.
       });
       videoWin.once('tauri://error', (e) => console.error('video window error:', e));
-      videoWin.onCloseRequested(() => { activeVideoWin = null; });
+      bindVideoWindowCleanup(videoWin);
+      } catch (e) {
+        console.error('video window creation failed:', e);
+      } finally {
+        videoWinMutex = false;
+      }
     }
   } catch (e) {
     console.error('Post-flight action failed:', e);
@@ -680,11 +850,11 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
     url: task.postFlightUrl || '',
     folder: task.postFlightFolder || '',
     script: task.postFlightScript || '',
+    videoEnable: task.postFlightVideoEnable !== false,
     videoFile: task.postFlightVideoFile || 'cat.mov',
     videoDuration: task.postFlightVideoDuration || 30,
     videoSpeed: parseFloat(task.postFlightVideoSpeed) || 1,
     videoScale: parseFloat(task.postFlightVideoScale) || 1,
-    videoEnable: task.postFlightVideoEnable !== false,
     effectType: task.postFlightEffectType || 'fireworks',
     effectDuration: task.postFlightEffectDuration || 15,
     taskMsg: msg,
@@ -704,7 +874,13 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
 
   if (mode === 'loop_times') {
     const sequenceId = createSequenceId(task.id);
-    const totalLoopMs = task.loopCount * 10000 + 60000;
+    // Single-loop duration depends on speed and effect config. The
+    // worst case is 4600ms durationBase / 0.1 speedFactor = 46000ms.
+    // Use 60s per loop iteration as a safe upper bound so the
+    // sequence timeout fires after all loops are done, even on
+    // very slow speeds.
+    const perLoopMs = 60000;
+    const totalLoopMs = task.loopCount * perLoopMs + 60000;
     task._flightRemaining = task.loopCount || 3;
     updateTaskFlightCb?.(task.id, task._flightRemaining);
     flightSequences.set(sequenceId, {
@@ -742,10 +918,33 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
   }
 }
 
+// Hold the unlisten function for the flight-ended listener so that
+// repeated init calls do not accumulate duplicate listeners.
+let flightEndedUnlisten = null;
+let flightListenersInitialized = false;
+
+export function disposeFlightListeners() {
+  if (flightEndedUnlisten) {
+    try { flightEndedUnlisten(); } catch (e) { console.error('flightEnded unlisten failed:', e); }
+    flightEndedUnlisten = null;
+  }
+  flightListenersInitialized = false;
+}
+
 export async function initFlightListeners() {
   if (!isTauriRuntime()) return;
+  if (flightListenersInitialized) return;
+  flightListenersInitialized = true;
 
-  listen('flight-ended', async (event) => {
+  const p = listen('flight-ended', async (event) => {
+    // During emergency landing, suppress post-flight actions that would
+    // create new video/effect windows. The emergency flow handles all
+    // cleanup itself; we just need to release the flight queue.
+    if (emergencyLandingActive) {
+      releaseFlightQueue();
+      await closePostFlightNotify();
+      return;
+    }
     localStorage.removeItem('_flightImage');
     localStorage.removeItem('_flightUseImage');
     const sequenceId = event.payload?.sequenceId || '';
@@ -792,10 +991,18 @@ export async function initFlightListeners() {
     await closePostFlightNotify();
     if (continued) return;
 
+    // If the user clicked "skip current flight", suppress the
+    // post-flight action so they don't see the video/effect anyway.
+    if (skipPostFlight) {
+      skipPostFlight = false;
+      return;
+    }
+
     if (inLoop && loopState) {
       await executePostFlightAction(loopState.postFlight);
     } else {
       await executePostFlightAction(oncePostFlight);
     }
   });
+  flightEndedUnlisten = p;
 }

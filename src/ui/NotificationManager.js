@@ -14,11 +14,29 @@ export async function initNotificationPermission() {
   }
 }
 
-export function notifyFlightTriggered(taskLabel, msg) {
-  if (!notificationPermissionGranted) return;
+// Map task type / category to a distinguishing emoji so the user
+// can tell at a glance what kind of flight is starting.
+function titleForTask(taskLabel, taskType) {
+  const label = taskLabel || '咕咕机长';
+  switch (taskType) {
+    case 'holiday': return `🎉 ${label}`;
+    case 'anniversary': return `💝 ${label}`;
+    case 'alarm': return `⏰ ${label}`;
+    case 'countdown': return `⏱ ${label}`;
+    default: return `✈ ${label}`;
+  }
+}
+
+export async function notifyFlightTriggered(taskLabel, msg, taskType) {
+  try {
+    const grantedNow = await isPermissionGranted();
+    if (!grantedNow) return;
+  } catch {
+    return;
+  }
   try {
     sendNotification({
-      title: taskLabel ? `✈ ${taskLabel}` : '✈ 咕咕机长',
+      title: titleForTask(taskLabel, taskType),
       body: msg || '该任务已触发',
     });
   } catch (error) {

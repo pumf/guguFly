@@ -2,7 +2,7 @@ export const DEFAULT_FLIGHT_SETTINGS = {
   speed: 'normal',
   height: 'center',
   effect: 'steady',
-  plane: 'classic',
+  plane: 'gif',
   planeSize: '1',
   particle: 'classic',
   bubble: 'classic',

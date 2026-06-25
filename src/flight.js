@@ -31,8 +31,10 @@ const canvas = document.getElementById('flightCanvas');
 const ctx = canvas.getContext('2d');
 
 const params = new URLSearchParams(window.location.search);
-const MAX_CANVAS_W = 2560;
-const MAX_CANVAS_H = 1600;
+// Allow up to 5K resolution (5120x2880). Older code capped at 2560x1600
+// which forced blurry output on high-DPI 4K/5K displays.
+const MAX_CANVAS_W = 5120;
+const MAX_CANVAS_H = 2880;
 const W = Math.min(parseInt(params.get('w') || localStorage.getItem('_flightW')) || 1920, MAX_CANVAS_W);
 const H = Math.min(parseInt(params.get('h') || localStorage.getItem('_flightH')) || 1080, MAX_CANVAS_H);
 

@@ -2,7 +2,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewW
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { AccurateTimer } from './timer.js';
-import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog } from './storage.js';
+import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog, setStorageQuotaHandler } from './storage.js';
 import { getRandomQuote } from './quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
@@ -14,7 +14,7 @@ import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';
 import { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from './tasks/TaskUtils.js';
 import { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from './flight/FlightPresets.js';
-import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb } from './flight/FlightOrchestrator.js';
+import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb, resetVideoWindowState, resetPfNotifyState, closePostFlightNotify, setEmergencyLandingActive, isEmergencyLandingActive, setIsInQuietHoursFn, setSkipPostFlight, clearPendingPfCancel, releaseFlightQueue } from './flight/FlightOrchestrator.js';
 import { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard } from './ui/TaskRenderer.js';
 import { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from './tasks/CountdownTimer.js';
 import { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from './tasks/AlarmChecker.js';
@@ -97,7 +97,6 @@ const {
   editPostFlightVideoPath,
   editPostFlightVideoDurationMin,
   editPostFlightVideoDurationSec,
-  postFlightVideoEnableField,
   postFlightVideoSelectField,
   postFlightVideoCustomField,
   postFlightVideoDurationField,
@@ -231,7 +230,6 @@ const taskActions = createTaskActions({
     editPostFlightVideoPath,
     editPostFlightVideoDurationMin,
     editPostFlightVideoDurationSec,
-    postFlightVideoEnableField,
     postFlightVideoSelectField,
     postFlightVideoCustomField,
     postFlightVideoDurationField,
@@ -297,6 +295,13 @@ async function renderStatsPanel() {
 
 // --- Init ---
 async function init() {
+  // Register storage quota handler so the user gets a visible warning
+  // when localStorage is full (mainly affects browser/preview mode;
+  // Tauri uses file-based store and has no quota limit).
+  setStorageQuotaHandler((key) => {
+    showToast(`存储空间不足：无法保存 ${key}。请尝试删除大图片或音频。`);
+  });
+
   const saved = await loadTasks();
   const { tasks: hydrated, maxId } = hydrateTasks(saved);
   state.tasks = hydrated;
@@ -509,6 +514,14 @@ async function init() {
       triggerEmergencyLanding,
       initTauriListeners,
       listen,
+      resetVideoWindowState,
+      resetPfNotifyState,
+      closePostFlightNotify,
+      setEmergencyLandingActive,
+      isEmergencyLandingActive,
+      setSkipPostFlight,
+      clearPendingPfCancel,
+      releaseFlightQueue,
       stopLoopSoundLocal,
       stopLoopSound,
       clearAllSequences,
@@ -596,6 +609,11 @@ async function init() {
       renderTaskView();
     }
   });
+
+  // Wire quiet-hours check to FlightOrchestrator so post-flight
+  // actions (video, effect, app, url, etc.) respect the same setting
+  // as the initial flight trigger.
+  setIsInQuietHoursFn(() => isInQuietHours(quietHoursToggle, quietStartHour, quietEndHour));
 
   listen('deep-link', (event) => {
     void handleDeepLink({

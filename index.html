@@ -521,12 +521,6 @@
               <label style="white-space:nowrap">脚本命令</label>
               <input type="text" id="editPostFlightScript" class="edit-input" placeholder="pmset displaysleepnow" />
             </div>
-            <div id="postFlightVideoEnableField" class="form-row hidden">
-              <label class="img-toggle">
-                <input type="checkbox" id="editPostFlightVideoEnable" checked />
-                <span>启用视频</span>
-              </label>
-            </div>
             <div id="postFlightVideoSelectField" class="form-row hidden">
               <label style="white-space:nowrap">内置视频</label>
               <select id="editPostFlightVideoSelect" class="edit-input">
@@ -584,6 +578,9 @@
                 <option value="30">30 秒</option>
                 <option value="60">60 秒</option>
               </select>
+            </div>
+            <div class="field-hint" style="margin-top:8px;padding:0 4px;color:var(--soft-muted);font-size:11px">
+              播放特效或视频时，按 <kbd style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--border-strong);background:var(--panel-strong)">Esc</kbd> 可立即关闭
             </div>
           </div>
           <div class="form-block">
@@ -715,6 +712,15 @@
                 <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
               </div>
               <div class="settings-block">
+                <div class="settings-block-title">视频缓存</div>
+                <p class="settings-hint">内置视频（猫咪/狗狗）的本地缓存，可加速播放并支持离线使用。</p>
+                <div id="videoCacheList" class="settings-list" style="margin-top:8px"></div>
+                <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+                  <button id="refreshCacheBtn" class="settings-action-btn">刷新</button>
+                  <button id="clearCacheBtn" class="settings-action-btn" style="color:var(--danger)">清空缓存</button>
+                </div>
+              </div>
+              <div class="settings-block">
                 <div class="settings-block-title">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
                   <button id="checkUpdateBtn" class="settings-action-btn">检查更新</button>
@@ -729,12 +735,12 @@
                 <p class="settings-hint">通过 GitHub Issues 提交问题或功能建议。</p>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">软件说明</div>
-                <div class="settings-list">
-                  <div class="settings-item">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
-                  <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
-                  <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
-                </div>
+                  <div class="settings-block-title">软件说明</div>
+                  <div class="settings-list">
+                    <div class="settings-item">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
+                    <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
+                    <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
+                  </div>
               </div>
               <div class="settings-block">
                 <div class="settings-block-title">开源信息</div>

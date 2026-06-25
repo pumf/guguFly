@@ -11,14 +11,28 @@ export function parseDeepLinkUrl(rawUrl) {
   }
 }
 
+// Strict integer parsing: only accepts strings that are entirely digits.
+// Returns null if the input contains any non-digit characters or is
+// out of range. This prevents parseInt's loose matching (e.g.,
+// parseInt('99abc') returns 99) from accepting malformed deep-link
+// parameters.
+function parseStrictInt(value, min, max, fallback) {
+  if (typeof value !== 'string' && typeof value !== 'number') return fallback;
+  const str = String(value).trim();
+  if (!/^-?\d+$/.test(str)) return fallback;
+  const n = parseInt(str, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export function buildTaskFromDeepLink(params, ctx) {
   const { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, HOLIDAY_PRESETS, formatHolidayLabel } = ctx;
   const type = ['alarm', 'countdown', 'holiday', 'anniversary'].includes(params.type) ? params.type : 'alarm';
-  const msg = (params.msg || '').trim();
-  const hour = Math.min(23, Math.max(0, parseInt(params.hour, 10) || 0));
-  const minute = Math.min(59, Math.max(0, parseInt(params.minute, 10) || 0));
-  const mins = Math.min(999, Math.max(0, parseInt(params.mins, 10) || 0));
-  const secs = Math.min(59, Math.max(0, parseInt(params.secs, 10) || 0));
+  const msg = (params.msg || '').trim().slice(0, 500); // bound message length
+  const hour = parseStrictInt(params.hour, 0, 23, 0);
+  const minute = parseStrictInt(params.minute, 0, 59, 0);
+  const mins = parseStrictInt(params.mins, 0, 999, 0);
+  const secs = parseStrictInt(params.secs, 0, 59, 0);
   let task;
   if (type === 'countdown') {
     task = createCountdownTask();
@@ -38,8 +52,8 @@ export function buildTaskFromDeepLink(params, ctx) {
   } else if (type === 'anniversary') {
     task = createAnniversaryTask();
     const d = new Date();
-    task.month = Math.min(12, Math.max(1, parseInt(params.month, 10) || (d.getMonth() + 1)));
-    task.day = Math.min(31, Math.max(1, parseInt(params.day, 10) || d.getDate()));
+    task.month = parseStrictInt(params.month, 1, 12, d.getMonth() + 1);
+    task.day = parseStrictInt(params.day, 1, 31, d.getDate());
     task.hour = hour; task.minute = minute;
     task.lunar = params.lunar === 'true' || params.lunar === '1';
     if (msg) task.msg = msg;
@@ -47,7 +61,9 @@ export function buildTaskFromDeepLink(params, ctx) {
   } else {
     task = createAlarmTask();
     task.hour = hour; task.minute = minute;
-    const days = (params.days || '').split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
+    const days = (params.days || '').split(',')
+      .map(s => parseStrictInt(s.trim(), 0, 6, null))
+      .filter(n => n !== null);
     task.repeat = Array.from(new Set(days));
   }
   if (msg) task.msg = msg;

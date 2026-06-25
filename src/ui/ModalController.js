@@ -74,10 +74,10 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
     loopTimesField, loopIntervalField,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
-    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
     editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
+    postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
     selectVideoBtn, clearVideoPathBtn, selectVideoInput, isTauriRuntime,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
@@ -108,7 +108,10 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
   editPostFlightFolder.value = task.postFlightFolder || '';
   editPostFlightScript.value = task.postFlightScript || '';
   if (editPostFlightEffectType) editPostFlightEffectType.value = task.postFlightEffectType || 'fireworks';
-  if (editPostFlightEffectDuration) editPostFlightEffectDuration.value = String(task.postFlightEffectDuration || 15);  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = task.postFlightVideoEnable !== false;
+  if (editPostFlightEffectDuration) editPostFlightEffectDuration.value = String(task.postFlightEffectDuration || 15);
+  // "Enable local video" is opt-in. Default off so the user gets the
+  // built-in video (cat.mov / dog.mov) by default; turn it on to use
+  // a user-selected local file.
   const d = task.postFlightVideoDuration || 30;
   if (editPostFlightVideoDurationMin) editPostFlightVideoDurationMin.value = Math.floor(d / 60);
   if (editPostFlightVideoDurationSec) editPostFlightVideoDurationSec.value = d % 60;
@@ -131,7 +134,6 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
   postFlightFolderField.classList.toggle('hidden', editPostFlightAction.value !== 'folder');
   postFlightScriptField.classList.toggle('hidden', editPostFlightAction.value !== 'script' && editPostFlightAction.value !== 'lock');
   const isVideo = editPostFlightAction.value === 'video';
-  postFlightVideoEnableField?.classList.toggle('hidden', !isVideo);
   postFlightVideoSelectField?.classList.toggle('hidden', !isVideo);
   postFlightVideoCustomField?.classList.toggle('hidden', !isVideo);
   postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
@@ -200,10 +202,10 @@ export function openNewModal(editingId, ctx) {
     loopTimesField, loopIntervalField,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
-    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
     editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-    postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
+    postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
     alarmFields, countdownFields, holidayFields, anniversaryFields,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute,
@@ -233,7 +235,6 @@ export function openNewModal(editingId, ctx) {
   editPostFlightUrl.value = '';
   editPostFlightFolder.value = '';
   editPostFlightScript.value = '';
-  if (editPostFlightVideoEnable) editPostFlightVideoEnable.checked = true;
   if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = 'cat.mov';
   if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
   if (editPostFlightVideoDurationMin) editPostFlightVideoDurationMin.value = 0;
@@ -247,7 +248,6 @@ export function openNewModal(editingId, ctx) {
   postFlightUrlField.classList.add('hidden');
   postFlightFolderField.classList.add('hidden');
   postFlightScriptField.classList.add('hidden');
-  postFlightVideoEnableField?.classList.add('hidden');
   postFlightVideoSelectField?.classList.add('hidden');
   postFlightVideoCustomField?.classList.add('hidden');
   postFlightVideoDurationField?.classList.add('hidden');
@@ -309,7 +309,7 @@ export function saveModal(editingId, ctx) {
     editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
     editPostFlightAction, editPostFlightAppPath, editPostFlightUrl,
     editPostFlightFolder, editPostFlightScript,
-    editPostFlightVideoEnable, editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
+    editPostFlightVideoSelect, editPostFlightVideoPath, editPostFlightVideoDurationMin, editPostFlightVideoDurationSec, editPostFlightVideoSpeed,
     editPostFlightVideoScale, editPostFlightEffectType, editPostFlightEffectDuration,
     editHour, editMinute, editMinutes, editSeconds,
     editHolidayHour, editHolidayMinute, holidayChecklist, HOLIDAY_PRESETS,
@@ -352,7 +352,6 @@ export function saveModal(editingId, ctx) {
     task.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
     task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
     task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
-    task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
     task.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
     task.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
 
@@ -438,7 +437,6 @@ export function saveModal(editingId, ctx) {
         t.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
         t.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
         t.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
-        t.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
         t.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
         t.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
         t.month = preset ? preset.month : 1;
@@ -484,7 +482,6 @@ export function saveModal(editingId, ctx) {
     task.postFlightVideoDuration = (parseInt(editPostFlightVideoDurationMin?.value) || 0) * 60 + (parseInt(editPostFlightVideoDurationSec?.value) || 30);
     task.postFlightVideoSpeed = parseFloat(editPostFlightVideoSpeed?.value) || 1;
     task.postFlightVideoScale = parseFloat(editPostFlightVideoScale?.value) || 1;
-    task.postFlightVideoEnable = editPostFlightVideoEnable ? editPostFlightVideoEnable.checked : true;
     task.postFlightEffectType = editPostFlightEffectType?.value || 'fireworks';
     task.postFlightEffectDuration = parseInt(editPostFlightEffectDuration?.value) || 15;
     tasks.push(task);
@@ -545,9 +542,11 @@ export function validateUpload(file, validTypes, maxSize, kindLabel, btnEl) {
   const fileName = file.name || '';
   const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
   const validExtensions = kindLabel === '图片' ? new Set(['png', 'jpg', 'jpeg', 'gif']) : new Set(['mp3', 'wav', 'ogg', 'mpeg']);
+  // Require BOTH MIME and extension to match. Allowing either through
+  // can be bypassed by crafted files (e.g. evil.exe with image/png MIME).
   const typeOk = !!file.type && validTypes.has(file.type);
   const extOk = !!ext && validExtensions.has(ext);
-  if (!typeOk && !extOk) {
+  if (!typeOk || !extOk) {
     markFieldError([btnEl]);
     showToastFn(`${kindLabel}格式不支持`);
     return false;

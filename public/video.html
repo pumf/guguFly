@@ -13,11 +13,8 @@ canvas{display:block;position:fixed;top:-1px;left:-1px;width:calc(100vw + 2px);h
 #label{font-size:22px;font-weight:600;color:#fff;margin-bottom:8px;text-shadow:0 2px 12px rgba(0,0,0,.5)}
 #countdown{font-size:36px;font-weight:300;color:rgba(255,255,255,.85);text-shadow:0 2px 12px rgba(0,0,0,.5)}
 #countdown strong{font-weight:600;color:#fff}
-#close-btn{position:fixed;top:20px;left:20px;width:36px;height:36px;border-radius:50%;
-  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
-  color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:background .2s;pointer-events:auto}
-#close-btn:hover{background:rgba(255,255,255,.25)}
+/* No close button — the window uses setIgnoreCursorEvents(true) for
+   true click-through. Close via auto-close timer or Escape key. */
 #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
   color:rgba(255,255,255,.8);font-size:22px;font-weight:600;
   text-shadow:0 2px 16px rgba(0,0,0,.6);text-align:center;
@@ -41,6 +38,5 @@ canvas{display:block;position:fixed;top:-1px;left:-1px;width:calc(100vw + 2px);h
   <div id="countdown">还剩 <strong id="remaining">0</strong> 秒</div>
 </div>
 <div id="clock"></div>
-<button id="close-btn">✕</button>
 <script src="video.js"></script>
 </body></html>

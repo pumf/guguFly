@@ -93,11 +93,17 @@ export function computeNextAlarmDate(task, fromDate) {
   }
 
   if (repeat.type === 'monthly_date') {
-    const day = Math.min(repeat.day || 1, 28);
+    // Handle month-end overflow: day 31 in a 30-day month should fire
+    // on the last day of that month. Day 29/30 in February should also
+    // fall back to Feb 28 (or 29 in leap years).
+    const targetDay = repeat.day || 1;
     for (let offset = 0; offset <= 62; offset++) {
       const d = new Date(now);
       d.setDate(d.getDate() + offset);
-      if (d.getDate() === day) {
+      // Compute the effective day for this month: min(targetDay, last day of month)
+      const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      const effectiveDay = Math.min(targetDay, lastDayOfMonth);
+      if (d.getDate() === effectiveDay) {
         d.setHours(task.hour, task.minute, 0, 0);
         if (d >= now) return d;
       }
@@ -482,6 +488,7 @@ export function getCleanTasks(tasks) {
 }
 
 export function hydrateTasks(saved) {
+  if (!Array.isArray(saved)) saved = [];
   let maxId = 0;
   const tasks = saved.map(t => {
     const repeat = t.repeat;

@@ -296,6 +296,33 @@ describe('computeNextAlarmDate', () => {
     expect(next).toEqual(new Date(2026, 1, 15, 9, 0));
   });
 
+  it('monthly_date: day 31 falls back to last day of 30-day month', () => {
+    // April has 30 days, so day 31 should fire on April 30
+    const now = new Date(2026, 2, 31, 10, 0); // March 31
+    const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'monthly_date', day: 31 } };
+    const next = computeNextAlarmDate(task, now);
+    expect(next).toEqual(new Date(2026, 3, 30, 9, 0)); // April 30
+  });
+
+  it('monthly_date: day 31 fires on May 31 (31-day month)', () => {
+    // From March 31, day 31 should fire on May 31 (skipping April's 30 fallback)
+    const now = new Date(2026, 2, 31, 10, 0); // March 31
+    const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'monthly_date', day: 31 } };
+    // March 31 with hour 9 already passed (now is 10:00), so next is April 30
+    const next = computeNextAlarmDate(task, now);
+    expect(next.getMonth()).toBe(3); // April
+    expect(next.getDate()).toBe(30);
+  });
+
+  it('monthly_date: day 29 in February falls back to Feb 28 (non-leap year)', () => {
+    // 2026 is not a leap year
+    const now = new Date(2025, 11, 31, 10, 0); // Dec 31, 2025
+    const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'monthly_date', day: 29 } };
+    const next = computeNextAlarmDate(task, now);
+    // Jan 29 is first
+    expect(next).toEqual(new Date(2026, 0, 29, 9, 0));
+  });
+
   it('monthly_weekday: 2nd Monday of month', () => {
     const now = new Date(2026, 0, 1, 10, 0);
     const task = { type: 'alarm', hour: 9, minute: 0, repeat: { type: 'monthly_weekday', week: 2, weekday: 1 } };

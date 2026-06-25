@@ -6,8 +6,6 @@
 
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d', { alpha: true });
-  var closeBtn = document.getElementById('close-btn');
-
   var W, H;
   function resize() {
     W = canvas.width = window.innerWidth;
@@ -947,19 +945,12 @@
     } catch(e) { try { window.close(); } catch(_) {} }
   }
 
-  closeBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    closeWindow();
+  // The window uses setIgnoreCursorEvents(true) for native click-through,
+  // so there is no clickable close button. Close via auto-close timer
+  // or the Escape key.
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeWindow();
   });
-  closeBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-  closeBtn.addEventListener('mouseup', function(e) { e.stopPropagation(); });
-
-  // Note: close button clickability is handled entirely via CSS in
-  // effect.html: body and canvas have pointer-events:none, while
-  // #close-btn has pointer-events:auto. We previously used
-  // setIgnoreCursorEvents but that blocks ALL mouse events at the
-  // webview level, including the close button itself.
 
   // --- Initial bursts ---
   if (effectType === 'fireworks') {

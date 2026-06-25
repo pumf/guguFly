@@ -33,7 +33,7 @@ export async function doTriggerFlight(task) {
   const msg = task.msg || ctx.getRandomQuote();
   await registerFlightTrigger();
   await ctx.recordFlightTrigger(task);
-  ctx.notifyFlightTriggered(task.label, msg);
+  await ctx.notifyFlightTriggered(task.label, msg, task.type);
   await ctx.renderStatsPanel();
   ctx.triggerFlightWithMode(task, null, null, null, null);
 }

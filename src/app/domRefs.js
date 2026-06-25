@@ -43,7 +43,6 @@ export function getMainDomRefs() {
     editPostFlightVideoPath: document.getElementById('editPostFlightVideoPath'),
     editPostFlightVideoDurationMin: document.getElementById('editPostFlightVideoDurationMin'),
     editPostFlightVideoDurationSec: document.getElementById('editPostFlightVideoDurationSec'),
-    postFlightVideoEnableField: document.getElementById('postFlightVideoEnableField'),
     postFlightVideoSelectField: document.getElementById('postFlightVideoSelectField'),
     postFlightVideoCustomField: document.getElementById('postFlightVideoCustomField'),
     postFlightVideoDurationField: document.getElementById('postFlightVideoDurationField'),

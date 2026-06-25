@@ -127,6 +127,8 @@ export async function initCoreModules(ctx) {
     taskListEl: refs.taskListEl,
     holidayPresets: HOLIDAY_PRESETS,
     doTriggerFlight: deps.doTriggerFlight,
+    updateMiniWindow: deps.updateMiniWindow,
+    getAllUpcomingTasks: deps.getAllUpcomingTasks,
   });
 
   initAlarmChecker({
@@ -162,6 +164,13 @@ export async function initCoreModules(ctx) {
     showToast,
     emergencyBtn: refs.emergencyBtn,
     tasksRef: () => state.tasks,
+    resetVideoWindowState: deps.resetVideoWindowState,
+    resetPfNotifyState: deps.resetPfNotifyState,
+    closePostFlightNotify: deps.closePostFlightNotify,
+    setEmergencyLandingActive: deps.setEmergencyLandingActive,
+    isEmergencyLandingActive: deps.isEmergencyLandingActive,
+    clearPendingPfCancel: deps.clearPendingPfCancel,
+    releaseFlightQueue: deps.releaseFlightQueue,
   });
 
   initHeroSection({
@@ -221,6 +230,7 @@ export async function initCoreModules(ctx) {
     showToast,
     createCountdownTask,
     triggerEmergencyLanding,
+    setSkipPostFlight: deps.setSkipPostFlight,
     saveTasks,
     getCleanTasks: (tasks) => getCleanTasks(tasks ?? state.tasks),
     renderTaskView,

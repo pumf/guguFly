@@ -198,6 +198,57 @@ export function initSettingsPanel(ctx) {
     else window.open('https://github.com/pumf/guguFly', '_blank');
   });
 
+  // Video cache management
+  const videoCacheList = document.getElementById('videoCacheList');
+  const refreshCacheBtn = document.getElementById('refreshCacheBtn');
+  const clearCacheBtn = document.getElementById('clearCacheBtn');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  async function refreshVideoCache() {
+    if (!isTauriRuntime || !videoCacheList) return;
+    try {
+      const files = await invoke('get_video_cache_info');
+      if (!files || files.length === 0) {
+        videoCacheList.innerHTML = '<div class="settings-item" style="color:var(--text-muted)">暂无缓存</div>';
+        return;
+      }
+      const totalSize = files.reduce((s, f) => s + (f.size || 0), 0);
+      videoCacheList.innerHTML = files.map(f =>
+        `<div class="settings-item" style="display:flex;justify-content:space-between;align-items:center">
+          <span>${f.name}</span>
+          <span style="color:var(--text-muted);font-size:12px">${formatBytes(f.size || 0)}</span>
+        </div>`
+      ).join('') + `<div class="settings-item" style="color:var(--text-muted);font-size:12px">共 ${files.length} 个文件，${formatBytes(totalSize)}</div>`;
+    } catch (e) {
+      console.error('refresh cache info failed:', e);
+    }
+  }
+
+  refreshCacheBtn?.addEventListener('click', () => { void refreshVideoCache(); });
+
+  clearCacheBtn?.addEventListener('click', async () => {
+    if (!isTauriRuntime) return;
+    const proceed = await window.showConfirm('确定清空视频缓存？下次播放内置视频时会重新下载。');
+    if (!proceed) return;
+    try {
+      await invoke('clear_video_cache');
+      showToast('视频缓存已清空');
+      refreshVideoCache();
+    } catch (e) {
+      showToast('清空失败：' + (e.message || e));
+    }
+  });
+
+  // Auto-load cache info when settings modal opens
+  settingsBtn?.addEventListener('click', () => {
+    setTimeout(() => { void refreshVideoCache(); }, 100);
+  });
+
   if (statsToggle) {
     statsToggle.addEventListener('click', () => {
       const statsModal = document.getElementById('statsModal');

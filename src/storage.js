@@ -2,8 +2,13 @@ import { Store } from '@tauri-apps/plugin-store';
 import { isTauriRuntime } from './utils.js';
 
 let store = null;
+let onQuotaExceeded = null;
 
 const BROWSER_KEY_PREFIX = 'gugufly:';
+
+export function setStorageQuotaHandler(fn) {
+  onQuotaExceeded = fn;
+}
 
 function browserGet(key) {
   try {
@@ -18,7 +23,13 @@ function browserSet(key, value) {
   try {
     window.localStorage.setItem(BROWSER_KEY_PREFIX + key, JSON.stringify(value));
   } catch (error) {
+    // QuotaExceededError, SecurityError (private browsing), etc.
     console.error('localStorage write failed:', error);
+    if (onQuotaExceeded) {
+      try { onQuotaExceeded(key, error); } catch (handlerErr) {
+        console.error('storage quota handler failed:', handlerErr);
+      }
+    }
   }
 }
 

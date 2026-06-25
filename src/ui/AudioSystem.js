@@ -140,7 +140,7 @@ export async function previewCustomSound() {
   const data = getCustomAudioDataFn();
   if (!data) { showToastFn('请先选择一段自定义音频'); return; }
   if (previewAudioHandle) {
-    try { previewAudioHandle.pause(); } catch {}
+    try { previewAudioHandle.pause(); } catch (e) { console.error('preview pause failed:', e); }
     previewAudioHandle = null;
     showToastFn('已结束试听');
     updateSoundMeta();
@@ -167,5 +167,12 @@ export function resetAudioPreview() {
 }
 
 export function syncAudioObjectUrlTo(value) {
-  customAudioObjectUrl = value;
+  // Revoke the previous URL before overwriting so we don't leak the
+  // blob-backed ObjectURL each time the user changes the audio file.
+  if (customAudioObjectUrl && customAudioObjectUrl !== value) {
+    try { URL.revokeObjectURL(customAudioObjectUrl); } catch (e) {
+      console.error('revoke old audio URL failed:', e);
+    }
+  }
+  customAudioObjectUrl = value || '';
 }

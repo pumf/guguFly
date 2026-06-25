@@ -43,6 +43,17 @@ export class AccurateTimer {
     this.remaining = this.durationMs;
   }
 
+  // Force an immediate tick. Useful when the app comes back to the
+  // foreground (visibilitychange) — setTimeout may have been throttled
+  // while in the background, so we need to recompute and re-emit the
+  // current remaining time immediately.
+  forceUpdate() {
+    if (!this.running || this.paused) return;
+    // Cancel any pending timeout so we don't get duplicate ticks.
+    if (this._timerId) { clearTimeout(this._timerId); this._timerId = null; }
+    this._tick();
+  }
+
   reset(durationMs) {
     this.stop();
     this.durationMs = durationMs;
@@ -51,7 +62,9 @@ export class AccurateTimer {
 
   _tick() {
     if (!this.running || this.paused) return;
-    const elapsed = Date.now() - this.startTime;
+    const now = Date.now();
+    const elapsed = now - this.startTime;
+
     this.remaining = Math.max(0, this.durationMs - elapsed);
 
     if (this.onTick) this.onTick(this.remaining);

@@ -5,6 +5,13 @@ import { isTauriRuntime } from '../utils.js';
 
 let miniWindow = null;
 let cleanupFn = null;
+let createInFlight = false; // debounce concurrent createMiniWindow calls
+// Debounce timers for create/close so rapid toggling doesn't
+// generate many create/close requests in quick succession.
+let createDebounceTimer = null;
+let closeDebounceTimer = null;
+const CREATE_DEBOUNCE_MS = 150;
+const CLOSE_DEBOUNCE_MS = 150;
 
 const MINI_POSITIONS = {
   'top-left': { x: 12, y: 12 },
@@ -26,11 +33,13 @@ async function computeMiniPos(posKey) {
     const { currentMonitor, primaryMonitor } = await import('@tauri-apps/api/window');
     const m = (await currentMonitor()) || (await primaryMonitor());
     if (m) {
-      screenX = m.position.x;
-      screenY = m.position.y;
-      screenW = m.size.width;
-      screenH = m.size.height;
+      // Monitor position/size are in physical pixels; convert to logical
+      // for use with LogicalPosition and logical window dimensions.
       scaleFactor = m.scaleFactor || 1;
+      screenX = m.position.x / scaleFactor;
+      screenY = m.position.y / scaleFactor;
+      screenW = m.size.width / scaleFactor;
+      screenH = m.size.height / scaleFactor;
     }
   } catch (error) {
     console.error('mini monitor lookup failed:', error);
@@ -39,6 +48,8 @@ async function computeMiniPos(posKey) {
   const maxX = screenX + screenW - MINI_WIN_WIDTH - margin;
   const maxY = screenY + screenH - MINI_WIN_HEIGHT - margin;
 
+  // Saved position from mini.js drag is in physical pixels.
+  // Convert to logical before using.
   if (posKey && typeof posKey === 'object' && typeof posKey.x === 'number' && typeof posKey.y === 'number') {
     let x = posKey.x / scaleFactor;
     let y = posKey.y / scaleFactor;
@@ -66,6 +77,8 @@ async function computeMiniPos(posKey) {
 
 export async function createMiniWindow() {
   if (!isTauriRuntime()) return;
+  // If a create is in-flight or just completed, no-op subsequent calls.
+  if (createInFlight) return;
   if (miniWindow) {
     try {
       await miniWindow.show();
@@ -74,6 +87,15 @@ export async function createMiniWindow() {
     }
     return;
   }
+  // Debounce: collapse rapid toggle calls into a single create. Clear
+  // any existing debounce first to be defensive against any future
+  // code path that may have created one without checking.
+  if (createDebounceTimer) {
+    clearTimeout(createDebounceTimer);
+    createDebounceTimer = null;
+  }
+  createDebounceTimer = setTimeout(() => { createDebounceTimer = null; }, CREATE_DEBOUNCE_MS);
+  createInFlight = true;
   try {
     const pos = await computeMiniPos(await get('miniWindowPosition') || 'top-right');
     miniWindow = new WebviewWindow('gugufly-mini', {
@@ -93,15 +115,52 @@ export async function createMiniWindow() {
     const unlisten = await listen('mini-drag-end', async (event) => {
       const p = event.payload;
       if (p && typeof p.x === 'number' && typeof p.y === 'number') {
-        await set('miniWindowPosition', { x: Math.round(p.x), y: Math.round(p.y) });
+        let x = Math.round(p.x);
+        let y = Math.round(p.y);
+        // Clamp to current monitor bounds (handles multi-monitor drift
+        // and monitor disconnection). Position is in physical pixels.
+        try {
+          const { currentMonitor, primaryMonitor } = await import('@tauri-apps/api/window');
+          const m = (await currentMonitor()) || (await primaryMonitor());
+          if (m) {
+            const sf = m.scaleFactor || 1;
+            const minX = m.position.x;
+            const minY = m.position.y;
+            const maxX = minX + m.size.width - MINI_WIN_WIDTH * sf;
+            const maxY = minY + m.size.height - MINI_WIN_HEIGHT * sf;
+            if (x < minX) x = minX;
+            if (y < minY) y = minY;
+            if (x > maxX) x = maxX;
+            if (y > maxY) y = maxY;
+            if (miniWindow) {
+              const { LogicalPosition } = await import('@tauri-apps/api/window');
+              await miniWindow.setPosition(new LogicalPosition(x / sf, y / sf));
+            }
+          }
+        } catch (clampErr) {
+          console.error('mini monitor clamp failed:', clampErr);
+        }
+        await set('miniWindowPosition', { x, y });
       }
     });
     cleanupFn = unlisten;
-  } catch (e) { console.error('mini create failed:', e); miniWindow = null; }
+  } catch (e) {
+    console.error('mini create failed:', e);
+    miniWindow = null;
+  } finally {
+    createInFlight = false;
+  }
 }
 
 export async function closeMiniWindow() {
   if (!miniWindow) return;
+  // Clear any existing debounce first to avoid any chance of
+  // accumulated timer references.
+  if (closeDebounceTimer) {
+    clearTimeout(closeDebounceTimer);
+    closeDebounceTimer = null;
+  }
+  closeDebounceTimer = setTimeout(() => { closeDebounceTimer = null; }, CLOSE_DEBOUNCE_MS);
   try {
     await miniWindow.hide();
     await miniWindow.close();
@@ -145,7 +204,7 @@ export async function updateMiniWindow(allUpcoming) {
         const label = u.task.label || '提醒';
         const time = formatUpcomingTime(u.seconds);
         const urgent = u.seconds <= 300 || u.task._status === 'running';
-        return { icon, text: label, detail: time, urgent };
+        return { icon, text: label, detail: time, rawSeconds: Math.max(0, Math.floor(u.seconds)), urgent };
       });
       await emit('mini-set-content', { tasks });
     } else {

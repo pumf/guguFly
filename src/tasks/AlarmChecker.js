@@ -3,6 +3,9 @@ import { getNextSolarFromLunar } from './LunarUtils.js';
 
 let alarmInterval = null;
 const previewedTasks = new Set();
+// Track the last time the alarm check ran. Used to detect system
+// sleep/wake where setInterval may have been frozen for a long time.
+let lastCheckTime = 0;
 
 let getTasksFn;
 let saveTasksFn;
@@ -162,39 +165,79 @@ function checkPreTrigger() {
   });
 }
 
+// Check and trigger any alarms due for the current minute.
+// Extracted from the setInterval callback so it can also be called
+// from the visibilitychange recovery path.
+function runAlarmCheck() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), today = now.toDateString();
+  getTasksFn().forEach(task => {
+    if (!task.enabled) return;
+    if (task._lastTriggeredDate === today) return;
+    if (task.type === 'alarm') {
+      if (isAlarmDueTodayFn(task, now)) {
+        task._lastTriggeredDate = today;
+        debouncedSave();
+        doTriggerFlightFn(task);
+      }
+    } else if (task.type === 'holiday' || task.type === 'anniversary') {
+      let lunarMatch = false;
+      if (task.lunar) {
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const solar = getNextSolarFromLunar(task.month, task.day, nowDate);
+        if (solar && solar.solarMonth === now.getMonth() + 1 && solar.solarDay === now.getDate()) {
+          lunarMatch = true;
+        }
+      } else {
+        lunarMatch = task.month === now.getMonth() + 1 && task.day === now.getDate();
+      }
+      if (lunarMatch && task.hour === h && task.minute === m) {
+        task._lastTriggeredDate = today;
+        debouncedSave();
+        doTriggerFlightFn(task);
+      }
+    }
+  });
+}
+
+// After a long pause (system sleep/wake), iterate through all alarms
+// in the missed window and trigger any whose scheduled time has
+// passed but is within the last 24 hours. This catches alarms that
+// were missed while the timer was frozen.
+function runSleepRecovery(fromTime, toTime) {
+  if (!fromTime || !toTime || toTime <= fromTime) return;
+  const today = new Date().toDateString();
+  // Cap recovery at 24 hours so we don't trigger stale alarms
+  if (toTime - fromTime > 24 * 60 * 60 * 1000) fromTime = toTime - 24 * 60 * 60 * 1000;
+  getTasksFn().forEach(task => {
+    if (!task.enabled) return;
+    if (task._lastTriggeredDate === today) return;
+    if (task.type === 'alarm' || task.type === 'holiday' || task.type === 'anniversary') {
+      const next = computeNextAlarmDate(task, new Date(fromTime));
+      if (next && next.getTime() >= fromTime && next.getTime() <= toTime) {
+        task._lastTriggeredDate = today;
+        debouncedSave();
+        doTriggerFlightFn(task);
+      }
+    }
+  });
+}
+
 export function startAlarmChecker() {
   if (alarmInterval) return;
+  lastCheckTime = Date.now();
   checkPreTrigger();
+  // Recover from any alarms missed before the app was running.
+  runSleepRecovery(0, lastCheckTime);
   alarmInterval = setInterval(() => {
-    const now = new Date();
-    const h = now.getHours(), m = now.getMinutes(), today = now.toDateString();
-    getTasksFn().forEach(task => {
-      if (!task.enabled) return;
-      if (task._lastTriggeredDate === today) return;
-      if (task.type === 'alarm') {
-        if (isAlarmDueTodayFn(task, now)) {
-          task._lastTriggeredDate = today;
-          debouncedSave();
-          doTriggerFlightFn(task);
-        }
-      } else if (task.type === 'holiday' || task.type === 'anniversary') {
-        let lunarMatch = false;
-        if (task.lunar) {
-          const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const solar = getNextSolarFromLunar(task.month, task.day, nowDate);
-          if (solar && solar.solarMonth === now.getMonth() + 1 && solar.solarDay === now.getDate()) {
-            lunarMatch = true;
-          }
-        } else {
-          lunarMatch = task.month === now.getMonth() + 1 && task.day === now.getDate();
-        }
-        if (lunarMatch && task.hour === h && task.minute === m) {
-          task._lastTriggeredDate = today;
-          debouncedSave();
-          doTriggerFlightFn(task);
-        }
-      }
-    });
+    const now = Date.now();
+    // If the previous tick was more than 2 minutes ago, the system
+    // likely slept. Run a recovery pass to catch missed alarms.
+    if (lastCheckTime && now - lastCheckTime > 120000) {
+      runSleepRecovery(lastCheckTime, now);
+    }
+    lastCheckTime = now;
+    runAlarmCheck();
     checkPreTrigger();
     if (renderTasksFn) {
       const newInProgressIds = new Set();

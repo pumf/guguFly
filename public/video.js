@@ -8,12 +8,9 @@
 
   var BUILTIN_VIDEO_BASE = 'https://fly.pumf.top/resource';
   var builtinNames = ['cat.mov', 'dog.mov'];
-  // Note: FlightOrchestrator already handles built-in video URL
-  // selection (local cache vs remote). We only fall back to the
-  // remote URL here if the param somehow still has a bare 'cat.mov'
-  // / 'dog.mov' string (e.g. opened directly without going through
-  // the orchestrator).
-  if (builtinNames.includes(videoFile)) {
+  var originalFile = videoFile;
+  var isBuiltinVideo = builtinNames.includes(originalFile);
+  if (isBuiltinVideo) {
     videoFile = BUILTIN_VIDEO_BASE + '/' + videoFile;
   }
 
@@ -22,7 +19,6 @@
   var remainingEl = document.getElementById('remaining');
   var clockEl = document.getElementById('clock');
   var labelEl = document.getElementById('label');
-  var closeBtn = document.getElementById('close-btn');
   var loadingEl = document.getElementById('loading');
   var stallHintEl = document.getElementById('stall-hint');
 
@@ -36,9 +32,7 @@
 
   try {
     if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.convertFileSrc && videoFile.startsWith('/')) {
-      console.log('[video] original path:', videoFile);
       videoFile = window.__TAURI__.core.convertFileSrc(videoFile);
-      console.log('[video] convertFileSrc result:', videoFile);
     }
   } catch(e) { console.error('[video] convertFileSrc error:', e); }
 
@@ -64,84 +58,83 @@
   video.loop = true;
   video.playsinline = true;
   video.preload = 'auto';
-  console.log('[video] final src:', videoFile);
-  video.src = videoFile;
-  video.load();
-
-  video.addEventListener('error', function(e){
-    console.error('[video] video element error:', video.error, 'code:', video.error?.code, 'message:', video.error?.message);
-    // If the source URL was a remote fallback and it failed, immediately
-    // try to download a local cached copy. This avoids the user seeing
-    // a stuck "loading" state when the remote host is unreachable.
-    if (!localRetryAttempted && builtinNames.includes(originalFile) && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-      localRetryAttempted = true;
-      loadingEl.innerHTML = '<div class="spinner"></div><div>正在下载本地缓存…</div>';
-      window.__TAURI__.core.invoke('download_builtin_video', { name: originalFile })
-        .then(function(localPath) {
-          console.log('[video] error fallback: switching to local file', localPath);
-          switchToLocalFile(localPath);
-        })
-        .catch(function(e2) {
-          console.error('[video] error fallback download failed:', e2);
-          loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div>';
-        });
-    } else {
-      loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div>';
-    }
-  });
-
-  // Fallback timeout: if the video hasn't started playing after 8
-  // seconds, try fetching a local cached copy and switching to it.
-  // This handles cases where the initial URL (e.g. remote fallback)
-  // is unreachable due to network issues.
-  setTimeout(function() {
-    if (ready) return;
-    if (localRetryAttempted) return;
-    localRetryAttempted = true;
-    // Only attempt if the original file was a built-in video
-    if (builtinNames.includes(originalFile) && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-      loadingEl.innerHTML = '<div class="spinner"></div><div>正在下载本地缓存…</div>';
-      window.__TAURI__.core.invoke('download_builtin_video', { name: originalFile })
-        .then(function(localPath) {
-          if (ready) return; // Video started playing while we were downloading
-          console.log('[video] timeout fallback: switching to local file', localPath);
-          switchToLocalFile(localPath);
-        })
-        .catch(function(e) {
-          console.error('[video] timeout fallback download failed:', e);
-          loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div><div style="font-size:12px;margin-top:8px;opacity:0.7">请检查网络连接</div>';
-        });
-    } else {
-      loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div><div style="font-size:12px;margin-top:8px;opacity:0.7">请检查网络连接</div>';
-    }
-  }, 8000);
 
   var frameId = null;
   var ready = false;
   var stallTimer = null;
   var stallCount = 0;
   var lastFrameTime = 0;
+  var localPath = null;
+  var switchingToLocal = false;
 
-  // Track if we've already retried with a local file
-  var localRetryAttempted = false;
-  // Function to switch to a local cached file
-  function switchToLocalFile(localPath) {
-    if (!localPath || !window.__TAURI__ || !window.__TAURI__.core) return false;
-    try {
-      var converted = window.__TAURI__.core.convertFileSrc(localPath);
-      if (converted) {
-        console.log('[video] switching to local cached file:', converted);
-        ready = false;
-        loadingEl.classList.remove('hidden');
-        loadingEl.innerHTML = '<div class="spinner"></div><div>正在切换到本地缓存…</div>';
-        video.src = converted;
-        video.load();
-        return true;
+  function startVideo(src) {
+    console.log('[video] final src:', src);
+    video.src = src;
+    video.load();
+  }
+
+  // For built-in videos: check local cache FIRST.
+  // If cached (download_builtin_video returns instantly), use local path directly.
+  // If not cached, show loading, download, then play from local.
+  if (isBuiltinVideo && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+    window.__TAURI__.core.invoke('download_builtin_video', { name: originalFile })
+      .then(function(path) {
+        localPath = path;
+        console.log('[video] local cache ready:', path);
+        startVideo(window.__TAURI__.core.convertFileSrc(path));
+      })
+      .catch(function(e) {
+        console.warn('[video] cache/download failed, trying remote:', e);
+        startVideo(videoFile);
+      });
+  } else {
+    startVideo(videoFile);
+  }
+
+  video.addEventListener('error', function(e){
+    console.error('[video] video element error:', video.error, 'code:', video.error?.code, 'message:', video.error?.message);
+    if (isBuiltinVideo && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+      if (localPath) {
+        // Local cache exists but failed to load — try remote as fallback
+        loadingEl.innerHTML = '<div class="spinner"></div><div>正在尝试远程加载…</div>';
+        switchToLocalFile(localPath, false);
+      } else {
+        loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div><div style="font-size:12px;margin-top:8px;opacity:0.7">请检查网络连接</div>';
       }
+    } else {
+      if (originalFile && originalFile.startsWith('/')) {
+        loadingEl.innerHTML = '<div>⚠️ 本地视频文件无法访问</div><div style="font-size:12px;margin-top:8px;opacity:0.7">文件可能已被移动或删除</div>';
+      } else {
+        loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div>';
+      }
+    }
+  });
+
+  function switchToLocalFile(path, silent) {
+    if (!path || !window.__TAURI__ || !window.__TAURI__.core) return;
+    try {
+      var converted = window.__TAURI__.core.convertFileSrc(path);
+      if (!converted) return;
+      switchingToLocal = true;
+      var currentTime = video.currentTime || 0;
+      var wasPlaying = !video.paused;
+      console.log('[video] switching to local cached file:', converted, 'silent:', silent);
+      if (!silent) {
+        loadingEl.innerHTML = '<div class="spinner"></div><div>正在切换到本地缓存…</div>';
+        loadingEl.classList.remove('hidden');
+      }
+      video.src = converted;
+      video.load();
+      video.addEventListener('canplay', function onCanPlay() {
+        video.removeEventListener('canplay', onCanPlay);
+        video.currentTime = currentTime;
+        if (wasPlaying) video.play().catch(function(){});
+        switchingToLocal = false;
+      });
     } catch (e) {
       console.error('[video] switchToLocalFile error:', e);
+      switchingToLocal = false;
     }
-    return false;
   }
 
   video.addEventListener('canplay', function(){
@@ -230,6 +223,15 @@
     } catch(e) { try { window.close(); } catch(_) {} }
   }
 
+  var windowClosed = false;
+  function scheduleClose() {
+    if (windowClosed) return;
+    windowClosed = true;
+    clearInterval(countdownTimer);
+    clearInterval(clockTimer);
+    setTimeout(closeWindow, 200);
+  }
+
   updateClock();
   var clockTimer = setInterval(updateClock, 1000);
 
@@ -237,28 +239,34 @@
     remaining--;
     if (remaining <= 0) {
       remaining = 0;
-      clearInterval(countdownTimer);
-      clearInterval(clockTimer);
-      setTimeout(closeWindow, 500);
+      remainingEl.textContent = fmtTime(remaining);
+      scheduleClose();
+      return;
     }
     remainingEl.textContent = fmtTime(remaining);
   }, 1000);
 
-  closeBtn.addEventListener('click', function(){
-    clearInterval(countdownTimer);
-    clearInterval(clockTimer);
-    closeWindow();
-  });
-  closeBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-  closeBtn.addEventListener('mouseup', function(e) { e.stopPropagation(); });
+  // Watch the video's actual playback to trigger close when it
+  // actually ends. This is more reliable than the setInterval-based
+  // countdown, which can be throttled when the window is in the
+  // background. The countdown timer still acts as a fallback.
+  if (typeof video.addEventListener === 'function') {
+    video.addEventListener('ended', scheduleClose);
+    // Some video formats fire 'timeupdate' near the end but not
+    // 'ended' reliably. Also poll currentTime as a backup.
+    video.addEventListener('timeupdate', function() {
+      if (video.duration && isFinite(video.duration) && video.currentTime >= video.duration - 0.1) {
+        scheduleClose();
+      }
+    });
+  }
 
-  // Note: close button clickability is handled entirely via CSS in
-  // video.html: body and canvas have pointer-events:none, while
-  // #close-btn has pointer-events:auto. This lets the rest of the
-  // screen pass mouse events through to the main app while the
-  // close button remains clickable. We previously used
-  // setIgnoreCursorEvents but that blocks ALL mouse events at the
-  // webview level, including the close button itself.
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      scheduleClose();
+      closeWindow();
+    }
+  });
 
   setTimeout(function(){
     if (!ready) {

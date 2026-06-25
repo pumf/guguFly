@@ -88,7 +88,6 @@ export function createTaskActions(ctx) {
       editPostFlightVideoPath: dom.editPostFlightVideoPath,
       editPostFlightVideoDurationMin: dom.editPostFlightVideoDurationMin,
       editPostFlightVideoDurationSec: dom.editPostFlightVideoDurationSec,
-      postFlightVideoEnableField: dom.postFlightVideoEnableField,
       postFlightVideoSelectField: dom.postFlightVideoSelectField,
       postFlightVideoCustomField: dom.postFlightVideoCustomField,
       postFlightVideoDurationField: dom.postFlightVideoDurationField,

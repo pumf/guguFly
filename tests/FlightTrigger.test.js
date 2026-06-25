@@ -87,7 +87,7 @@ describe('FlightTrigger', () => {
     await doTriggerFlight(task);
 
     expect(recordFlightTrigger).toHaveBeenCalledWith(task);
-    expect(notifyFlightTriggered).toHaveBeenCalledWith('喝水', '记得喝水');
+    expect(notifyFlightTriggered).toHaveBeenCalledWith('喝水', '记得喝水', 'alarm');
     expect(renderStatsPanel).toHaveBeenCalled();
     expect(triggerFlightWithMode).toHaveBeenCalledWith(task, null, null, null, null);
   });

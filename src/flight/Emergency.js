@@ -11,12 +11,18 @@ let clearFlightStreakFn;
 let stopAllCountdownsFn;
 let getWebviewWindowsFn;
 let showToastFn;
+let resetVideoWindowStateFn;
+let resetPfNotifyStateFn;
+let closePostFlightNotifyFn;
+let setEmergencyLandingActiveFn;
+let clearPendingPfCancelFn;
+let releaseFlightQueueFn;
 
 export function initEmergency(ctx) {
   getModalFn = ctx.getModal;
   getSettingsModalFn = ctx.getSettingsModal;
   stopLoopSoundLocalFn = ctx.stopLoopSoundLocal;
-   stopFlightLoopSoundFn = ctx.stopFlightLoopSound;
+  stopFlightLoopSoundFn = ctx.stopFlightLoopSound;
   stopPreviewAudioFn = ctx.stopPreviewAudio;
   clearAllSequencesFn = ctx.clearAllSequences;
   clearFlightQueueFn = ctx.clearFlightQueue;
@@ -24,6 +30,12 @@ export function initEmergency(ctx) {
   stopAllCountdownsFn = ctx.stopAllCountdowns;
   getWebviewWindowsFn = ctx.getWebviewWindows;
   showToastFn = ctx.showToast;
+  resetVideoWindowStateFn = ctx.resetVideoWindowState;
+  resetPfNotifyStateFn = ctx.resetPfNotifyState;
+  closePostFlightNotifyFn = ctx.closePostFlightNotify;
+  setEmergencyLandingActiveFn = ctx.setEmergencyLandingActive;
+  clearPendingPfCancelFn = ctx.clearPendingPfCancel;
+  releaseFlightQueueFn = ctx.releaseFlightQueue;
 
   const emergencyBtn = ctx.emergencyBtn;
   const tasksRef = ctx.tasksRef;
@@ -57,20 +69,48 @@ export function shouldHandleEmergencyShortcut(event) {
 }
 
 export async function triggerEmergencyLanding(tasks) {
-  if (stopLoopSoundLocalFn) stopLoopSoundLocalFn();
-  if (stopFlightLoopSoundFn) stopFlightLoopSoundFn();
-  if (stopPreviewAudioFn) stopPreviewAudioFn();
-  if (clearAllSequencesFn) clearAllSequencesFn();
-  if (clearFlightQueueFn) clearFlightQueueFn();
-  if (clearFlightStreakFn) await clearFlightStreakFn();
-  if (stopAllCountdownsFn) stopAllCountdownsFn(tasks);
+  // Set the emergency-landing flag BEFORE closing flight windows so
+  // that any flight-ended events fired during close are suppressed
+  // from executing post-flight actions.
+  if (setEmergencyLandingActiveFn) setEmergencyLandingActiveFn(true);
   try {
-    const all = await (getWebviewWindowsFn ? getWebviewWindowsFn() : []);
-    for (const w of all) {
-      if (w.label.startsWith('flight-')) await w.close();
+    if (stopLoopSoundLocalFn) stopLoopSoundLocalFn();
+    if (stopFlightLoopSoundFn) stopFlightLoopSoundFn();
+    if (stopPreviewAudioFn) stopPreviewAudioFn();
+    if (clearAllSequencesFn) clearAllSequencesFn();
+    if (clearFlightQueueFn) clearFlightQueueFn();
+    // Clear pendingPfCancel so a stale closure doesn't reference a
+    // no-longer-active flight job (which would mutate the wrong
+    // object on user click).
+    if (clearPendingPfCancelFn) clearPendingPfCancelFn();
+    if (clearFlightStreakFn) await clearFlightStreakFn();
+    if (stopAllCountdownsFn) stopAllCountdownsFn(tasks);
+    try {
+      const all = await (getWebviewWindowsFn ? getWebviewWindowsFn() : []);
+      for (const w of all) {
+        if (w.label.startsWith('flight-')) await w.close();
+        if (w.label === 'gugufly-effect' || w.label === 'gugufly-video' || w.label === 'gugufly-pfnotify') await w.close();
+      }
+    } catch (error) {
+      console.error('emergency close failed:', error);
     }
-  } catch (error) {
-    console.error('emergency close failed:', error);
+    // Release the flight queue and reset window state references
+    // so the next flight/post-flight action doesn't try to interact
+    // with the now-closed windows.
+    if (releaseFlightQueueFn) releaseFlightQueueFn();
+    if (resetVideoWindowStateFn) resetVideoWindowStateFn();
+    if (closePostFlightNotifyFn) {
+      try { await closePostFlightNotifyFn(); } catch (e) { console.error('emergency pf close failed:', e); }
+    }
+    if (resetPfNotifyStateFn) resetPfNotifyStateFn();
+    if (showToastFn) showToastFn('已紧急降落');
+  } finally {
+    // Clear the flag after a short delay so any in-flight flight-ended
+    // events from the close() calls have time to be processed and
+    // suppressed. The flag is process-local; once the synchronous
+    // emergency work is done, the listener will resume normal behavior.
+    setTimeout(() => {
+      if (setEmergencyLandingActiveFn) setEmergencyLandingActiveFn(false);
+    }, 500);
   }
-  if (showToastFn) showToastFn('已紧急降落');
 }

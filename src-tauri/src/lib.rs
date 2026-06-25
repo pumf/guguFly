@@ -32,9 +32,13 @@ fn get_app_version() -> String {
 fn is_compositor_available() -> bool {
     #[cfg(target_os = "linux")]
     {
+        // Wayland has known issues with global shortcuts (requires
+        // XWAYLAND extension) and transparent windows (KDE behaves
+        // differently from GNOME). Signal unavailability so the
+        // frontend can warn the user and disable the affected features.
         if let Ok(xdg_session_type) = std::env::var("XDG_SESSION_TYPE") {
             if xdg_session_type.contains("wayland") {
-                return true;
+                return false;
             }
         }
         let compositors = ["mutter", "compiz", "kwin", "picom", "compton", "sway", "weston"];
@@ -61,27 +65,97 @@ fn open_url_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String>
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
-fn is_script_allowed(script: &str) -> bool {
-    let trimmed = script.trim();
-    let has_shell_meta = trimmed.contains(';') || trimmed.contains('|')
-        || trimmed.contains("&&") || trimmed.contains("$(")
-        || trimmed.contains('`') || trimmed.contains(">");
-    if has_shell_meta {
+// Reject any command containing shell metacharacters that could
+// enable command injection. This is intentionally conservative —
+// we allow only a small set of well-known whitelisted commands.
+fn has_shell_metachar(s: &str) -> bool {
+    // ; | & $ ` > < ( ) { } \n \r \0 ' " * ? ! ~
+    s.contains(';') || s.contains('|') || s.contains('&')
+        || s.contains('$') || s.contains('`') || s.contains('>')
+        || s.contains('<') || s.contains('(') || s.contains(')')
+        || s.contains('{') || s.contains('}') || s.contains('\'')
+        || s.contains('"') || s.contains('*') || s.contains('?')
+        || s.contains('!') || s.contains('~') || s.contains('\n')
+        || s.contains('\r') || s.contains('\0')
+}
+
+// Strict per-prefix validators for commands that take an argument.
+// Each returns true if the trimmed command is safe to execute.
+fn validate_say(cmd: &str) -> bool {
+    // `say <text>` — only letters/digits/punctuation (no shell chars).
+    // We use the same has_shell_metachar check for the text portion.
+    let body = cmd.strip_prefix("say").unwrap_or("").trim();
+    !body.is_empty() && !has_shell_metachar(body)
+}
+
+fn validate_osascript(cmd: &str) -> bool {
+    // `osascript -e '<apple script>'` — we require single-quoted body
+    // and reject any internal quote or backslash that could break out.
+    let body = cmd.strip_prefix("osascript -e").unwrap_or("").trim();
+    if !body.starts_with('\'') || !body.ends_with('\'') || body.len() < 3 {
         return false;
     }
-    let allowed = &[
-        "pmset displaysleepnow",
-        "xdg-screensaver lock",
-        "loginctl lock-session",
-        "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
-        "rundll32.exe user32.dll,LockWorkStation",
-    ];
-    if allowed.contains(&trimmed) {
-        return true;
+    let inner = &body[1..body.len() - 1];
+    // AppleScript inside the quotes: reject embedded quotes/backslashes
+    // to prevent breaking out of the single-quoted string.
+    !inner.contains('\'') && !inner.contains('\\') && !has_shell_metachar(inner)
+}
+
+fn validate_mshta(cmd: &str) -> bool {
+    // `mshta vbscript:Execute("<vbs>")` — only the safe literal pattern.
+    if !cmd.starts_with("mshta vbscript:Execute(\"CreateObject(\"\"SAPI.SpVoice\"\").Speak(\"") {
+        return false;
     }
-    if trimmed.starts_with("say ") || trimmed.starts_with("osascript -e ") || trimmed.starts_with("mshta vbscript:Execute(") || trimmed.starts_with("spd-say ") {
-        return true;
+    if !cmd.ends_with("\" ) :close\")") {
+        return false;
     }
+    let inner = &cmd["mshta vbscript:Execute(\"CreateObject(\"\"SAPI.SpVoice\"\").Speak(\"".len()..cmd.len() - "\" ) :close\")".len()];
+    !has_shell_metachar(inner) && !inner.is_empty()
+}
+
+fn validate_spd_say(cmd: &str) -> bool {
+    // `spd-say <text>` — same restrictions as say.
+    let body = cmd.strip_prefix("spd-say").unwrap_or("").trim();
+    !body.is_empty() && !has_shell_metachar(body)
+}
+
+fn is_script_allowed(script: &str) -> bool {
+    let trimmed = script.trim();
+    // First, reject any command containing shell metacharacters. The
+    // per-prefix validators below are stricter; this is a fallback.
+    if has_shell_metachar(trimmed) {
+        // Allow the whitelisted lock commands which contain commas,
+        // periods, and equals but no shell metas.
+        let allowed = &[
+            "pmset displaysleepnow",
+            "xdg-screensaver lock",
+            "loginctl lock-session",
+            "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
+            "rundll32.exe user32.dll,LockWorkStation",
+        ];
+        if !allowed.contains(&trimmed) {
+            return false;
+        }
+    } else {
+        // Even if no metacharacters, the lock commands are still valid
+        // (they don't contain metachars).
+        let allowed = &[
+            "pmset displaysleepnow",
+            "xdg-screensaver lock",
+            "loginctl lock-session",
+            "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
+            "rundll32.exe user32.dll,LockWorkStation",
+        ];
+        if allowed.contains(&trimmed) {
+            return true;
+        }
+    }
+    // Per-prefix strict validation. The body of the command must
+    // not contain any shell metacharacter.
+    if trimmed.starts_with("say ") { return validate_say(trimmed); }
+    if trimmed.starts_with("osascript -e ") { return validate_osascript(trimmed); }
+    if trimmed.starts_with("mshta vbscript:Execute(") { return validate_mshta(trimmed); }
+    if trimmed.starts_with("spd-say ") { return validate_spd_say(trimmed); }
     false
 }
 
@@ -154,15 +228,40 @@ fn pick_folder() -> Result<Option<String>, String> {
     Ok(dialog.pick_folder().map(|p| p.to_string_lossy().to_string()))
 }
 
+// Maximum allowed size for a single video file (200MB) and for the
+// entire cache directory (1GB). This prevents a runaway download
+// (e.g., a misconfigured server returning a huge file) from filling
+// the user's disk.
+const MAX_VIDEO_FILE_BYTES: u64 = 200 * 1024 * 1024;
+const MAX_VIDEO_CACHE_BYTES: u64 = 1024 * 1024 * 1024;
+
 #[tauri::command]
 async fn download_builtin_video(name: String, app: tauri::AppHandle) -> Result<String, String> {
     use std::fs;
+    // Reject path traversal attempts: name must be a simple basename
+    // and only contain safe characters.
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(format!("invalid video name: {}", name));
+    }
     let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
     let videos_dir = data_dir.join("videos");
     fs::create_dir_all(&videos_dir).map_err(|e| format!("mkdir: {}", e))?;
     let dest = videos_dir.join(&name);
     if dest.exists() {
         return Ok(dest.to_string_lossy().to_string());
+    }
+    // Check existing cache size; if it would exceed the limit, refuse
+    // to grow further. The user must clear the cache manually.
+    let mut total_size: u64 = 0;
+    if let Ok(entries) = fs::read_dir(&videos_dir) {
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_file() { total_size += meta.len(); }
+            }
+        }
+    }
+    if total_size > MAX_VIDEO_CACHE_BYTES {
+        return Err(format!("视频缓存已满（{:.1}GB > {:.0}GB 限制），请先清理缓存", total_size as f64 / 1_073_741_824.0, MAX_VIDEO_CACHE_BYTES as f64 / 1_073_741_824.0));
     }
     let base_url = "https://fly.pumf.top/resource";
     let url = format!("{}/{}", base_url, name);
@@ -171,9 +270,70 @@ async fn download_builtin_video(name: String, app: tauri::AppHandle) -> Result<S
         .build()
         .map_err(|e| format!("HTTP client: {}", e))?;
     let resp = client.get(&url).send().await.map_err(|e| format!("download failed: {}", e))?;
+    // Enforce the per-file size cap. Reject before reading the body
+    // so we don't allocate unbounded memory for huge responses.
+    let content_length = resp.content_length().unwrap_or(0);
+    if content_length > MAX_VIDEO_FILE_BYTES {
+        return Err(format!("视频文件过大（{}MB > {}MB 限制）", content_length / 1_048_576, MAX_VIDEO_FILE_BYTES / 1_048_576));
+    }
     let bytes = resp.bytes().await.map_err(|e| format!("read body: {}", e))?;
-    fs::write(&dest, &bytes).map_err(|e| format!("write file: {}", e))?;
-    Ok(dest.to_string_lossy().to_string())
+    if bytes.len() as u64 > MAX_VIDEO_FILE_BYTES {
+        return Err(format!("视频文件过大（{}MB > {}MB 限制）", bytes.len() / 1_048_576, MAX_VIDEO_FILE_BYTES / 1_048_576));
+    }
+    // Write to a .tmp file first, then rename. This prevents leaving
+    // a partial file on disk if the write is interrupted. If the
+    // rename fails, clean up the .tmp file to avoid leaking partial
+    // downloads on disk.
+    let tmp_dest = videos_dir.join(format!("{}.tmp", name));
+    if let Err(e) = fs::write(&tmp_dest, &bytes) {
+        return Err(format!("write file: {}", e));
+    }
+    match fs::rename(&tmp_dest, &dest) {
+        Ok(()) => Ok(dest.to_string_lossy().to_string()),
+        Err(e) => {
+            // Try to clean up the .tmp file before returning the error.
+            let _ = fs::remove_file(&tmp_dest);
+            Err(format!("rename: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+async fn get_video_cache_info(app: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    use std::fs;
+    let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
+    let videos_dir = data_dir.join("videos");
+    if !videos_dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut result = vec![];
+    for entry in fs::read_dir(&videos_dir).map_err(|e| format!("read_dir: {}", e))? {
+        let entry = entry.map_err(|e| format!("entry: {}", e))?;
+        let path = entry.path();
+        if path.is_file() {
+            let meta = fs::metadata(&path).map_err(|e| format!("metadata: {}", e))?;
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let size = meta.len();
+            result.push(serde_json::json!({
+                "name": name,
+                "size": size,
+                "path": path.to_string_lossy().to_string(),
+            }));
+        }
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+async fn clear_video_cache(app: tauri::AppHandle) -> Result<(), String> {
+    use std::fs;
+    let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
+    let videos_dir = data_dir.join("videos");
+    if videos_dir.exists() {
+        fs::remove_dir_all(&videos_dir).map_err(|e| format!("remove_dir: {}", e))?;
+        fs::create_dir_all(&videos_dir).map_err(|e| format!("mkdir: {}", e))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -366,7 +526,21 @@ pub fn run() {
 
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-            let s = |k: &str| -> Result<(), Box<dyn std::error::Error>> {
+            // Skip global shortcut registration on Wayland. The
+            // global-shortcut plugin requires XWAYLAND, which not all
+            // Wayland compositors support. Attempting to register would
+            // fail or behave inconsistently.
+            #[cfg(target_os = "linux")]
+            let skip_shortcuts = std::env::var("XDG_SESSION_TYPE")
+                .map(|v| v.contains("wayland"))
+                .unwrap_or(false);
+            #[cfg(not(target_os = "linux"))]
+            let skip_shortcuts = false;
+
+            if skip_shortcuts {
+                eprintln!("[gugufly] Wayland detected — skipping global shortcut registration (use tray menu instead).");
+            } else {
+              let s = |k: &str| -> Result<(), Box<dyn std::error::Error>> {
                 app.global_shortcut().register(k)?;
                 Ok(())
             };
@@ -383,6 +557,7 @@ pub fn run() {
                 s("Ctrl+Alt+P")?;
                 s("Ctrl+Alt+Q")?;
             }
+            } // close if !skip_shortcuts
 
             let start = MenuItemBuilder::with_id("start", "▶ 开始").accelerator("CmdOrCtrl+Alt+S").build(app)?;
             let pause = MenuItemBuilder::with_id("pause", "⏸ 暂停").accelerator("CmdOrCtrl+Alt+P").build(app)?;
@@ -502,7 +677,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

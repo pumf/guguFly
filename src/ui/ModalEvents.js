@@ -28,7 +28,9 @@ export function initModalEvents(ctx) {
   const postFlightUrlField = document.getElementById('postFlightUrlField');
   const postFlightFolderField = document.getElementById('postFlightFolderField');
   const postFlightScriptField = document.getElementById('postFlightScriptField');
-  const postFlightVideoEnableField = document.getElementById('postFlightVideoEnableField');
+  // postFlightVideoEnableField was removed: the local-vs-builtin video
+  // decision is now based on whether a local file path is selected, not
+  // a separate enable toggle.
   const postFlightVideoSelectField = document.getElementById('postFlightVideoSelectField');
   const postFlightVideoCustomField = document.getElementById('postFlightVideoCustomField');
   const postFlightVideoDurationField = document.getElementById('postFlightVideoDurationField');
@@ -69,7 +71,7 @@ export function initModalEvents(ctx) {
       editPostFlightEffectType: document.getElementById('editPostFlightEffectType'),
       editPostFlightEffectDuration: document.getElementById('editPostFlightEffectDuration'),
       postFlightAppField, postFlightUrlField, postFlightFolderField, postFlightScriptField,
-      postFlightVideoEnableField, postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
+      postFlightVideoSelectField, postFlightVideoCustomField, postFlightVideoDurationField, postFlightVideoSpeedField, postFlightVideoScaleField, postFlightEffectField, postFlightEffectDurationField,
       selectVideoBtn: document.getElementById('selectVideoBtn'),
       clearVideoPathBtn: document.getElementById('clearVideoPathBtn'),
       selectVideoInput: document.getElementById('selectVideoInput'),
@@ -159,7 +161,6 @@ export function initModalEvents(ctx) {
     postFlightFolderField?.classList.toggle('hidden', v !== 'folder');
     postFlightScriptField?.classList.toggle('hidden', v !== 'script' && v !== 'lock');
     const isVideo = v === 'video';
-    postFlightVideoEnableField?.classList.toggle('hidden', !isVideo);
     postFlightVideoSelectField?.classList.toggle('hidden', !isVideo);
     postFlightVideoCustomField?.classList.toggle('hidden', !isVideo);
     postFlightVideoDurationField?.classList.toggle('hidden', !isVideo);
@@ -205,6 +206,15 @@ export function initModalEvents(ctx) {
   clearVideoPathBtn?.addEventListener('click', () => {
     if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
     if (editPostFlightVideoSelect) editPostFlightVideoSelect.value = 'cat.mov';
+  });
+
+  // When the user picks a built-in video from the dropdown, clear the
+  // custom local path so the save logic (which prefers path over
+  // select) doesn't keep using the old local file.
+  editPostFlightVideoSelect?.addEventListener('change', () => {
+    if (editPostFlightVideoSelect.value) {
+      if (editPostFlightVideoPath) editPostFlightVideoPath.value = '';
+    }
   });
 
   document.querySelectorAll('.day-btn').forEach(btn => {
