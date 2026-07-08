@@ -2,6 +2,7 @@
   function setLabel(text) {
     try { document.getElementById('x').textContent = String(text || '飞行后操作'); } catch(e) {}
   }
+
   function notifyClicked() {
     try {
       if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.emit) {
@@ -15,16 +16,16 @@
       try { window.close(); } catch(e) {}
     }
   }
-  try {
-    var n = document.getElementById('n');
-    n.addEventListener('click', function(ev){
+
+  var n = document.getElementById('n');
+  if (n) {
+    n.addEventListener('click', function(ev) {
       ev.preventDefault();
       ev.stopPropagation();
       notifyClicked();
     });
-  } catch(e) {
-    try { var n2 = document.getElementById('n'); n2.onclick = function(){ notifyClicked(); }; } catch(_){}
   }
+
   try {
     if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
       await window.__TAURI__.event.listen('pf-notify-set-label', function(event){

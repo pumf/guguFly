@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { dataUrlToArrayBuffer } from '../utils.js';
 import { getAudioContext, unlockAudioIfNeeded } from './AudioManager.js';
 
@@ -104,7 +105,7 @@ export async function playSound(soundVal) {
   const loopMode = soundModeSelectEl.value === 'loop';
   if (useSoundCheckboxEl.checked && getCustomAudioDataFn()) {
     void playCustomAudio(loopMode).catch(() => {
-      showToastFn('自定义音频播放失败，已回退到内置提示音');
+      showToastFn(t('toast.custom_audio_fallback'));
       playPresetSoundAt(sound);
       if (loopMode) loopOscInterval = setInterval(() => playPresetSoundAt(sound), 800);
     });
@@ -127,22 +128,22 @@ export function updateSoundMeta() {
   const hasAudio = !!getCustomAudioDataFn();
   const audioName = getCustomAudioNameFn();
   if (soundNameEl) {
-    soundNameEl.textContent = hasAudio ? (audioName || '已选择自定义音频') : '未选择音频';
+    soundNameEl.textContent = hasAudio ? (audioName || t('sound.selected')) : t('sound.no_selection');
     soundNameEl.title = audioName || '';
   }
   if (previewSoundBtnEl) {
     previewSoundBtnEl.disabled = !hasAudio;
-    previewSoundBtnEl.textContent = hasAudio ? (previewAudioHandle ? '结束试听' : '试听') : '未选择';
+    previewSoundBtnEl.textContent = hasAudio ? (previewAudioHandle ? t('sound.preview_stop') : t('sound.preview_play')) : t('sound.preview_unselected');
   }
 }
 
 export async function previewCustomSound() {
   const data = getCustomAudioDataFn();
-  if (!data) { showToastFn('请先选择一段自定义音频'); return; }
+  if (!data) { showToastFn(t('sound.preview_hint')); return; }
   if (previewAudioHandle) {
     try { previewAudioHandle.pause(); } catch (e) { console.error('preview pause failed:', e); }
     previewAudioHandle = null;
-    showToastFn('已结束试听');
+    showToastFn(t('sound.preview_ended'));
     updateSoundMeta();
     return;
   }
@@ -154,11 +155,11 @@ export async function previewCustomSound() {
       previewAudioHandle.addEventListener('ended', () => { previewAudioHandle = null; updateSoundMeta(); }, { once: true });
     }
     updateSoundMeta();
-    showToastFn('正在试听自定义音频');
+    showToastFn(t('sound.preview_playing'));
   } catch {
     previewAudioHandle = null;
     updateSoundMeta();
-    showToastFn('这段自定义音频试听失败');
+    showToastFn(t('sound.preview_failed'));
   }
 }
 

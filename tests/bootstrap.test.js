@@ -135,4 +135,88 @@ describe('applySettings', () => {
     expect(refs.quietEndHour.value).toBe(7);
     expect(refs.miniWindowToggle.checked).toBe(true);
   });
+
+  it('resets today count when persisted date is stale', async () => {
+    const state = { isMuted: false, customImageData: '', customAudioData: '', customAudioName: '' };
+    const refs = {
+      MUTED_ICON: 'muted',
+      UNMUTED_ICON: 'unmuted',
+      muteBtn: { innerHTML: '' },
+      settingsModal: {},
+      speedSelect: { value: '' },
+      heightSelect: { value: '' },
+      effectSelect: { value: '' },
+      planeSelect: { value: '' },
+      particleSelect: { value: '' },
+      bubbleSelect: { value: '' },
+      bubblePositionSelect: { value: '' },
+      soundSelect: { value: '' },
+      soundModeSelect: { value: '' },
+      useSoundCheckbox: { checked: false },
+      useImageCheckbox: { checked: false, closest: () => ({ classList: createClassList() }) },
+      soundMeta: {},
+      soundNameEl: {},
+      previewSoundBtn: {},
+      todayCountEl: { textContent: '' },
+      displaySelect: { value: '' },
+      clearImageBtn: { classList: createClassList() },
+      clearSoundBtn: { classList: createClassList() },
+      imagePreview: { src: '', classList: createClassList() },
+      autostartToggle: { checked: false, disabled: false },
+      quietHoursToggle: { checked: false },
+      quietStartHour: { value: '' },
+      quietEndHour: { value: '' },
+      miniWindowToggle: { checked: false },
+    };
+    const set = vi.fn();
+
+    await applySettings({
+      cfg: {
+        muted: false,
+        todayCount: 8,
+        lastDate: 'Mon Jan 01 2024',
+      },
+      state,
+      isTauriRuntime: false,
+      invoke: vi.fn(),
+      refs,
+      flightPresets: {},
+      persistFlightSettings: vi.fn(),
+      persistSetting: vi.fn(),
+      showToast: vi.fn(),
+      incrementTodayCount: vi.fn(),
+      getDateKey: () => '2026-06-17',
+      get: vi.fn(async () => null),
+      set,
+      resetStreak: vi.fn(),
+      dayDiff: vi.fn(() => null),
+      isInQuietHours: vi.fn(),
+      getRandomQuote: vi.fn(),
+      recordFlightTrigger: vi.fn(),
+      notifyFlightTriggered: vi.fn(),
+      renderStatsPanel: vi.fn(),
+      triggerFlightWithMode: vi.fn(),
+      soundPresets: [],
+      playPresetSound: vi.fn(),
+      buildCustomAudioObjectUrl: vi.fn(),
+      stopPreviewAudio: vi.fn(),
+      syncMuteToTray: vi.fn(),
+      syncEffectPicker: vi.fn(),
+      updateMiniPosGridActive: vi.fn(),
+      isAutostartEnabled: vi.fn(),
+      clearFlightStreak: vi.fn(),
+      setMuted: vi.fn(),
+      initLogo: vi.fn(),
+      initFlightSync: vi.fn(),
+      initFlightTrigger: vi.fn(),
+      initAudioSystem: vi.fn(),
+      updateSoundMeta: vi.fn(),
+      revokeCustomAudioObjectUrl: vi.fn(),
+      updateTitleLogo: vi.fn(),
+    });
+
+    expect(set).toHaveBeenCalledWith('todayCount', 0);
+    expect(refs.todayCountEl.textContent).toBe('0 次');
+    expect(refs.autostartToggle.disabled).toBe(true);
+  });
 });

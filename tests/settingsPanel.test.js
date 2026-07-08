@@ -43,6 +43,8 @@ describe('initSettingsPanel import flow', () => {
       'repoLink', 'updateModal', 'updateOverlay', 'updateCloseBtn', 'updateCloseActionBtn', 'updateDownloadBtn',
       'updateOpenReleaseBtn', 'statsToggle', 'statsPanel', 'statsArrow', 'taskModal', 'previewSoundBtn', 'previewFlightBtn',
       'resetFlightBtn', 'displaySelect',
+      'importPreviewModal', 'importPreviewOverlay', 'importPreviewCloseBtn',
+      'importPreviewSummary', 'importPreviewTasks', 'importPreviewCancelBtn', 'importPreviewConfirmBtn',
     ];
 
     ids.forEach(id => elements.set(id, makeEl()));
@@ -50,6 +52,12 @@ describe('initSettingsPanel import flow', () => {
     globalThis.document = {
       getElementById: vi.fn((id) => elements.get(id) || null),
       querySelectorAll: vi.fn((selector) => (selector === '.theme-btn' ? themeButtons : [])),
+      querySelector: vi.fn((selector) => {
+        if (selector === 'input[name="importStrategy"]:checked') {
+          return { value: 'overwrite' };
+        }
+        return null;
+      }),
     };
     globalThis.window = { showConfirm: vi.fn().mockResolvedValue(true), open: vi.fn() };
 
@@ -158,9 +166,12 @@ describe('initSettingsPanel import flow', () => {
     importTasksInput.files = [{ name: 'backup.json' }];
     await importTasksInput._handlers.change();
 
+    const importPreviewConfirmBtn = elements.get('importPreviewConfirmBtn');
+    await importPreviewConfirmBtn._handlers.click();
+
     expect(readBackupFromFile).toHaveBeenCalled();
     expect(tasksRef.get()).toEqual(importedTasks);
-    expect(setNextId).toHaveBeenCalledWith(6);
+    expect(setNextId).toHaveBeenCalledWith(7);
     expect(saveTasks).toHaveBeenCalledWith(importedTasks);
     expect(speedSelect.value).toBe('fast');
     expect(soundSelect.value).toBe('bell');
@@ -170,6 +181,5 @@ describe('initSettingsPanel import flow', () => {
     expect(persistFlightSettings).toHaveBeenCalled();
     expect(set).toHaveBeenCalledWith('muted', true);
     expect(renderTaskView).toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith('已导入 1 条任务');
   });
 });

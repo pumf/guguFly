@@ -1,5 +1,6 @@
 import { getLunarLabel, getNextSolarFromLunar } from './LunarUtils.js';
 import { HOLIDAY_PRESETS } from './HolidayPresets.js';
+import { t, ta } from '../i18n/index.js';
 
 export { getLunarLabel };
 
@@ -75,6 +76,15 @@ export function computeNextAlarmDate(task, fromDate) {
   const now = fromDate || new Date();
   const repeat = normalizeRepeat(task);
 
+  if (repeat.type === 'daily') {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), task.hour, task.minute);
+    if (today >= now) return today;
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(task.hour, task.minute, 0, 0);
+    return tomorrow;
+  }
+
   if (repeat.type === 'weekly') {
     if (!repeat.days || repeat.days.length === 0) {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), task.hour, task.minute);
@@ -126,6 +136,17 @@ export function computeNextAlarmDate(task, fromDate) {
     return null;
   }
 
+  if (repeat.type === 'yearly') {
+    const month = task.month || 1;
+    const day = task.day || 1;
+    for (let yearOffset = 0; yearOffset <= 1; yearOffset++) {
+      const year = now.getFullYear() + yearOffset;
+      const target = new Date(year, month - 1, day, task.hour, task.minute, 0, 0);
+      if (target >= now) return target;
+    }
+    return null;
+  }
+
   if (repeat.type === 'interval') {
     const interval = Math.max(repeat.interval || 1, 1);
     const origin = repeat.origin ? new Date(repeat.origin) : new Date(2024, 0, 1);
@@ -148,8 +169,19 @@ export function isAlarmDueToday(task, now) {
   if (task._lastTriggeredDate === today) return false;
   const repeat = normalizeRepeat(task);
 
+  if (repeat.type === 'daily') {
+    return task.hour === d.getHours() && task.minute === d.getMinutes();
+  }
+
   if (repeat.type === 'weekly') {
     if (repeat.days.length > 0 && !repeat.days.includes(d.getDay())) return false;
+    return task.hour === d.getHours() && task.minute === d.getMinutes();
+  }
+
+  if (repeat.type === 'yearly') {
+    const month = task.month || 1;
+    const day = task.day || 1;
+    if (d.getMonth() + 1 !== month || d.getDate() !== day) return false;
     return task.hour === d.getHours() && task.minute === d.getMinutes();
   }
 
@@ -177,7 +209,7 @@ export function compareVersions(a, b) {
 export function nextTriggerText(task) {
   if (task._lastTriggeredDate) {
     const today = new Date().toDateString();
-    if (task._lastTriggeredDate === today) return '今天已触发';
+    if (task._lastTriggeredDate === today) return t('task.status.triggered_today');
   }
   const now = new Date();
   const repeat = normalizeRepeat(task);
@@ -185,71 +217,76 @@ export function nextTriggerText(task) {
   if (repeat.type === 'weekly' && (!repeat.days || repeat.days.length === 0)) {
     const todayMin = now.getHours() * 60 + now.getMinutes();
     const taskMin = task.hour * 60 + task.minute;
-    if (taskMin > todayMin) return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-    return '已过期';
+    if (taskMin > todayMin) return `${t('date.today')} ${pad2(task.hour)}:${pad2(task.minute)}`;
+    return t('task.status.expired');
   }
 
   const next = computeNextAlarmDate(task, now);
   if (!next) return '';
   const diffMs = next - now;
-  if (diffMs < 60000) return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-  if (diffMs < 86400000) return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
+  if (diffMs < 60000) return `${t('date.today')} ${pad2(task.hour)}:${pad2(task.minute)}`;
+  if (diffMs < 86400000) return `${t('date.today')} ${pad2(task.hour)}:${pad2(task.minute)}`;
 
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  if (next.toDateString() === tomorrow.toDateString()) return `明天 ${pad2(task.hour)}:${pad2(task.minute)}`;
+  if (next.toDateString() === tomorrow.toDateString()) return `${t('date.tomorrow')} ${pad2(task.hour)}:${pad2(task.minute)}`;
 
   if (repeat.type === 'weekly') {
-    return `${['日','一','二','三','四','五','六'][next.getDay()]} ${pad2(task.hour)}:${pad2(task.minute)}`;
+    return `${t('calendar.day_labels')[next.getDay()]} ${pad2(task.hour)}:${pad2(task.minute)}`;
   }
-  return `${next.getMonth() + 1}月${next.getDate()}日 ${pad2(task.hour)}:${pad2(task.minute)}`;
+  return `${t('date.month_day', { month: next.getMonth() + 1, day: next.getDate() })} ${pad2(task.hour)}:${pad2(task.minute)}`;
 }
-
-const WEEKDAY_NAMES = ['日','一','二','三','四','五','六'];
-const WEEK_NAMES = { 1: '第一个', 2: '第二个', 3: '第三个', 4: '第四个', 5: '最后一个' };
 
 export function repeatSummary(task) {
   const repeat = normalizeRepeat(task);
+  if (repeat.type === 'daily') {
+    return t('task.status.everyday');
+  }
   if (repeat.type === 'weekly') {
     const days = repeat.days || [];
-    if (!days || days.length === 0) return '仅一次';
-    if (days.length === 7) return '每天';
-    if (days.length === 5 && days.every(d => d >= 1 && d <= 5)) return '工作日';
-    if (days.length === 2 && days.includes(6) && days.includes(0)) return '周末';
-    return days.sort().map(d => WEEKDAY_NAMES[d]).join('');
+    if (!days || days.length === 0) return t('task.status.once');
+    if (days.length === 7) return t('task.status.everyday');
+    if (days.length === 5 && days.every(d => d >= 1 && d <= 5)) return t('task.status.weekday');
+    if (days.length === 2 && days.includes(6) && days.includes(0)) return t('task.status.weekend');
+    return days.sort().map(d => ta('calendar.day_labels')[d]).join('');
   }
   if (repeat.type === 'monthly_date') {
-    return `每月${repeat.day}号`;
+    return t('repeat.monthly_date', { day: repeat.day });
   }
   if (repeat.type === 'monthly_weekday') {
-    return `每月${WEEK_NAMES[repeat.week] || '第' + repeat.week + '个'}${WEEKDAY_NAMES[repeat.weekday]}`;
+    const ordinalKey = `ordinal.week.${repeat.week}`;
+    const weekdayNames = ta('calendar.day_labels');
+    return t('repeat.monthly_weekday', { ordinal: t(ordinalKey), weekday: weekdayNames[repeat.weekday] });
+  }
+  if (repeat.type === 'yearly') {
+    return t('repeat.yearly');
   }
   if (repeat.type === 'interval') {
-    return `每${repeat.interval}天`;
+    return t('repeat.interval', { interval: repeat.interval });
   }
-  return '仅一次';
+  return t('task.status.once');
 }
 
 export function getTaskStatusLabel(task) {
-  if (!task.enabled) return '已停用';
-  if (task._status === 'running') return '进行中';
-  if (task._status === 'paused') return '已暂停';
-  if (task._status === 'completed') return '刚完成';
-  if (task.type === 'alarm') return nextTriggerText(task) || '等待触发';
+  if (!task.enabled) return t('task.status.disabled');
+  if (task._status === 'running') return t('task.status.running');
+  if (task._status === 'paused') return t('task.status.paused');
+  if (task._status === 'completed') return t('task.status.completed');
+  if (task.type === 'alarm') return nextTriggerText(task) || t('task.status.waiting');
   if (task.type === 'holiday' || task.type === 'anniversary') {
     const today = new Date().toDateString();
-    if (task._lastTriggeredDate === today) return '今天已触发';
+    if (task._lastTriggeredDate === today) return t('task.status.triggered_today');
     const now = new Date();
     let targetDate;
     if (task.lunar) {
       const solar = getNextSolarFromLunar(task.month, task.day, now);
-      if (!solar) return '等待触发';
+      if (!solar) return t('task.status.waiting');
       targetDate = new Date(solar.year, solar.solarMonth - 1, solar.solarDay, task.hour, task.minute);
       if (targetDate <= now) {
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
         const solar2 = getNextSolarFromLunar(task.month, task.day, tomorrow);
-        if (!solar2) return '等待触发';
+        if (!solar2) return t('task.status.waiting');
         targetDate = new Date(solar2.year, solar2.solarMonth - 1, solar2.solarDay, task.hour, task.minute);
       }
     } else {
@@ -259,10 +296,10 @@ export function getTaskStatusLabel(task) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
     const days = Math.round((startOfTarget - startOfToday) / 86400000);
-    if (days === 0) return `今天 ${pad2(task.hour)}:${pad2(task.minute)}`;
-    return `还有 ${days} 天`;
+    if (days === 0) return `${t('date.today')} ${pad2(task.hour)}:${pad2(task.minute)}`;
+    return t('date.remaining_days', { count: days });
   }
-  return '待命';
+  return t('task.status.standby');
 }
 
 export function getTaskInfoText(task, holidayPresets) {
@@ -271,35 +308,33 @@ export function getTaskInfoText(task, holidayPresets) {
   if (task.type === 'alarm') {
     infoText = `${pad2(task.hour)}:${pad2(task.minute)} · ${repeatSummary(task)}`;
   } else if (task.type === 'countdown') {
-    if (task._status === 'running') infoText = `剩余 ${formatDuration(task._remaining)}`;
-    else if (task._status === 'paused') infoText = `暂停于 ${formatDuration(task._remaining)}`;
-    else infoText = `时长 ${formatDuration(task.duration)}`;
+    if (task._status === 'running') infoText = t('duration.remaining', { time: formatDuration(task._remaining) });
+    else if (task._status === 'paused') infoText = t('duration.paused_at', { time: formatDuration(task._remaining) });
+    else infoText = t('duration.default', { time: formatDuration(task.duration) });
   } else if (task.type === 'holiday') {
     const preset = holidayPresets?.[task.holidayKey];
-    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : `${task.month}月${task.day}日`;
+    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : t('date.month_day', { month: task.month, day: task.day });
     infoText = `${formatHolidayLabel(preset)} ${dateStr} ${pad2(task.hour)}:${pad2(task.minute)}`;
   } else if (task.type === 'anniversary') {
-    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : `${task.month}月${task.day}日`;
+    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : t('date.month_day', { month: task.month, day: task.day });
     infoText = `${dateStr} ${pad2(task.hour)}:${pad2(task.minute)}`;
-    if (task.lunar) infoText += '（农历）';
+    if (task.lunar) infoText += t('date.lunar_label');
   }
 
   if (task.flightMode !== 'once') {
     if (task.flightMode === 'loop_times') {
-      infoText += ` 🔁连续${task.loopCount}次`;
+      infoText += t('flight.loop_times', { count: task.loopCount });
     } else if (task.flightMode === 'loop_interval') {
-      infoText += ` ⏰每${task.loopInterval}min×${task.intervalCount}次`;
+      infoText += t('flight.loop_interval', { interval: task.loopInterval, count: task.intervalCount });
     }
   }
-  if (task._flightRemaining > 0) infoText += ` 🛩剩余${task._flightRemaining}次`;
-  if (task.msg) infoText += ` 💬${task.msg}`;
+  if (task._flightRemaining > 0) infoText += t('flight.remaining', { count: task._flightRemaining });
+  if (task.msg) infoText += t('flight.msg_prefix', { msg: task.msg });
   return infoText;
 }
 
 export function formatHolidayLabel(preset) {
-  if (!preset) return '节日';
-  if (preset.category === 'solar_term') return `${preset.label}（节气）`;
-  if (preset.lunar) return `${preset.label}（农历）`;
+  if (!preset) return t('task.label.holiday');
   return preset.label;
 }
 
@@ -415,28 +450,31 @@ export function isWithinMinutes(task, maxMinutes) {
 export function getTaskDetailLines(task, holidayPresets) {
   const lines = [];
   if (task.type === 'alarm') {
-    lines.push(`重复：${repeatSummary(task)}`);
-    lines.push(`下次：${nextTriggerText(task) || '等待触发'}`);
+    lines.push(t('task.detail.repeat', { summary: repeatSummary(task) }));
+    lines.push(t('task.detail.next', { text: nextTriggerText(task) || t('task.status.waiting') }));
   } else if (task.type === 'countdown') {
-    lines.push(`默认时长：${formatDuration(task.duration)}`);
-    lines.push(`当前状态：${getTaskStatusLabel(task)}`);
+    lines.push(t('task.detail.default_duration', { duration: formatDuration(task.duration) }));
+    lines.push(t('task.detail.status', { status: getTaskStatusLabel(task) }));
   } else if (task.type === 'holiday') {
     const preset = holidayPresets?.[task.holidayKey];
-    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : `${task.month}月${task.day}日`;
-    lines.push(`日期：${dateStr}`);
-    let note = '固定阳历日期';
-    if (preset?.category === 'solar_term') note = '节气（按常用阳历日期）';
-    else if (task.lunar) note = '农历';
-    lines.push(`说明：${note}`);
+    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : t('date.month_day', { month: task.month, day: task.day });
+    lines.push(t('task.detail.date', { date: dateStr }));
+    let note = t('task.detail.solar_fixed');
+    if (preset?.category === 'solar_term') note = t('task.detail.solar_term');
+    else if (task.lunar) note = t('task.detail.lunar');
+    lines.push(t('task.detail.note', { note }));
   } else if (task.type === 'anniversary') {
-    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : `${task.month}月${task.day}日`;
-    lines.push(`日期：${dateStr}`);
-    lines.push(`提醒时间：${pad2(task.hour)}:${pad2(task.minute)}`);
-    if (task.lunar) lines.push('按农历日期提醒');
+    const dateStr = task.lunar ? getLunarLabel(task.month, task.day) : t('date.month_day', { month: task.month, day: task.day });
+    lines.push(t('task.detail.date', { date: dateStr }));
+    lines.push(t('task.detail.remind_time', { time: `${pad2(task.hour)}:${pad2(task.minute)}` }));
+    if (task.lunar) lines.push(t('task.detail.lunar_remind'));
   }
-  lines.push(`飞行：${task.flightMode === 'once' ? '一次性' : task.flightMode === 'loop_times' ? `连续 ${task.loopCount} 次` : `每 ${task.loopInterval} 分钟，共 ${task.intervalCount} 次`}`);
+  const flightModeLabel = task.flightMode === 'once' ? t('task.detail.flight_once')
+    : task.flightMode === 'loop_times' ? t('task.detail.flight_loop', { count: task.loopCount })
+    : t('task.detail.flight_interval', { interval: task.loopInterval, count: task.intervalCount });
+  lines.push(t('task.detail.flight_mode', { mode: flightModeLabel }));
   if (task.msg) {
-    lines.push(`文案：${task.msg}`);
+    lines.push(t('task.detail.msg', { msg: task.msg }));
   }
   return lines;
 }
@@ -470,7 +508,6 @@ export function getCleanTasks(tasks) {
       postFlightVideoDuration: t.postFlightVideoDuration || 30,
       postFlightVideoSpeed: parseFloat(t.postFlightVideoSpeed) || 1,
       postFlightVideoScale: parseFloat(t.postFlightVideoScale) || 1,
-      postFlightVideoEnable: t.postFlightVideoEnable !== false,
       postFlightEffectType: t.postFlightEffectType || 'fireworks',
       postFlightEffectDuration: t.postFlightEffectDuration || 15,
       group: t.group || '', imageData: t.imageData || null,
@@ -511,7 +548,6 @@ export function hydrateTasks(saved) {
       postFlightVideoDuration: t.postFlightVideoDuration || 30,
       postFlightVideoSpeed: parseFloat(t.postFlightVideoSpeed) || 1,
       postFlightVideoScale: parseFloat(t.postFlightVideoScale) || 1,
-      postFlightVideoEnable: t.postFlightVideoEnable !== false,
       group: t.group || '',
       imageData: t.imageData || null,
       useImage: !!t.useImage,

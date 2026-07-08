@@ -2,7 +2,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewW
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { AccurateTimer } from './timer.js';
-import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog, setStorageQuotaHandler } from './storage.js';
+import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog, setStorageQuotaHandler, setStoreFailureHandler } from './storage.js';
 import { getRandomQuote } from './quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
@@ -14,9 +14,10 @@ import { HOLIDAY_PRESETS } from './tasks/HolidayPresets.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from './tasks/TaskFactory.js';
 import { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from './tasks/TaskUtils.js';
 import { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from './flight/FlightPresets.js';
-import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb, resetVideoWindowState, resetPfNotifyState, closePostFlightNotify, setEmergencyLandingActive, isEmergencyLandingActive, setIsInQuietHoursFn, setSkipPostFlight, clearPendingPfCancel, releaseFlightQueue } from './flight/FlightOrchestrator.js';
+import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb, resetVideoWindowState, resetPfNotifyState, closePostFlightNotify, setEmergencyLandingActive, isEmergencyLandingActive, setIsInQuietHoursFn, setSkipPostFlight, clearPendingPfCancel, releaseFlightQueue, setPfActionHandler } from './flight/FlightOrchestrator.js';
 import { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard } from './ui/TaskRenderer.js';
 import { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from './tasks/CountdownTimer.js';
+import { initPomodoroTimer, startPomodoro, pausePomodoro, resumePomodoro, stopPomodoro, skipPomodoroPhase, getPomodoroState, isPomodoroActive, getPomodoroTask, setPomodoroTickCallback } from './tasks/PomodoroTimer.js';
 import { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from './tasks/AlarmChecker.js';
 import { openEditModal, openNewModal, closeModal, saveModal, deleteTask, initHolidayChecklist } from './ui/ModalController.js';
 import { renderStats, setStatsTasks } from './ui/StatsPanel.js';
@@ -43,6 +44,11 @@ import { initTaskFilter } from './ui/TaskFilter.js';
 import { initSettingsPanel } from './ui/SettingsPanel.js';
 import { initModalEvents } from './ui/ModalEvents.js';
 import { initWindowEvents } from './ui/WindowEvents.js';
+import { initQuickCreate, setQuickCreateDeps } from './ui/QuickCreateBar.js';
+import { initTaskDetailDrawer } from './ui/TaskDetailDrawer.js';
+import { initKeyboardShortcuts } from './ui/KeyboardShortcuts.js';
+import { initBatchOperation, enterSelectionMode, toggleSelectionMode, isSelectionModeActive, toggleTaskSelection, isTaskSelected } from './ui/BatchOperation.js';
+import { initOnboarding, checkAndShowOnboarding } from './ui/Onboarding.js';
 import { detectTauriRuntime } from './app/runtime.js';
 import { getMainDomRefs } from './app/domRefs.js';
 import { createAppState } from './app/state.js';
@@ -50,6 +56,7 @@ import { createTaskActions } from './app/taskActions.js';
 import { applySettings, runPostInit } from './app/bootstrap.js';
 import { handleDeepLink } from './app/deepLinkActions.js';
 import { initCoreModules } from './app/initModules.js';
+import { t, initI18n, setLanguage, onLanguageChange } from './i18n/index.js';
 
 const isTauriRuntime = detectTauriRuntime();
 
@@ -295,11 +302,19 @@ async function renderStatsPanel() {
 
 // --- Init ---
 async function init() {
+  initI18n();
+
   // Register storage quota handler so the user gets a visible warning
   // when localStorage is full (mainly affects browser/preview mode;
   // Tauri uses file-based store and has no quota limit).
   setStorageQuotaHandler((key) => {
-    showToast(`存储空间不足：无法保存 ${key}。请尝试删除大图片或音频。`);
+    showToast(t('toast.storage_quota', { key }));
+  });
+
+  // Register store failure handler so the user gets a visible warning
+  // when Tauri store fails to initialize (data persistence breaks).
+  setStoreFailureHandler((err) => {
+    showToast(t('toast.store_failure'), 8000);
   });
 
   const saved = await loadTasks();
@@ -495,6 +510,7 @@ async function init() {
       setCustomAudioData,
       setToastFn,
       initCountdownTimer,
+      initPomodoroTimer,
       updateCountdownTaskUI,
       initAlarmChecker,
       doTriggerFlight,
@@ -602,6 +618,103 @@ async function init() {
     renderStatsPanel,
   });
 
+  setQuickCreateDeps({
+    showToast,
+    saveTasks,
+    getCleanTasks,
+    renderTaskView,
+    state,
+  });
+  initQuickCreate();
+  initTaskDetailDrawer({
+    onEdit: taskActions.openEditModalFn,
+    onCopy: null,
+  });
+  initKeyboardShortcuts({
+    openNewModal: () => openNewModal(),
+    applyTheme,
+    getCurrentTheme: () => get('theme') || 'light',
+  });
+  initBatchOperation({
+    tasksRef: { get: () => state.tasks, set: (tasks) => { state.tasks = tasks; } },
+    saveTasks,
+    getCleanTasks,
+    renderTaskView,
+    showConfirm,
+    showToast,
+  });
+
+  const batchSelectBtn = document.getElementById('batchSelectBtn');
+  batchSelectBtn?.addEventListener('click', () => toggleSelectionMode());
+
+  initOnboarding({
+    onComplete: () => {},
+    applyTheme,
+    openNewModal: () => openNewModal(),
+    previewFlight: () => previewFlight(),
+    persistSetting,
+  });
+
+  setTimeout(() => {
+    checkAndShowOnboarding();
+  }, 500);
+
+  const pomodoroStartBtn = document.getElementById('pomodoroStartBtn');
+  const pomodoroBar = document.getElementById('pomodoroBar');
+  const pomodoroPhaseEl = document.getElementById('pomodoroPhase');
+  const pomodoroTimerEl = document.getElementById('pomodoroTimer');
+  const pomodoroRoundEl = document.getElementById('pomodoroRound');
+  const pomodoroPauseBtn = document.getElementById('pomodoroPauseBtn');
+  const pomodoroSkipBtn = document.getElementById('pomodoroSkipBtn');
+  const pomodoroStopBtn = document.getElementById('pomodoroStopBtn');
+
+  function updatePomodoroUI() {
+    const pState = getPomodoroState();
+    if (!pState.active) {
+      pomodoroBar?.classList.add('hidden');
+      return;
+    }
+    pomodoroBar?.classList.remove('hidden');
+    if (pomodoroPhaseEl) pomodoroPhaseEl.textContent = pState.phase === 'work' ? (pState.round > 0 ? `第${pState.round}轮专注` : '专注中') : pState.phase === 'shortBreak' ? '短休息' : '长休息';
+    const mins = Math.floor(pState.remaining / 60);
+    const secs = pState.remaining % 60;
+    if (pomodoroTimerEl) pomodoroTimerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+    if (pomodoroRoundEl) pomodoroRoundEl.textContent = `第${pState.round}/${pState.totalRounds}轮`;
+    if (pomodoroPauseBtn) {
+      pomodoroPauseBtn.innerHTML = pState.task?._status === 'paused'
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+    }
+  }
+
+  setPomodoroTickCallback(updatePomodoroUI);
+
+  pomodoroStartBtn?.addEventListener('click', () => {
+    if (isPomodoroActive()) return;
+    startPomodoro(25);
+    updatePomodoroUI();
+  });
+
+  pomodoroPauseBtn?.addEventListener('click', () => {
+    const pState = getPomodoroState();
+    if (pState.task?._status === 'paused') {
+      resumePomodoro();
+    } else {
+      pausePomodoro();
+    }
+    updatePomodoroUI();
+  });
+
+  pomodoroSkipBtn?.addEventListener('click', () => {
+    skipPomodoroPhase();
+    updatePomodoroUI();
+  });
+
+  pomodoroStopBtn?.addEventListener('click', () => {
+    stopPomodoro();
+    updatePomodoroUI();
+  });
+
   setUpdateTaskFlightCb((taskId, remaining) => {
     const task = state.tasks.find(t => t.id === taskId);
     if (task) {
@@ -614,6 +727,45 @@ async function init() {
   // actions (video, effect, app, url, etc.) respect the same setting
   // as the initial flight trigger.
   setIsInQuietHoursFn(() => isInQuietHours(quietHoursToggle, quietStartHour, quietEndHour));
+
+  setPfActionHandler(async (action, { minutes, task }) => {
+    if (!task) return;
+    if (action === 'snooze') {
+      const snoozeTask = createCountdownTask();
+      snoozeTask.label = `${task.label} (稍后${minutes}分钟)`;
+      snoozeTask.msg = task.msg || '';
+      snoozeTask.duration = minutes * 60;
+      snoozeTask._remaining = minutes * 60;
+      state.tasks.push(snoozeTask);
+      saveTasks(getCleanTasks(state.tasks));
+      renderTaskView();
+      startCountdown(snoozeTask);
+      setSkipPostFlight(true);
+      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
+      showToast(t('toast.snoozed', { minutes, label: task.label }));
+    } else if (action === 'skip') {
+      setSkipPostFlight(true);
+      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
+      showToast(t('toast.skipped', { label: task.label }));
+    } else if (action === 'repeat') {
+      setSkipPostFlight(true);
+      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
+      if (task.type === 'countdown') {
+        const repeatTask = createCountdownTask();
+        repeatTask.label = `${task.label} (再来一次)`;
+        repeatTask.msg = task.msg || '';
+        repeatTask.duration = task.duration;
+        repeatTask._remaining = task.duration;
+        state.tasks.push(repeatTask);
+        saveTasks(getCleanTasks(state.tasks));
+        renderTaskView();
+        startCountdown(repeatTask);
+        showToast(t('toast.repeated', { label: repeatTask.label }));
+      } else {
+        triggerFlightWithMode(task, null, recordFlightTrigger, null, null);
+      }
+    }
+  });
 
   listen('deep-link', (event) => {
     void handleDeepLink({

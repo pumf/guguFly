@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { validateUpload } from './ModalController.js';
 
 const VALID_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif']);
@@ -25,7 +26,7 @@ export function initMediaUpload(ctx) {
     const shouldOpen = open ?? imageCollapse.classList.contains('hidden');
     imageCollapse.classList.toggle('hidden', !shouldOpen);
     customizeImageBtn.classList.toggle('is-open', shouldOpen);
-    customizeImageBtn.textContent = shouldOpen ? '▾ 收起' : '＋ 自定义图片';
+    customizeImageBtn.textContent = shouldOpen ? t('media.collapse') : t('media.expand_image');
   };
   if (customizeImageBtn) {
     customizeImageBtn.addEventListener('click', () => toggleImageCollapse());
@@ -36,7 +37,7 @@ export function initMediaUpload(ctx) {
     const shouldOpen = open ?? soundCollapse.classList.contains('hidden');
     soundCollapse.classList.toggle('hidden', !shouldOpen);
     customizeSoundBtn.classList.toggle('is-open', shouldOpen);
-    customizeSoundBtn.textContent = shouldOpen ? '▾ 收起' : '＋ 自定义音频';
+    customizeSoundBtn.textContent = shouldOpen ? t('media.collapse') : t('media.expand_sound');
   };
   if (customizeSoundBtn) {
     customizeSoundBtn.addEventListener('click', () => toggleSoundCollapse());
@@ -46,7 +47,7 @@ export function initMediaUpload(ctx) {
   imageInput.addEventListener('change', () => {
     const file = imageInput.files[0];
     if (!file) return;
-    if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, '图片', imageBtn)) { imageInput.value = ''; return; }
+    if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, t('error.image'), imageBtn, true)) { imageInput.value = ''; return; }
     const reader = new FileReader();
     reader.onload = (e) => {
       const data = e.target.result;
@@ -82,7 +83,7 @@ export function initMediaUpload(ctx) {
     editImageInput.addEventListener('change', () => {
       const file = editImageInput.files[0];
       if (!file) return;
-      if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, '图片', editImageBtn)) { editImageInput.value = ''; return; }
+      if (!validateUpload(file, VALID_IMAGE_TYPES, MAX_IMAGE_SIZE, t('error.image'), editImageBtn, true)) { editImageInput.value = ''; return; }
       const reader = new FileReader();
       reader.onload = (e) => {
         const data = e.target.result;
@@ -108,7 +109,7 @@ export function initMediaUpload(ctx) {
   soundInput.addEventListener('change', () => {
     const file = soundInput.files[0];
     if (!file) return;
-    if (!validateUpload(file, VALID_AUDIO_TYPES, MAX_AUDIO_SIZE, '音频', soundBtn)) { soundInput.value = ''; return; }
+    if (!validateUpload(file, VALID_AUDIO_TYPES, MAX_AUDIO_SIZE, t('error.audio'), soundBtn, false)) { soundInput.value = ''; return; }
     const reader = new FileReader();
     reader.onload = (e) => {
       const audioData = e.target.result;
@@ -125,7 +126,7 @@ export function initMediaUpload(ctx) {
       persistSetting('customAudio', audioData);
       persistSetting('customAudioName', audioName);
       persistSetting('useSound', true);
-      showToast(`已添加音频：${audioName}`);
+      showToast(t('toast.media_added', { name: audioName }));
       void unlockAudioIfNeeded();
       void validateCustomAudioPreview();
     };

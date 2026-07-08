@@ -14,8 +14,7 @@
     videoFile = BUILTIN_VIDEO_BASE + '/' + videoFile;
   }
 
-  var canvas = document.getElementById('c');
-  var ctx = canvas.getContext('2d', { alpha: true });
+  var video = document.getElementById('v');
   var remainingEl = document.getElementById('remaining');
   var clockEl = document.getElementById('clock');
   var labelEl = document.getElementById('label');
@@ -36,15 +35,6 @@
     }
   } catch(e) { console.error('[video] convertFileSrc error:', e); }
 
-  function resize() {
-    canvas.width = window.innerWidth + 2;
-    canvas.height = window.innerHeight + 2;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  ctx.imageSmoothingEnabled = false;
-
   try {
     if (window.__TAURI__ && window.__TAURI__.window) {
       var appWindow = window.__TAURI__.window.getCurrentWindow();
@@ -52,18 +42,11 @@
     }
   } catch(e) {}
 
-  var video = document.createElement('video');
-  video.autoplay = true;
-  video.muted = true;
-  video.loop = true;
-  video.playsinline = true;
-  video.preload = 'auto';
+  video.style.transform = 'scale(' + scale + ')';
 
-  var frameId = null;
   var ready = false;
   var stallTimer = null;
   var stallCount = 0;
-  var lastFrameTime = 0;
   var localPath = null;
   var switchingToLocal = false;
 
@@ -73,9 +56,6 @@
     video.load();
   }
 
-  // For built-in videos: check local cache FIRST.
-  // If cached (download_builtin_video returns instantly), use local path directly.
-  // If not cached, show loading, download, then play from local.
   if (isBuiltinVideo && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
     window.__TAURI__.core.invoke('download_builtin_video', { name: originalFile })
       .then(function(path) {
@@ -95,7 +75,6 @@
     console.error('[video] video element error:', video.error, 'code:', video.error?.code, 'message:', video.error?.message);
     if (isBuiltinVideo && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
       if (localPath) {
-        // Local cache exists but failed to load — try remote as fallback
         loadingEl.innerHTML = '<div class="spinner"></div><div>正在尝试远程加载…</div>';
         switchToLocalFile(localPath, false);
       } else {
@@ -176,26 +155,8 @@
     }, 4000);
   });
 
-  function drawFrame() {
-    if (!video.paused && !video.ended) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      var scaledW = Math.round(canvas.width * scale);
-      var scaledH = Math.round(canvas.height * scale);
-      var offsetX = Math.round((canvas.width - scaledW) / 2);
-      var offsetY = Math.round((canvas.height - scaledH) / 2);
-      ctx.drawImage(video, offsetX, offsetY, scaledW, scaledH);
-    }
-    frameId = requestAnimationFrame(drawFrame);
-  }
-
   video.addEventListener('play', function(){
     video.playbackRate = speed;
-    if (frameId) cancelAnimationFrame(frameId);
-    frameId = requestAnimationFrame(drawFrame);
-  });
-
-  video.addEventListener('pause', function(){
-    if (frameId) { cancelAnimationFrame(frameId); frameId = null; }
   });
 
   var remaining = duration;
@@ -210,7 +171,6 @@
   }
 
   function closeWindow() {
-    if (frameId) { cancelAnimationFrame(frameId); frameId = null; }
     video.pause();
     video.src = '';
     video.load();
@@ -246,14 +206,8 @@
     remainingEl.textContent = fmtTime(remaining);
   }, 1000);
 
-  // Watch the video's actual playback to trigger close when it
-  // actually ends. This is more reliable than the setInterval-based
-  // countdown, which can be throttled when the window is in the
-  // background. The countdown timer still acts as a fallback.
   if (typeof video.addEventListener === 'function') {
     video.addEventListener('ended', scheduleClose);
-    // Some video formats fire 'timeupdate' near the end but not
-    // 'ended' reliably. Also poll currentTime as a backup.
     video.addEventListener('timeupdate', function() {
       if (video.duration && isFinite(video.duration) && video.currentTime >= video.duration - 0.1) {
         scheduleClose();

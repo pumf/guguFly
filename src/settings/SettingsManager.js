@@ -27,6 +27,7 @@ export async function loadSettings() {
     miniWindowEnabled: await get('miniWindowEnabled'),
     miniWindowPosition: await get('miniWindowPosition'),
     theme: await get('theme'),
+    language: await get('language'),
   };
 }
 

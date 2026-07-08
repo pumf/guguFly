@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { computeNextAlarmDate, isWithinMinutes } from './TaskUtils.js';
 import { getNextSolarFromLunar } from './LunarUtils.js';
 
@@ -160,8 +161,8 @@ function checkPreTrigger() {
     previewKey = `${task.id}-${today}-${triggerMin}`;
     if (previewedTasks.has(previewKey)) return;
     previewedTasks.add(previewKey);
-    const label = task.label || (task.type === 'holiday' ? '节日' : '提醒');
-    showToastFn(`⏰ ${label} · ${diff} 分钟后起飞`, 3000);
+    const label = task.label || (task.type === 'holiday' ? t('task.label.holiday') : t('common.unnamed'));
+    showToastFn(t('toast.holiday_reminder', { label, minutes: diff }), 3000);
   });
 }
 

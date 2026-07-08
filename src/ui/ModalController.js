@@ -1,15 +1,18 @@
+import { t } from '../i18n/index.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask } from '../tasks/TaskFactory.js';
 import { getMaxDayForMonth, formatHolidayLabel, normalizeRepeat } from '../tasks/TaskUtils.js';
 
-let showToastFn = (msg) => console.log(msg);
+let showToastFn = (msg) => console.warn('[ModalController] showToast called before init:', msg);
 
 export function setToastFn(fn) { showToastFn = fn; }
 
 function getRepeatSubFields() {
   return {
+    repeatDailyFields: document.getElementById('repeatDailyFields'),
     repeatWeeklyFields: document.getElementById('repeatWeeklyFields'),
     repeatMonthlyDateFields: document.getElementById('repeatMonthlyDateFields'),
     repeatMonthlyWeekdayFields: document.getElementById('repeatMonthlyWeekdayFields'),
+    repeatYearlyFields: document.getElementById('repeatYearlyFields'),
     repeatIntervalFields: document.getElementById('repeatIntervalFields'),
   };
 }
@@ -17,9 +20,11 @@ function getRepeatSubFields() {
 function showRepeatTypeFields(type) {
   const f = getRepeatSubFields();
   Object.values(f).forEach(el => el.classList.add('hidden'));
-  if (type === 'weekly') f.repeatWeeklyFields.classList.remove('hidden');
+  if (type === 'daily') f.repeatDailyFields.classList.remove('hidden');
+  else if (type === 'weekly') f.repeatWeeklyFields.classList.remove('hidden');
   else if (type === 'monthly_date') f.repeatMonthlyDateFields.classList.remove('hidden');
   else if (type === 'monthly_weekday') f.repeatMonthlyWeekdayFields.classList.remove('hidden');
+  else if (type === 'yearly') f.repeatYearlyFields.classList.remove('hidden');
   else if (type === 'interval') f.repeatIntervalFields.classList.remove('hidden');
 }
 
@@ -46,6 +51,9 @@ function collectRepeatFromUI() {
   const typeSelect = document.getElementById('editRepeatType');
   if (!typeSelect) return { type: 'weekly', days: [] };
   const type = typeSelect.value;
+  if (type === 'daily') {
+    return { type: 'daily' };
+  }
   if (type === 'weekly') {
     const days = [];
     document.querySelectorAll('.day-btn.active').forEach(b => days.push(parseInt(b.dataset.day)));
@@ -59,6 +67,9 @@ function collectRepeatFromUI() {
     const week = parseInt(document.getElementById('editRepeatWeek')?.value) || 1;
     const weekday = parseInt(document.getElementById('editRepeatWeekday')?.value) ?? 1;
     return { type: 'monthly_weekday', week, weekday };
+  }
+  if (type === 'yearly') {
+    return { type: 'yearly' };
   }
   if (type === 'interval') {
     const interval = Math.max(1, parseInt(document.getElementById('editRepeatInterval')?.value) || 3);
@@ -89,7 +100,7 @@ export function openEditModal(task, editingId, setSelectedColorFn, ctx) {
 
   ctx.editingId = task.id;
   clearModalError(modalError);
-  modalTitle.textContent = '编辑任务';
+  modalTitle.textContent = t('modal.edit_task');
 
   editLabel.value = task.label;
   editMsg.value = task.msg || '';
@@ -217,7 +228,7 @@ export function openNewModal(editingId, ctx) {
   editingId = null;
   ctx.editingId = null;
   clearModalError(modalError);
-  modalTitle.textContent = '新建任务';
+  modalTitle.textContent = t('modal.new_task');
 
   editLabel.value = '';
   editMsg.value = '';
@@ -369,7 +380,7 @@ export function saveModal(editingId, ctx) {
     } else if (type === 'holiday') {
       const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
       if (checkedBoxes.length === 0) {
-        showToastFn('请至少选择一个节假日');
+        showToastFn(t('validation.select_holiday'));
         return;
       }
       const useKey = checkedBoxes[0].value;
@@ -413,7 +424,7 @@ export function saveModal(editingId, ctx) {
     } else if (type === 'holiday') {
       const checkedBoxes = holidayChecklist.querySelectorAll('input:checked');
       if (checkedBoxes.length === 0) {
-        showToastFn('请至少选择一个节假日');
+        showToastFn(t('validation.select_holiday'));
         return;
       }
       const hour = Math.min(23, Math.max(0, parseInt(editHolidayHour.value) || 0));
@@ -455,7 +466,7 @@ export function saveModal(editingId, ctx) {
       return;
     } else if (type === 'anniversary') {
       task = createAnniversaryTask();
-      task.label = editLabel.value.trim() || '纪念日';
+      task.label = editLabel.value.trim() || t('task.label.anniversary');
       task.msg = editMsg.value.trim();
       task.flightMode = flightMode;
       task.loopCount = loopCount;
@@ -512,7 +523,7 @@ function parseAnniversaryValues(editAnniMonth, editAnniDay, editAnniHour, editAn
 function validateAnniversaryValues({ month, day }, editAnniMonth, editAnniDay, modalError) {
   if (day > getMaxDayForMonth(month)) {
     markFieldError([editAnniMonth, editAnniDay]);
-    showModalError(`该日期不存在：${month} 月最多只有 ${getMaxDayForMonth(month)} 天`, modalError);
+    showModalError(t('validation.date_invalid', { month, days: getMaxDayForMonth(month) }), modalError);
     return false;
   }
   return true;
@@ -537,23 +548,23 @@ function clearFieldErrors() {
   document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
 }
 
-export function validateUpload(file, validTypes, maxSize, kindLabel, btnEl) {
+export function validateUpload(file, validTypes, maxSize, kindLabel, btnEl, isImage) {
   if (!file) return false;
   const fileName = file.name || '';
   const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
-  const validExtensions = kindLabel === '图片' ? new Set(['png', 'jpg', 'jpeg', 'gif']) : new Set(['mp3', 'wav', 'ogg', 'mpeg']);
+  const validExtensions = isImage ? new Set(['png', 'jpg', 'jpeg', 'gif']) : new Set(['mp3', 'wav', 'ogg', 'mpeg']);
   // Require BOTH MIME and extension to match. Allowing either through
   // can be bypassed by crafted files (e.g. evil.exe with image/png MIME).
   const typeOk = !!file.type && validTypes.has(file.type);
   const extOk = !!ext && validExtensions.has(ext);
   if (!typeOk || !extOk) {
     markFieldError([btnEl]);
-    showToastFn(`${kindLabel}格式不支持`);
+    showToastFn(t('error.upload_format', { kind: kindLabel }));
     return false;
   }
   if (file.size > maxSize) {
     markFieldError([btnEl]);
-    showToastFn(`${kindLabel}过大，请控制在 ${Math.round(maxSize / 1024 / 1024)}MB 以内`);
+    showToastFn(t('error.upload_size', { kind: kindLabel, size: Math.round(maxSize / 1024 / 1024) }));
     return false;
   }
   return true;
@@ -567,7 +578,7 @@ export function initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS) {
 
   const statutoryTitle = document.createElement('div');
   statutoryTitle.className = 'holiday-subtitle';
-  statutoryTitle.textContent = '法定假日';
+  statutoryTitle.textContent = t('holiday.group.legal');
   statutorySection.appendChild(statutoryTitle);
 
   const solarTermSection = document.createElement('div');
@@ -575,7 +586,7 @@ export function initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS) {
 
   const solarTermTitle = document.createElement('div');
   solarTermTitle.className = 'holiday-subtitle';
-  solarTermTitle.textContent = '二十四节气';
+  solarTermTitle.textContent = t('holiday.group.solar_terms');
   solarTermSection.appendChild(solarTermTitle);
 
   for (const [key, preset] of Object.entries(HOLIDAY_PRESETS)) {
@@ -588,11 +599,11 @@ export function initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS) {
 
     let displayText = preset.label;
     if (preset.category === 'solar_term') {
-      displayText += `（${preset.month}月${preset.day}日）`;
+      displayText += `（${t('date.month_day', { month: preset.month, day: preset.day })}）`;
     } else if (preset.lunar) {
-      displayText += '（农历）';
+      displayText += t('date.lunar_label');
     } else {
-      displayText += `（${preset.month}月${preset.day}日）`;
+      displayText += `（${t('date.month_day', { month: preset.month, day: preset.day })}）`;
     }
     label.appendChild(document.createTextNode(displayText));
 

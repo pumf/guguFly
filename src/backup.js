@@ -1,3 +1,4 @@
+import { t as _t } from './i18n/index.js';
 import { pad2 } from './tasks/TaskUtils.js';
 
 const BACKUP_VERSION = 1;
@@ -30,15 +31,15 @@ function buildBackupPayload(tasks, settingsMap, appVersion) {
 }
 
 function validateBackup(data) {
-  if (!data || typeof data !== 'object') return '文件不是有效的备份';
-  if (data.kind !== BACKUP_KIND) return '不是咕咕机长的备份文件';
-  if (!Array.isArray(data.tasks)) return '备份里没有任务数据';
-  for (const t of data.tasks) {
-    if (!t || typeof t !== 'object') return '任务数据格式不正确';
-    if (!['alarm', 'countdown', 'holiday', 'anniversary'].includes(t.type)) {
-      return `存在未知任务类型：${t.type}`;
+  if (!data || typeof data !== 'object') return _t('error.backup_invalid');
+  if (data.kind !== BACKUP_KIND) return _t('error.backup_not_gugu');
+  if (!Array.isArray(data.tasks)) return _t('error.backup_no_data');
+  for (const task of data.tasks) {
+    if (!task || typeof task !== 'object') return _t('error.backup_format');
+    if (!['alarm', 'countdown', 'holiday', 'anniversary'].includes(task.type)) {
+      return _t('error.backup_unknown_type', { type: task.type });
     }
-    if (typeof t.id !== 'number') return '任务缺少 id';
+    if (typeof task.id !== 'number') return _t('error.backup_missing_id');
   }
   return null;
 }
@@ -70,10 +71,10 @@ export function readBackupFromFile(file) {
         if (err) return reject(new Error(err));
         resolve(data);
       } catch {
-        reject(new Error('文件不是合法 JSON'));
+        reject(new Error(_t('error.backup_not_json')));
       }
     };
-    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.onerror = () => reject(new Error(_t('error.backup_read_failed')));
     reader.readAsText(file);
   });
 }

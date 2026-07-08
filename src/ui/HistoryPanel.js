@@ -1,4 +1,10 @@
-const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+import { t, ta } from '../i18n/index.js';
+
+let _weekdayLabels = null;
+function getWeekdayLabels() {
+  if (!_weekdayLabels) _weekdayLabels = ta('calendar.day_labels');
+  return _weekdayLabels;
+}
 
 let tasks = [];
 
@@ -12,7 +18,7 @@ export function renderTaskHistory(stats, flightLog) {
 
   const taskEntries = Object.entries(stats.taskTotals).sort((a, b) => b[1] - a[1]);
   if (taskEntries.length === 0) {
-    container.innerHTML = '<div style="padding:16px;color:#b2bec3;font-size:13px;text-align:center">暂无触发记录</div>';
+    container.innerHTML = `<div style="padding:16px;color:#b2bec3;font-size:13px;text-align:center">${t('history.no_triggers')}</div>`;
     return;
   }
 
@@ -20,13 +26,13 @@ export function renderTaskHistory(stats, flightLog) {
 
   container.innerHTML = taskEntries.map(([taskId, total]) => {
     const task = tasks.find(t => String(t.id) === String(taskId));
-    const label = task ? (task.label || '未命名') : `#${taskId}`;
+    const label = task ? (task.label || t('common.unnamed')) : `#${taskId}`;
     const typeIcon = getTypeIcon(task?.type);
     const dailyCounts = dailyMap.get(taskId) || [];
 
     const bars = dailyCounts.map(c => {
       const h = c > 0 ? Math.max(3, c * 6) : 0;
-      return `<div class="hist-bar${c > 0 ? '' : ' is-empty'}" style="height:${h}px" title="${c} 次"></div>`;
+      return `<div class="hist-bar${c > 0 ? '' : ' is-empty'}" style="height:${h}px" title="${c} ${t('history.count')}"></div>`;
     }).join('');
 
     return `
@@ -34,13 +40,13 @@ export function renderTaskHistory(stats, flightLog) {
         <div class="hist-task-head">
           <span class="hist-task-icon">${typeIcon}</span>
           <span class="hist-task-label">${label}</span>
-          <span class="hist-task-count">${total} 次</span>
+          <span class="hist-task-count">${total} ${t('history.count')}</span>
         </div>
         ${dailyCounts.length > 0 ? `
         <div class="hist-daily-row">
           <div class="hist-daily-bars">${bars}</div>
           <div class="hist-day-labels">
-            ${dailyCounts.map((c, i) => `<span class="hist-day-label${c > 0 ? '' : ' is-empty'}">${WEEKDAY_LABELS[i]}</span>`).join('')}
+            ${dailyCounts.map((c, i) => `<span class="hist-day-label${c > 0 ? '' : ' is-empty'}">${getWeekdayLabels()[i]}</span>`).join('')}
           </div>
         </div>` : ''}
       </div>`;

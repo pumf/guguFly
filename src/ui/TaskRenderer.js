@@ -1,9 +1,12 @@
+import { t } from '../i18n/index.js';
 import { TASK_COLOR_VALUES } from '../tasks/TaskColors.js';
 import { getTaskTypeMeta } from '../tasks/TaskFactory.js';
 import {
   getTaskStatusLabel, getTaskInfoText, getTaskSortScore,
   getTaskTimeAnchor, getTaskGroupKey, getTaskDetailLines, matchesFilter, formatDuration,
 } from '../tasks/TaskUtils.js';
+import { openTaskDetailDrawer } from './TaskDetailDrawer.js';
+import { isSelectionModeActive, toggleTaskSelection, isTaskSelected } from './BatchOperation.js';
 
 const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
@@ -28,15 +31,24 @@ export function renderTasks({
   };
   taskListEl.innerHTML = '';
 
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-dropdown')) {
+      document.querySelectorAll('.task-dropdown:not(.hidden)').forEach(d => {
+        d.classList.add('hidden');
+        d.closest('.task-card')?.classList.remove('task-card--menu-open');
+      });
+    }
+  });
+
   if (tasks.length === 0) {
-    taskListEl.innerHTML = '<div class="empty-hint"><span class="big-icon">🛩</span><strong>任务列表会展示在这里</strong><span>暂无任务，点击「新建任务」开始添加提醒。</span></div>';
+    taskListEl.innerHTML = `<div class="empty-hint"><span class="big-icon">🛩</span><strong>${t('task.empty.title')}</strong><span>${t('task.empty.desc')}</span></div>`;
     updateHeroStatusFn();
     return;
   }
 
   const filteredTasks = tasks.filter(t => matchesFilter(t, filterType, filterGroup || 'all', filterKeyword));
   if (filteredTasks.length === 0) {
-    taskListEl.innerHTML = '<div class="empty-hint"><span class="big-icon">🔍</span><strong>没有匹配的任务</strong><span>试试别的关键词，或清除筛选条件。</span></div>';
+    taskListEl.innerHTML = `<div class="empty-hint"><span class="big-icon">🔍</span><strong>${t('task.empty.filtered_title')}</strong><span>${t('task.empty.filtered_desc')}</span></div>`;
     updateHeroStatusFn();
     return;
   }
@@ -77,11 +89,11 @@ export function renderTasks({
     actions.className = 'task-group-actions';
     const enableBtn = document.createElement('button');
     enableBtn.className = 'task-group-btn';
-    enableBtn.textContent = '全部启用';
+    enableBtn.textContent = t('common.enable');
     enableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, true, tasks, saveTasks, getCleanTasksFn, renderTasksFn));
     const disableBtn = document.createElement('button');
     disableBtn.className = 'task-group-btn';
-    disableBtn.textContent = '全部停用';
+    disableBtn.textContent = t('common.disable');
     disableBtn.addEventListener('click', () => setGroupEnabled(groupTasks, false, tasks, saveTasks, getCleanTasksFn, renderTasksFn));
     actions.appendChild(enableBtn);
     actions.appendChild(disableBtn);
@@ -97,6 +109,7 @@ export function renderTasks({
       card.dataset.taskId = String(task.id);
       if (task._status === 'running') card.classList.add('active');
       if (task._status === 'completed') card.classList.add('completed');
+      if (isTaskSelected(task.id)) card.classList.add('selected');
 
       if (task.color && TASK_COLOR_VALUES[task.color]) {
         const bar = document.createElement('div');
@@ -128,7 +141,7 @@ export function renderTasks({
 
       const label = document.createElement('span');
       label.className = 'task-label';
-      label.textContent = task.label || (task.type === 'alarm' ? '闹钟' : task.type === 'countdown' ? '倒计时' : task.type === 'holiday' ? '节日' : '纪念日');
+      label.textContent = task.label || (task.type === 'alarm' ? t('task.label.alarm') : task.type === 'countdown' ? t('task.label.countdown') : task.type === 'holiday' ? t('task.label.holiday') : t('task.label.anniversary'));
       labelRow.appendChild(label);
 
       const typeBadge = document.createElement('span');
@@ -153,7 +166,7 @@ export function renderTasks({
 
       if (task.group) {
         const groupMap = { work: '💼', health: '💚', life: '🏠', other: '📌' };
-        const groupNames = { work: '工作', health: '健康', life: '生活', other: '其他' };
+        const groupNames = { work: t('task.group.work'), health: t('task.group.health'), life: t('task.group.life'), other: t('task.group.other') };
         const sep = document.createElement('span');
         sep.className = 'task-info-sep';
         sep.textContent = '·';
@@ -167,7 +180,7 @@ export function renderTasks({
       if (task.imageData && task.useImage) {
         const imgBadge = document.createElement('span');
         imgBadge.className = 'task-image-badge';
-        imgBadge.title = '此任务使用自定义图片';
+        imgBadge.title = t('task.detail.custom_image');
         imgBadge.textContent = '🖼';
         infoRow.appendChild(imgBadge);
       }
@@ -184,8 +197,8 @@ export function renderTasks({
 
       const expandBtn = document.createElement('button');
       expandBtn.className = 'task-expand-btn';
-      expandBtn.title = expandedTaskId === task.id ? '收起详情' : '展开详情';
-      expandBtn.textContent = expandedTaskId === task.id ? '收起' : '详情';
+      expandBtn.title = expandedTaskId === task.id ? t('btn.toggle_detail_collapse_title') : t('btn.toggle_detail_title');
+      expandBtn.textContent = expandedTaskId === task.id ? t('btn.toggle_detail_collapse') : t('btn.toggle_detail');
       expandBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleTaskExpandedFn(task.id);
@@ -209,24 +222,34 @@ export function renderTasks({
         });
         actionsEl.appendChild(playBtn);
 
-        const stopBtn = document.createElement('button');
-        stopBtn.className = 'task-stop-btn';
-        stopBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
-        stopBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          stopCountdownFn(task);
-        });
-        actionsEl.appendChild(stopBtn);
-
         updateCountdownActionUI(task, actionsEl);
       }
 
-      const takeoffBtn = document.createElement('button');
-      takeoffBtn.className = 'task-takeoff-btn';
-      takeoffBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>';
-      takeoffBtn.title = '马上起飞';
-      takeoffBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'task-menu-btn';
+      menuBtn.innerHTML = '⋯';
+      menuBtn.title = t('btn.more');
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'task-dropdown hidden';
+
+      const addMenuItem = (label, icon, onClick, className) => {
+        const item = document.createElement('button');
+        item.className = `task-dropdown-item${className ? ' ' + className : ''}`;
+        item.innerHTML = `<span class="task-dropdown-icon">${icon}</span><span>${label}</span>`;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdown.classList.add('hidden');
+          onClick();
+        });
+        dropdown.appendChild(item);
+      };
+
+      addMenuItem(t('btn.copy'), '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>', () => {
+        copyTask(task, tasks, saveTasks, getCleanTasksFn, renderTasksFn);
+      });
+
+      addMenuItem(t('btn.takeoff'), '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>', () => {
         if (!task.enabled) {
           task.enabled = true;
           saveTasks(getCleanTasksFn(tasks));
@@ -238,24 +261,52 @@ export function renderTasks({
         renderTasks(fullCtx);
         triggerFlightWithModeFn(task);
       });
-      actionsEl.appendChild(takeoffBtn);
 
-      const delBtn = document.createElement('button');
-      delBtn.className = 'task-del-btn';
-      delBtn.textContent = '✕';
-      delBtn.title = '删除';
-      delBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      if (task.type === 'countdown') {
+        addMenuItem(t('btn.add_5min'), '<span style="font-weight:700">+5</span>', () => {
+          addTimeToCountdown(task, 5 * 60, tasks, saveTasks, getCleanTasksFn, renderTasksFn);
+        });
+        addMenuItem(t('btn.add_10min'), '<span style="font-weight:700">+10</span>', () => {
+          addTimeToCountdown(task, 10 * 60, tasks, saveTasks, getCleanTasksFn, renderTasksFn);
+        });
+        addMenuItem(t('btn.stop'), '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>', () => {
+          stopCountdownFn(task);
+        });
+        addMenuItem(t('btn.repeat'), '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>', () => {
+          repeatCountdown(task);
+        });
+      }
+
+      addMenuItem(t('common.delete'), '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>', () => {
         deleteTaskFn(task);
+      }, 'task-dropdown-item--danger');
+
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.task-dropdown:not(.hidden)').forEach(d => {
+          d.classList.add('hidden');
+          d.closest('.task-card')?.classList.remove('task-card--menu-open');
+        });
+        const isOpening = dropdown.classList.toggle('hidden');
+        card.classList.toggle('task-card--menu-open', !isOpening);
       });
-      actionsEl.appendChild(delBtn);
+
+      actionsEl.appendChild(menuBtn);
+      actionsEl.appendChild(dropdown);
 
       card.appendChild(toggle);
       card.appendChild(icon);
       card.appendChild(body);
       card.appendChild(actionsEl);
 
-      card.addEventListener('click', () => toggleTaskExpandedFn(task.id));
+      card.addEventListener('click', () => {
+        if (isSelectionModeActive()) {
+          toggleTaskSelection(task.id);
+          card.classList.toggle('selected', isTaskSelected(task.id));
+        } else {
+          openTaskDetailDrawer(task, { onEdit: openEditModalFn, onCopy: null });
+        }
+      });
       card.addEventListener('dblclick', () => openEditModalFn(task));
       card.draggable = true;
       card.setAttribute('data-task-id', task.id);
@@ -293,15 +344,17 @@ function updateCountdownActionUI(task, actionsEl) {
   if (!actionsEl) return;
   const statusEl = actionsEl.querySelector('.task-countdown-status');
   const playBtn = actionsEl.querySelector('.task-play-btn');
-  const stopBtn = actionsEl.querySelector('.task-stop-btn');
+
+  const isRunning = task._status === 'running';
+  const isPaused = task._status === 'paused';
 
   if (statusEl) {
     statusEl.classList.remove('running');
-    if (task._status === 'running') {
+    if (isRunning) {
       statusEl.textContent = formatDuration(task._remaining);
       statusEl.classList.add('running');
-    } else if (task._status === 'paused') {
-      statusEl.textContent = `暂停 ${formatDuration(task._remaining)}`;
+    } else if (isPaused) {
+      statusEl.textContent = t('duration.paused_at', { time: formatDuration(task._remaining) });
     } else {
       statusEl.textContent = '';
     }
@@ -309,21 +362,14 @@ function updateCountdownActionUI(task, actionsEl) {
 
   if (playBtn) {
     playBtn.classList.remove('active');
-    if (task._status === 'running') {
+    if (isRunning) {
       playBtn.classList.add('active');
       playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-      playBtn.title = '暂停';
+      playBtn.title = t('btn.pause');
     } else {
       playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-      playBtn.title = task._status === 'paused' ? '继续' : '开始';
+      playBtn.title = isPaused ? t('btn.resume') : t('btn.start');
     }
-  }
-
-  if (stopBtn) {
-    const canStop = task._status === 'running' || task._status === 'paused';
-    stopBtn.classList.toggle('hidden', !canStop);
-    stopBtn.disabled = !canStop;
-    stopBtn.title = '停止';
   }
 }
 
@@ -354,10 +400,10 @@ function setGroupEnabled(groupTasks, enabled, tasks, saveTasks, getCleanTasksFn,
 
 function getTaskGroupMeta(groupKey) {
   const labels = {
-    in_progress: { title: '即将起飞', subtitle: '' },
-    upcoming: { title: '近期提醒', subtitle: '' },
-    special_dates: { title: '特殊日期', subtitle: '' },
-    disabled: { title: '已停用', subtitle: '' },
+    in_progress: { title: t('task.section.about_to_takeoff'), subtitle: '' },
+    upcoming: { title: t('task.section.upcoming'), subtitle: '' },
+    special_dates: { title: t('task.section.special_dates'), subtitle: '' },
+    disabled: { title: t('task.section.disabled'), subtitle: '' },
   };
   return labels[groupKey];
 }
@@ -375,7 +421,7 @@ function buildTaskDetails(task, holidayPresets, openEditModalFn) {
   detailActions.className = 'task-detail-actions';
   const quickEditBtn = document.createElement('button');
   quickEditBtn.className = 'task-detail-btn';
-  quickEditBtn.textContent = '快速编辑';
+  quickEditBtn.textContent = t('btn.quick_edit');
   quickEditBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     openEditModalFn(task);
@@ -401,7 +447,7 @@ export function toggleTaskExpandedCard(prevExpandedId, newExpandedId, ctx) {
       const details = body?.querySelector('.task-details');
       if (details) details.remove();
       const btn = card.querySelector('.task-expand-btn');
-      if (btn) { btn.textContent = '详情'; btn.title = '展开详情'; }
+      if (btn) { btn.textContent = t('btn.toggle_detail'); btn.title = t('btn.toggle_detail_title'); }
     }
   }
   if (newExpandedId !== null && newExpandedId !== prevExpandedId) {
@@ -415,7 +461,42 @@ export function toggleTaskExpandedCard(prevExpandedId, newExpandedId, ctx) {
         }
       }
       const btn = card.querySelector('.task-expand-btn');
-      if (btn) { btn.textContent = '收起'; btn.title = '收起详情'; }
+      if (btn) { btn.textContent = t('btn.toggle_detail_collapse'); btn.title = t('btn.toggle_detail_collapse_title'); }
     }
   }
+}
+
+function copyTask(task, tasks, saveTasks, getCleanTasksFn, renderTasksFn) {
+  const copy = JSON.parse(JSON.stringify(task));
+  copy.id = Date.now();
+  copy.label = `${task.label} ${t('task.copy_suffix')}`;
+  copy.enabled = true;
+  if (copy._status === 'running' || copy._status === 'paused') {
+    copy._status = 'idle';
+    copy._remaining = copy.duration;
+  }
+  copy._lastTriggeredDate = null;
+  copy._flightRemaining = undefined;
+  tasks.push(copy);
+  saveTasks(getCleanTasksFn(tasks));
+  renderTasksFn();
+}
+
+function addTimeToCountdown(task, seconds, tasks, saveTasks, getCleanTasksFn, renderTasksFn) {
+  if (task.type !== 'countdown') return;
+  if (task._status !== 'running' && task._status !== 'paused') return;
+  task._remaining = (task._remaining || 0) + seconds;
+  task.duration = (task.duration || 0) + seconds;
+  if (task._timer) {
+    task._timer.durationMs = (task._timer.durationMs || task._timer.remaining || 0) + seconds * 1000;
+    if (task._status === 'running') task._timer.forceUpdate();
+  }
+  saveTasks(getCleanTasksFn(tasks));
+  renderTasksFn();
+}
+
+function repeatCountdown(task) {
+  if (task.type !== 'countdown') return;
+  task._remaining = task.duration;
+  task._status = 'idle';
 }

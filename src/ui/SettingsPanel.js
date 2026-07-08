@@ -1,3 +1,5 @@
+import { t, setLanguage } from '../i18n/index.js';
+
 export function initSettingsPanel(ctx) {
   const {
     isTauriRuntime, MUTED_ICON, UNMUTED_ICON, setMuted,
@@ -56,6 +58,23 @@ export function initSettingsPanel(ctx) {
     isConfigOpenRef.set(next);
     configPanel.classList.toggle('hidden', !next);
     configArrow.classList.toggle('collapsed', !next);
+  });
+
+  const settingsTabs = document.querySelectorAll('.settings-tab');
+  const settingsTabPanels = {
+    general: document.getElementById('settingsTabGeneral'),
+    data: document.getElementById('settingsTabData'),
+    about: document.getElementById('settingsTabAbout'),
+  };
+  settingsTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      settingsTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const tabId = tab.dataset.tab;
+      Object.entries(settingsTabPanels).forEach(([key, panel]) => {
+        if (panel) panel.classList.toggle('hidden', key !== tabId);
+      });
+    });
   });
 
   muteBtn.addEventListener('click', async () => {
@@ -136,6 +155,16 @@ export function initSettingsPanel(ctx) {
     });
   });
 
+  const langButtons = document.querySelectorAll('.lang-btn');
+  langButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.dataset.lang;
+      if (!lang) return;
+      setLanguage(lang, { persist: true });
+      ctx.persistSetting('language', lang);
+    });
+  });
+
   exportTasksBtn?.addEventListener('click', async () => {
     const version = await getCurrentVersion();
     const count = exportTasksAsJson(getCleanTasks(tasksRef.get()), {
@@ -145,56 +174,142 @@ export function initSettingsPanel(ctx) {
       soundMode: soundModeSelect.value, useSound: useSoundCheckbox.checked,
       useImage: useImageCheckbox.checked, muted: isMutedRef.get(),
     }, version);
-    showToast(`已导出 ${count} 条任务到下载文件夹`);
+    showToast(t('settings.export_success', { count }));
   });
   importTasksBtn?.addEventListener('click', () => {
     importTasksInput.value = '';
     importTasksInput.click();
   });
+
+  const importPreviewModal = document.getElementById('importPreviewModal');
+  const importPreviewOverlay = document.getElementById('importPreviewOverlay');
+  const importPreviewCloseBtn = document.getElementById('importPreviewCloseBtn');
+  const importPreviewSummary = document.getElementById('importPreviewSummary');
+  const importPreviewTasks = document.getElementById('importPreviewTasks');
+  const importPreviewCancelBtn = document.getElementById('importPreviewCancelBtn');
+  const importPreviewConfirmBtn = document.getElementById('importPreviewConfirmBtn');
+
+  let pendingImportData = null;
+
+  function closeImportPreview() {
+    importPreviewModal?.classList.add('hidden');
+    pendingImportData = null;
+  }
+
+  function showImportPreview(data) {
+    pendingImportData = data;
+    const tasks = data.tasks || [];
+    importPreviewSummary.textContent = t('import.summary', { count: tasks.length });
+
+    const typeIcons = { alarm: '⏰', countdown: '⏱', holiday: '📅', anniversary: '💝' };
+    importPreviewTasks.innerHTML = tasks.slice(0, 20).map(task => {
+      const icon = typeIcons[task.type] || '📋';
+      const time = task.type === 'alarm' ? `${task.hour}:${String(task.minute).padStart(2, '0')}` :
+                   task.type === 'countdown' ? t('import.countdown_minutes', { minutes: Math.floor((task.duration || 0) / 60) }) :
+                   task.type === 'holiday' ? `${task.month}/${task.day}` :
+                   `${task.month}/${task.day}`;
+      return `<div class="import-preview-task">
+        <span class="import-preview-task-type">${icon}</span>
+        <span class="import-preview-task-label">${task.label || t('common.unnamed_task')}</span>
+        <span class="import-preview-task-time">${time}</span>
+      </div>`;
+    }).join('') + (tasks.length > 20 ? `<div class="import-preview-task" style="justify-content:center;color:var(--muted)">${t('import.more_tasks', { count: tasks.length - 20 })}</div>` : '');
+
+    importPreviewModal?.classList.remove('hidden');
+  }
+
+  importPreviewOverlay?.addEventListener('click', closeImportPreview);
+  importPreviewCloseBtn?.addEventListener('click', closeImportPreview);
+  importPreviewCancelBtn?.addEventListener('click', closeImportPreview);
+
+  importPreviewConfirmBtn?.addEventListener('click', async () => {
+    if (!pendingImportData) return;
+    const strategy = document.querySelector('input[name="importStrategy"]:checked')?.value || 'overwrite';
+    const { tasks: imported, maxId } = hydrateTasks(pendingImportData.tasks);
+    const currentTasks = tasksRef.get();
+
+    let resultTasks;
+    let added = 0;
+    let skipped = 0;
+
+    if (strategy === 'overwrite') {
+      resultTasks = imported;
+      added = imported.length;
+    } else if (strategy === 'merge') {
+      const existingIds = new Set(currentTasks.map(t => t.id));
+      resultTasks = [...currentTasks];
+      for (const task of imported) {
+        if (existingIds.has(task.id)) {
+          skipped++;
+        } else {
+          resultTasks.push(task);
+          added++;
+        }
+      }
+    } else {
+      const existingLabels = new Set(currentTasks.map(t => `${t.type}:${t.label}:${t.hour}:${t.minute}`));
+      resultTasks = [...currentTasks];
+      for (const task of imported) {
+        const key = `${task.type}:${task.label}:${task.hour}:${task.minute}`;
+        if (existingLabels.has(key)) {
+          skipped++;
+        } else {
+          resultTasks.push(task);
+          added++;
+          existingLabels.add(key);
+        }
+      }
+    }
+
+    tasksRef.set(resultTasks);
+    setNextId(Math.max(maxId, ...resultTasks.map(t => t.id)) + 1);
+    await saveTasks(getCleanTasks(resultTasks));
+
+    if (strategy === 'overwrite' && pendingImportData.settings && typeof pendingImportData.settings === 'object') {
+      const s = pendingImportData.settings;
+      if (s.speed) speedSelect.value = s.speed;
+      if (s.height) heightSelect.value = s.height;
+      if (s.effect) effectSelect.value = s.effect;
+      if (s.plane) planeSelect.value = s.plane;
+      if (s.particle) particleSelect.value = s.particle;
+      if (s.bubble) bubbleSelect.value = s.bubble;
+      if (s.bubblePosition) bubblePositionSelect.value = s.bubblePosition;
+      if (s.sound) soundSelect.value = s.sound;
+      if (s.soundMode) soundModeSelect.value = s.soundMode;
+      if (typeof s.useSound === 'boolean') useSoundCheckbox.checked = s.useSound;
+      if (typeof s.useImage === 'boolean') useImageCheckbox.checked = s.useImage;
+      if (typeof s.muted === 'boolean') { isMutedRef.set(s.muted); muteBtn.innerHTML = s.muted ? MUTED_ICON : UNMUTED_ICON; setMuted(s.muted); }
+      await persistFlightSettings({
+        speed: speedSelect.value, height: heightSelect.value, effect: effectSelect.value,
+        plane: planeSelect.value, particle: particleSelect.value, bubble: bubbleSelect.value,
+        bubblePosition: bubblePositionSelect.value, sound: soundSelect.value,
+        soundMode: soundModeSelect.value, useSound: useSoundCheckbox.checked,
+        useImage: useImageCheckbox.checked,
+      });
+      await set('muted', s.muted);
+    }
+
+    renderTaskView();
+    const msgKey = strategy === 'overwrite' ? 'import.result_overwrite' :
+                   strategy === 'merge' ? 'import.result_merge' : 'import.result_add_only';
+    showToast(t(msgKey, { count: added + skipped, added, skipped }));
+    closeImportPreview();
+  });
+
   importTasksInput?.addEventListener('change', async () => {
     const file = importTasksInput.files?.[0];
     if (!file) return;
     try {
       const data = await readBackupFromFile(file);
       const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
-      if (count === 0) { showToast('备份里没有任务数据'); return; }
-      const proceed = await window.showConfirm(`将导入 ${count} 条任务，导入后当前任务将被替换。是否继续？`);
-      if (!proceed) return;
-      const { tasks: imported, maxId } = hydrateTasks(data.tasks);
-      tasksRef.set(imported);
-      setNextId(maxId);
-      await saveTasks(getCleanTasks(imported));
-      if (data.settings && typeof data.settings === 'object') {
-        const s = data.settings;
-        if (s.speed) speedSelect.value = s.speed;
-        if (s.height) heightSelect.value = s.height;
-        if (s.effect) effectSelect.value = s.effect;
-        if (s.plane) planeSelect.value = s.plane;
-        if (s.particle) particleSelect.value = s.particle;
-        if (s.bubble) bubbleSelect.value = s.bubble;
-        if (s.bubblePosition) bubblePositionSelect.value = s.bubblePosition;
-        if (s.sound) soundSelect.value = s.sound;
-        if (s.soundMode) soundModeSelect.value = s.soundMode;
-        if (typeof s.useSound === 'boolean') useSoundCheckbox.checked = s.useSound;
-        if (typeof s.useImage === 'boolean') useImageCheckbox.checked = s.useImage;
-        if (typeof s.muted === 'boolean') { isMutedRef.set(s.muted); muteBtn.innerHTML = s.muted ? MUTED_ICON : UNMUTED_ICON; setMuted(s.muted); }
-        await persistFlightSettings({
-          speed: speedSelect.value, height: heightSelect.value, effect: effectSelect.value,
-          plane: planeSelect.value, particle: particleSelect.value, bubble: bubbleSelect.value,
-          bubblePosition: bubblePositionSelect.value, sound: soundSelect.value,
-          soundMode: soundModeSelect.value, useSound: useSoundCheckbox.checked,
-          useImage: useImageCheckbox.checked,
-        });
-        await set('muted', s.muted);
-      }
-      renderTaskView();
-      showToast(`已导入 ${count} 条任务`);
-    } catch (e) { showToast(`导入失败：${e.message || '未知错误'}`); }
+      if (count === 0) { showToast(t('settings.import_no_data')); return; }
+      showImportPreview(data);
+    } catch (e) { showToast(t('settings.import_failed', { error: e.message || t('error.unknown') })); }
   });
 
   repoLink?.addEventListener('click', (e) => {
     e.preventDefault();
-    if (isTauriRuntime) invoke('open_url_in_browser', { url: 'https://github.com/pumf/guguFly' }).catch(() => {});
+    if (isTauriRuntime) invoke('open_url_in_browser', { url: 'https://github.com/pumf/guguFly' }).catch(err => console.warn('open repo link failed:', err));
     else window.open('https://github.com/pumf/guguFly', '_blank');
   });
 
@@ -214,7 +329,7 @@ export function initSettingsPanel(ctx) {
     try {
       const files = await invoke('get_video_cache_info');
       if (!files || files.length === 0) {
-        videoCacheList.innerHTML = '<div class="settings-item" style="color:var(--text-muted)">暂无缓存</div>';
+        videoCacheList.innerHTML = `<div class="settings-item" style="color:var(--text-muted)">${t('settings.video_cache_empty')}</div>`;
         return;
       }
       const totalSize = files.reduce((s, f) => s + (f.size || 0), 0);
@@ -223,7 +338,7 @@ export function initSettingsPanel(ctx) {
           <span>${f.name}</span>
           <span style="color:var(--text-muted);font-size:12px">${formatBytes(f.size || 0)}</span>
         </div>`
-      ).join('') + `<div class="settings-item" style="color:var(--text-muted);font-size:12px">共 ${files.length} 个文件，${formatBytes(totalSize)}</div>`;
+      ).join('') + `<div class="settings-item" style="color:var(--text-muted);font-size:12px">${t('settings.video_cache_summary', { count: files.length, size: formatBytes(totalSize) })}</div>`;
     } catch (e) {
       console.error('refresh cache info failed:', e);
     }
@@ -233,14 +348,14 @@ export function initSettingsPanel(ctx) {
 
   clearCacheBtn?.addEventListener('click', async () => {
     if (!isTauriRuntime) return;
-    const proceed = await window.showConfirm('确定清空视频缓存？下次播放内置视频时会重新下载。');
+    const proceed = await window.showConfirm(t('settings.video_cache_clear_confirm'));
     if (!proceed) return;
     try {
       await invoke('clear_video_cache');
-      showToast('视频缓存已清空');
+      showToast(t('settings.video_cache_cleared'));
       refreshVideoCache();
     } catch (e) {
-      showToast('清空失败：' + (e.message || e));
+      showToast(t('error.cache_clear_failed', { error: e.message || e }));
     }
   });
 

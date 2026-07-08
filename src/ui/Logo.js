@@ -19,7 +19,7 @@ export function updateTitleLogo() {
 export function syncMuteToTray() {
   if (!ctx) return;
   if (!ctx.isTauriRuntime) return;
-  void ctx.invoke('set_tray_mute_label', { muted: !!ctx.isMuted }).catch(() => {});
+  void ctx.invoke('set_tray_mute_label', { muted: !!ctx.isMuted }).catch(err => console.warn('sync mute to tray failed:', err));
 }
 
 export function closeSettingsModal() {

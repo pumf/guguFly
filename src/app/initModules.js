@@ -24,6 +24,7 @@ export async function initCoreModules(ctx) {
     setCustomAudioData,
     setToastFn,
     initCountdownTimer,
+    initPomodoroTimer,
     updateCountdownTaskUI,
     initAlarmChecker,
     initEmergency,
@@ -129,6 +130,17 @@ export async function initCoreModules(ctx) {
     doTriggerFlight: deps.doTriggerFlight,
     updateMiniWindow: deps.updateMiniWindow,
     getAllUpcomingTasks: deps.getAllUpcomingTasks,
+  });
+
+  initPomodoroTimer({
+    AccurateTimer,
+    renderTaskView,
+    saveTasks,
+    getCleanTasks,
+    getTasks: () => state.tasks,
+    doTriggerFlight: deps.doTriggerFlight,
+    showToast,
+    updateMiniWindow: deps.updateMiniWindow,
   });
 
   initAlarmChecker({

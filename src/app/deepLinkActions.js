@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 export async function handleDeepLink(ctx) {
   const {
     rawUrl,
@@ -26,9 +28,8 @@ export async function handleDeepLink(ctx) {
 
   if (isTauriRuntime) {
     try {
-      const confirmed = await window.showConfirm(`即将创建任务「${task.label || task.msg || '新任务'}」\n类型：${
-        { alarm: '定时', countdown: '倒计时', holiday: '节假日', anniversary: '纪念日' }[task.type] || task.type
-      }`);
+      const typeName = { alarm: t('task.type.alarm'), countdown: t('task.type.countdown'), holiday: t('task.type.holiday'), anniversary: t('task.type.anniversary') }[task.type] || task.type;
+      const confirmed = await window.showConfirm(t('deeplink.confirm', { name: task.label || task.msg || t('common.new_task'), type: typeName }));
       if (!confirmed) return;
     } catch {
       return;
@@ -38,5 +39,5 @@ export async function handleDeepLink(ctx) {
   state.tasks.push(task);
   saveTasks(getCleanTasks(state.tasks));
   renderTaskView();
-  showToast(`已通过链接创建任务：${task.label || task.msg || '新任务'}`);
+  showToast(t('toast.task_created', { name: task.label || task.msg || t('common.new_task') }));
 }

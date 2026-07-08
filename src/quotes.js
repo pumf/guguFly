@@ -1,18 +1,11 @@
-const QUOTES = [
-  '不咕不鸽，准时起飞！',
-  '机长喊你啦～',
-  '再不行动，飞机就要飞走了哦～',
-  '咕咕咕！目标达成！',
-  '你的小飞机已到达战场！',
-  '起飞！向着更好的自己！',
-  '别鸽了，机会会飞走的～',
-  '滴！机长卡！',
-  '本次航班已就绪，请系好安全带！',
-  '你的专属机长提醒您：该动一动了！',
-  '咕咕机长已就位，这次绝对不鸽你！',
-  '前方到站：更好的自己！',
+import { t } from './i18n/index.js';
+
+const QUOTE_KEYS = [
+  'quote.1', 'quote.2', 'quote.3', 'quote.4', 'quote.5', 'quote.6',
+  'quote.7', 'quote.8', 'quote.9', 'quote.10', 'quote.11', 'quote.12',
 ];
 
 export function getRandomQuote() {
-  return QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  const key = QUOTE_KEYS[Math.floor(Math.random() * QUOTE_KEYS.length)];
+  return t(key);
 }

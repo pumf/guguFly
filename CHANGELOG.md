@@ -1,200 +1,38 @@
 # Changelog
 
-咕咕机长的所有重要变更都会记录在这里。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
+## v0.8.0 (2026-07-07)
 
-## [0.7.0] - 2026-06-25
+### ✨ New Features
+- **Task card overflow menu**: Consolidated less-used buttons (copy, delete, stop, repeat) into ⋯ dropdown menu, keeping cards clean
+- **Quick create Chinese time**: Support "三点"/"三点钟" → 3:00 parsing
+- **+5/+10 minute buttons**: Now work correctly with countdown timers (persist + re-render)
 
-### ✨ 新功能
-- **迷你悬浮窗新增独立倒计时**：悬浮窗即使在系统后台也能持续显示倒计时，不再因窗口节流而卡住
-- **视频播放智能关闭**：视频播完最后一秒后自动关闭窗口，不会出现"卡住不消失"的情况
-- **视频本地缓存预热**：首次播放若已下载到本地缓存，立即使用本地路径播放，不再走远程加载
-- **5K 显示器支持**：高分辨率屏幕下飞行动画不再被强制缩放到 2560x1600，画质更清晰
-- **通知按类型分组**：闹钟 ⏰、倒计时 ⏱、节日 🎉、纪念日 💝 通知图标各不相同，一眼可辨
-- **错误栈一键复制**：后台任务出错时弹出的红色 toast，双击或右键即可复制完整错误栈便于上报
+### 🐛 Bug Fixes
+- **Detail sidebar English params**: Fixed `{{status}}`, `{{summary}}`, `{{time}}` placeholders showing in task detail drawer
+- **Detail sidebar unclickable buttons**: Fixed z-index issue where overlay intercepted button clicks
+- **Flight statistics = 0**: Fixed post-flight "repeat" action not recording flights to log
+- **SettingsPanel test**: Fixed failing import preview test (200/200 tests passing)
 
-### 🐛 修复
-- 修复紧急降落后 postFlight 仍会触发视频/特效播放的问题
-- 修复重复触发飞行时视频/特效窗口因 mutex 泄漏被卡住的问题
-- 修复月末日期（如 31 号）每月都强制降到 28 号触发的 bug
-- 修复用户点击"跳过当前飞行"后，飞行后视频/特效仍然播放的问题
-- 修复 macOS Intel 高分屏下视频/特效窗口坐标系混乱的问题
-- 修复视频/特效窗口被外部关闭后 `activeVideoWin` 引用陈旧的问题
-- 修复自定义音频 ObjectURL 多次设置不释放导致的内存泄漏
-- 修复 Windows 下迷你悬浮窗拖到屏幕边缘卡死的问题
-- 修复 Linux Wayland 下全局快捷键不可用的问题
-- 修复跨日闹钟在系统休眠唤醒后漏触发的问题
-- 修复文件上传绕过 MIME+扩展名校验的安全问题
-- 修复深链参数解析宽松（`parseInt('99abc')=99`）的输入校验问题
+### 🌍 Internationalization
+- Added missing en.js keys: `stats.flight_count`, `stats.loading`, `stats.times`
+- Replaced 29+ hardcoded Chinese strings across 14 files with i18n `t()` calls
+- Added `labelOnly()` helper to strip `{{param}}` placeholders from drawer labels
+- Fixed ESC hint in edit modal showing raw `{{key}}` placeholder
 
-### 🚀 性能优化
-- 视频缓存查找加并发去重：多个飞行同时请求同一视频时共享一次后端调用
-- 视频/特效窗口点击穿透优化，OS 级别透传事件不再有 200ms 延迟
+### 🎨 UI/UX
+- **Dark theme**: Added 11 missing CSS overrides (task-list, task-toggle, hero-toolbar, form-block, etc.)
+- **Task card buttons**: Only expand + play/pause remain inline; all others in ⋯ dropdown
+- **Dropdown z-index**: Added `.task-drawer-content { z-index: 1 }` and `.task-card--menu-open { z-index: 10 }` to prevent overlay/button click issues
 
-### 🔧 兼容性
-- Linux Wayland 下自动跳过全局快捷键注册，提示用户改用托盘菜单
-- 视频下载支持 200MB 单文件 / 1GB 总缓存上限，磁盘不再被吃满
-- 跨平台 5K 显示器支持，飞行动画不再被强制限制在低分辨率
+### ⚡ Performance
+- **Video playback optimization**: Replaced Canvas 2D drawImage with DOM video element for hardware-accelerated compositing (2-4x faster on Intel Macs)
 
-## [0.5.2] - 2026-06-22
+### 🔧 Infrastructure
+- **storage.js**: Added `setStoreFailureHandler()` with toast notification when Tauri store fails to initialize
+- **Windows packaging**: Removed unused `staticlib` crate type; wrapped global shortcuts in try-catch to prevent startup crashes
+- **Crash log**: Improved to append with timestamps instead of overwriting
+- **NSIS config**: Added bundle.nsis configuration for Windows installer
+- **Code quality**: Changed 3 placeholder `showToast` functions from `console.log` to `console.warn`
 
-### ✨ 新功能
-- 新增 Linux 平台支持：锁屏和语音播报现在在 Linux 上也能用了
-- 新增桌面合成器检测：Linux 上无合成器时自动提示，飞行动画不再黑屏
-
-### 🚀 性能优化
-- Intel Mac 飞行动画更流畅：高分辨率屏幕下减少卡顿
-- 界面模糊效果优化：整体操作更丝滑，Intel 集显设备风扇转得更少
-
-### 🐛 修复
-- 修复 Linux 上锁屏和语音播报失效的问题
-- 修复升级版本后系统托盘仍显示旧版本更新红点的问题
-- 修复手动检查更新时缓存未过期导致新版本检测不到的问题
-- 修复 Intel Mac 高分辨率屏幕上飞行动画掉帧的问题
-
-### 🔧 兼容性
-- 完善 Linux 平台支持
-- 优化 Intel Mac 性能表现
-
-## [0.5.1] - 2026-06-17
-
-### 🐛 修复
-- 修复初始化顺序错误导致多个按钮事件未绑定
-- 修复紧急降落后飞行循环音频未停止
-- 修复主题按钮缺少选中态高亮
-- 修复迷你悬浮框位置设置在 Tauri v2 下不生效
-
-### 🧹 工程化
-- 补齐模块化依赖注入与对应测试覆盖
-
-## [0.5.0] - 2026-06-14
-
-### 🏗 重构
-- **大规模模块化重构**：将 2000+ 行的 `main.js` 拆分到 25+ 独立模块
-  - `ui/`: Toast、TaskRenderer、ModalController、StatsPanel、HeroSection、AudioSystem、ColorPicker、HistoryPanel、MiniWindow、FlightPreview、Logo、NotificationManager、MediaUpload
-  - `tasks/`: TaskFactory、TaskUtils、CountdownTimer、AlarmChecker、HolidayPresets、TaskColors
-  - `settings/`: SettingsManager、ThemeManager、UpdateManager、FlightSync
-  - `flight/`: FlightOrchestrator、FlightTrigger、FlightPresets、Emergency、DeepLink、TauriListeners
-- 全部模块通过 `main.js init()` 依赖注入连接，消除全局变量污染
-- 移除 `marketing-site` 混入，独立仓库管理
-
-### 🐛 修复（19 项）
-- 修复迷你窗拖动和飞行后通知浮窗定位
-- 统一迷你窗位置单位为物理像素
-- 修复 Intel Mac 飞行动画不显示（添加 `roundRect` polyfill）
-- 修复 Windows 兼容性 — `run_script` 用 `cmd` 执行，锁屏/TTS 区分平台命令
-- 修复 Intel Mac 托盘图标不显示（`tray-icon.png` 改为 `include_bytes!` 嵌入）
-- 修复飞行时内置声音不播放（`AudioContext` unlock 问题）
-- 修复托盘左键/右键/最小化唤醒行为
-
-### ✨ 新增
-- 静默时段：指定时间段内自动跳过飞行提醒
-- 迷你悬浮窗：屏幕角落显示下次提醒倒计时，位置可拖动
-- 任务快速模板：一键创建番茄钟、喝水提醒、站会、午休、久坐拉伸
-- 托盘菜单快速倒计时：5/15/25/30 分钟
-- 飞行后操作：打开软件/网页/文件夹、锁屏、TTS 语音播报、运行脚本
-- 版本更新检查：自动检测 GitHub 新版本 + 手动检查弹窗
-- 显示偏好：所有屏幕/当前屏幕
-- CI 交叉编译 macOS ARM64 + x86_64 双架构
-
-## [0.4.0] - 2026-06-11
-
-### ✨ 新增
-- **飞行后操作**：飞行结束后自动打开应用/网页/文件夹、锁屏、运行脚本
-- **版本更新检查**：自动检测 GitHub 新版本，Release Notes 展示
-- **快速倒计时**：托盘菜单直接启动 5/15/25/30 分钟倒计时
-- **静默时段**：在指定时间段内自动跳过飞行提醒
-- **迷你悬浮窗**：屏幕角落显示下次提醒倒计时，位置可拖动
-- **任务快速模板**：番茄钟、喝水、站会、午休、久坐拉伸
-- **显示偏好**：选择在所有屏幕或当前屏幕飞行
-- **Post-flight 通知浮窗**：飞行结束后展示操作选项 UI
-
-### 🐛 修复
-- 修复托盘双击无响应问题
-- 修复窗口高度适配更多设置内容
-- 修复倒计时暂停状态恢复
-- 修复飞行时焦点占用不抢输入
-
-## [0.3.1] - 2026-06-08
-
-### 🐛 修复
-- **托盘图标无响应**（根因：tray-icon.png 构建时未打包进 .app bundle，点击事件回调被释放但图标残留）
-- **飞行时内置声音不播放**（根因：AudioContext 未被 `unlock`，`playOscillator` 的 try/catch 静默吞掉错误）
-- 修复后：图标 `include_bytes!` 嵌入二进制，声音调用 `await unlockAudioIfNeeded()` 解锁后播放
-
-## [0.3.0] - 2026-06-08
-
-### ✨ 新增
-
-#### 飞行设置大幅改进
-- **场景预设**：5 个一键应用的飞行风格组合
-  - 🏢 工作模式（自然滑过 + 经典）
-  - ⚡ 速战速决（利落 + 喷射）
-  - 🎉 节日氛围（活泼 S 形 + 蝴蝶 + 鸟鸣）
-  - 💝 纪念日（仪式感弧线 + 钟声）
-  - 🌙 夜间低调（直线 + 底部 + 柔和）
-- **效果视觉预览**：5 个飞行动画现在有动态预览
-  - 每个效果用 1 个移动圆点展示真实路径
-  - 直觉对比"经典直穿"vs"仪式感（弧线）"vs"活泼（S 形）"
-  - 选中态用蓝色边框 + 加亮文字
-- **窗口高度增加**：620×730 → 620×820，给设置和统计更多呼吸空间
-
-#### 桌面集成修复
-- **修复菜单栏图标点击无响应**：
-  - 左键单击 = 显示并呼出主窗口（macOS 标准行为）
-  - 右键单击 = 弹出菜单
-  - 即使主窗口被最小化也能从托盘唤醒
-
-#### 工程化
-- v0.3.0 release pipeline（macOS DMG + GitHub Actions 自动 Windows/Linux）
-
-## [0.2.0] - 2026-06-05
-
-### ✨ 新增
-
-#### 核心功能
-- 任务搜索：实时过滤任务名 + 文案
-- 类型筛选：5 个 chip（全部 / 定时 / 倒计时 / 节假日 / 纪念日）
-- 任务颜色标签：8 种颜色帮助视觉分类
-- 任务级自定义图片：覆盖全局设置
-- 飞行轨迹模式：弧线（ceremony）、S 形（playful）
-- macOS 系统通知：飞行触发时弹出系统通知
-- URL Scheme `gugufly://add?msg=...`：外部应用唤起
-- 全局快捷键 macOS (⌘⌥S/P/Q) + Windows/Linux (Ctrl+Alt+S/P/Q)
-- ESC 紧急降落快捷键
-- 飞行统计面板：累计/本周/7 天柱状图/类型分布
-- 任务数据 JSON 导入/导出（带版本校验）
-- 12 个内置音色（咻/叮咚/铃声/柔和/风铃/脉冲/鸟鸣/钟声/成功/水泡/激光/晨光）
-- 浅色/深色/跟随系统主题
-
-#### 跨平台
-- Linux 适配：webkit2gtk + pkg-config
-- GitHub Actions CI：macOS / Linux / Windows 三平台自动构建
-
-#### 工程化
-- 卸载浏览器降级路径，保持桌面端专注
-- Vite 8 升级
-- 5 张自动生成的 README 截图（`scripts/capture_screenshots.py`）
-- release.yml 多平台打包
-- 移除 marketing-site 混入，单独仓库管理
-
-### 🐛 修复
-- `_remaining` 初始化错误（`t.duration || t.duration` → `t._remaining ?? t.duration`）
-- 倒计时暂停状态现在能持久化跨 App 重启
-- `getCurrentWebviewWindow` 加防御性 try/catch
-- ESC 紧急降落不会在模态打开时误触发
-- HTML 静态加 `hidden` 避免首屏闪烁
-- 移除 `urlencoding` 死代码
-
-### 📦 体积
-- 压缩 `logo.png` 1.1MB → 83KB（−92%）
-- 压缩 `fly_logo.png` 800KB → 18KB（−98%）
-
-## [0.1.0] - 早期版本
-
-### ✨ 初始功能
-- 4 种任务类型：定时 / 倒计时 / 节假日 / 纪念日
-- 飞行动画：4 种效果、6 套飞机、6 套尾焰、6 套文案框
-- 自定义图片和音频
-- 托盘菜单
-- macOS 启动自启
-- 本地持久化
+### 📦 Dependencies
+- Tauri 2.11.2 (unchanged)

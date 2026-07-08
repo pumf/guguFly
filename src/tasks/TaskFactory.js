@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 let nextId = 1;
 
 export function setNextId(id) {
@@ -28,7 +30,6 @@ export function createBaseTask(type) {
     postFlightVideoDuration: 30,
     postFlightVideoSpeed: 1,
     postFlightVideoScale: 1,
-    postFlightVideoEnable: true,
     group: '',
     imageData: null,
     useImage: false,
@@ -84,10 +85,11 @@ export function createAnniversaryTask() {
 
 export function getTaskTypeMeta(task) {
   const meta = {
-    alarm: { label: '定时', className: 'alarm' },
-    countdown: { label: '倒计时', className: 'countdown' },
-    holiday: { label: '节假日', className: 'holiday' },
-    anniversary: { label: '纪念日', className: 'anniversary' },
+    alarm: { labelKey: 'task.type.alarm', className: 'alarm' },
+    countdown: { labelKey: 'task.type.countdown', className: 'countdown' },
+    holiday: { labelKey: 'task.type.holiday', className: 'holiday' },
+    anniversary: { labelKey: 'task.type.anniversary', className: 'anniversary' },
   };
-  return meta[task.type] || { label: '任务', className: 'generic' };
+  const entry = meta[task.type] || { labelKey: 'task.type.default', className: 'generic' };
+  return { label: t(entry.labelKey), className: entry.className };
 }

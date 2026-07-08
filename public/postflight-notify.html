@@ -3,12 +3,17 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:transparent;user-select:none;-webkit-user-select:none;overflow:hidden}
 body{display:flex;align-items:center;justify-content:center;font-family:"PingFang SC","Hiragino Sans GB","Avenir Next",sans-serif}
-#n{display:flex;align-items:center;gap:8px;padding:12px 24px;border-radius:16px;
+#n{display:flex;align-items:center;gap:8px;padding:10px 20px;border-radius:16px;
 background:linear-gradient(135deg,rgba(255,107,107,0.94),rgba(255,117,157,0.92));
-color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 40px rgba(255,107,107,0.35);cursor:pointer}
-#i{font-size:16px;font-weight:700}
-#a{opacity:.85;font-size:13px}
+color:#fff;font-size:13px;box-shadow:0 8px 40px rgba(255,107,107,0.35);cursor:pointer;transition:transform 0.15s}
+#n:hover{transform:scale(1.02)}
+#n:active{transform:scale(0.98)}
+#x{font-size:13px;font-weight:600}
 </style></head><body>
-<div id="n"><span>✈</span><b id="x">飞行后操作</b><span id="a">· 点此取消</span></div>
+<div id="n">
+  <span>✈</span>
+  <b id="x">飞行后操作</b>
+  <span style="opacity:0.8;font-size:12px">· 点击取消</span>
+</div>
 <script src="postflight-notify.js"></script>
 </body></html>

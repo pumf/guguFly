@@ -3,11 +3,16 @@ import { isTauriRuntime } from './utils.js';
 
 let store = null;
 let onQuotaExceeded = null;
+let onStoreFailure = null;
 
 const BROWSER_KEY_PREFIX = 'gugufly:';
 
 export function setStorageQuotaHandler(fn) {
   onQuotaExceeded = fn;
+}
+
+export function setStoreFailureHandler(fn) {
+  onStoreFailure = fn;
 }
 
 function browserGet(key) {
@@ -52,8 +57,14 @@ async function getStore() {
   if (isTauriRuntime()) {
     try {
       store = await Store.load('config.json');
-    } catch {
+    } catch (err) {
+      console.error('Failed to load Tauri store:', err);
       store = null;
+      if (onStoreFailure) {
+        try { onStoreFailure(err); } catch (handlerErr) {
+          console.error('store failure handler failed:', handlerErr);
+        }
+      }
     }
   } else {
     store = {
@@ -146,7 +157,7 @@ export async function loadFlightLog() {
 }
 
 export async function recordFlightTrigger(task) {
-  if (!task || !task.type) return null;
+  if (!task || !task.type || task.id == null) return null;
   const today = getDateKey();
   const log = await loadFlightLog();
   let day = log.find(d => d.date === today);

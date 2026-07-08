@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 let ctx;
 
 export function initFlightPreview(c) {
@@ -5,7 +7,7 @@ export function initFlightPreview(c) {
 }
 
 export async function previewFlight() {
-  if (!ctx.isTauriRuntime) { ctx.showToast('预览仅在桌面应用内可用'); return; }
+  if (!ctx.isTauriRuntime) { ctx.showToast(t('flight.preview_desktop_only')); return; }
   await ctx.unlockAudioIfNeeded();
   if (ctx.useSoundCheckbox.checked && !(await ctx.validateCustomAudioPreview())) return;
   await ctx.persistFlightSettings({
@@ -15,7 +17,7 @@ export async function previewFlight() {
     soundMode: ctx.soundModeSelect.value, useSound: ctx.useSoundCheckbox.checked,
     useImage: ctx.useImageCheckbox.checked,
   });
-  ctx.queueFlight({ msg: '预览当前飞行效果', direction: 'ltr', sequenceId: '', playSound: true });
+  ctx.queueFlight({ msg: t('flight.preview_current_effect'), direction: 'ltr', sequenceId: '', playSound: true });
 }
 
 export async function resetFlightSettings() {
@@ -49,5 +51,5 @@ export async function resetFlightSettings() {
   });
   await ctx.persistSetting('customAudioName', '');
   ctx.updateSoundMeta();
-  ctx.showToast('已恢复推荐飞行设置');
+  ctx.showToast(t('flight.settings_restored'));
 }

@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 let notificationPermissionGranted = false;
@@ -17,7 +18,7 @@ export async function initNotificationPermission() {
 // Map task type / category to a distinguishing emoji so the user
 // can tell at a glance what kind of flight is starting.
 function titleForTask(taskLabel, taskType) {
-  const label = taskLabel || '咕咕机长';
+  const label = taskLabel || t('notification.default_title');
   switch (taskType) {
     case 'holiday': return `🎉 ${label}`;
     case 'anniversary': return `💝 ${label}`;
@@ -37,7 +38,7 @@ export async function notifyFlightTriggered(taskLabel, msg, taskType) {
   try {
     sendNotification({
       title: titleForTask(taskLabel, taskType),
-      body: msg || '该任务已触发',
+      body: msg || t('notification.default_body'),
     });
   } catch (error) {
     console.error('send notification failed:', error);

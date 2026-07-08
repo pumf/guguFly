@@ -2,6 +2,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { LogicalPosition } from '@tauri-apps/api/window';
 import { get, set } from '../storage.js';
 import { isTauriRuntime } from '../utils.js';
+import { t } from '../i18n/index.js';
 
 let miniWindow = null;
 let cleanupFn = null;
@@ -201,7 +202,7 @@ export async function updateMiniWindow(allUpcoming) {
     if (allUpcoming && allUpcoming.length > 0) {
       const tasks = allUpcoming.map(u => {
         const icon = u.task.type === 'alarm' ? '⏰' : u.task.type === 'countdown' ? '⏱' : '📅';
-        const label = u.task.label || '提醒';
+        const label = u.task.label || t('mini.default_label');
         const time = formatUpcomingTime(u.seconds);
         const urgent = u.seconds <= 300 || u.task._status === 'running';
         return { icon, text: label, detail: time, rawSeconds: Math.max(0, Math.floor(u.seconds)), urgent };

@@ -489,8 +489,42 @@ fn set_tray_mute_label(state: State<'_, MuteMenuItem>, muted: bool) {
     }
 }
 
+fn write_crash_log(msg: &str) {
+    let log_path = std::env::temp_dir().join("gugufly_crash.log");
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let entry = format!("[{}] {}\n", timestamp, msg);
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        use std::io::Write;
+        let _ = f.write_all(entry.as_bytes());
+    } else {
+        let _ = std::fs::write(&log_path, entry);
+    }
+}
+
+fn setup_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = match info.payload().downcast_ref::<&str>() {
+            Some(s) => s.to_string(),
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => s.clone(),
+                None => "unknown panic".to_string(),
+            },
+        };
+        let location = info.location().map(|l| l.to_string()).unwrap_or_default();
+        write_crash_log(&format!("PANIC: {} at {}", msg, location));
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    setup_panic_hook();
     let app = tauri::Builder::default()
         .manage(MuteMenuItem(Mutex::new(None)))
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -553,9 +587,9 @@ pub fn run() {
             }
             #[cfg(not(target_os = "macos"))]
             {
-                s("Ctrl+Alt+S")?;
-                s("Ctrl+Alt+P")?;
-                s("Ctrl+Alt+Q")?;
+                let _ = s("Ctrl+Alt+S");
+                let _ = s("Ctrl+Alt+P");
+                let _ = s("Ctrl+Alt+Q");
             }
             } // close if !skip_shortcuts
 
@@ -600,9 +634,13 @@ pub fn run() {
                 .build()?;
 
             let tray_icon_bytes = include_bytes!("../icons/tray-icon.png");
-            let tray = TrayIconBuilder::with_id("main-tray")
-                .icon(tauri::image::Image::from_bytes(tray_icon_bytes).expect("invalid tray icon"))
-                .icon_as_template(true)
+            let mut tray_builder = TrayIconBuilder::with_id("main-tray")
+                .icon(tauri::image::Image::from_bytes(tray_icon_bytes).expect("invalid tray icon"));
+            #[cfg(target_os = "macos")]
+            {
+                tray_builder = tray_builder.icon_as_template(true);
+            }
+            let tray = tray_builder
                 .menu(&menu)
                 .tooltip("咕咕机长")
                 .on_tray_icon_event(|tray, event| {

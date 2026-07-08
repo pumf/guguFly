@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 let emergencyCooldownUntil = 0;
 
 let getModalFn;
@@ -103,7 +105,7 @@ export async function triggerEmergencyLanding(tasks) {
       try { await closePostFlightNotifyFn(); } catch (e) { console.error('emergency pf close failed:', e); }
     }
     if (resetPfNotifyStateFn) resetPfNotifyStateFn();
-    if (showToastFn) showToastFn('已紧急降落');
+    if (showToastFn) showToastFn(t('toast.emergency_landing'));
   } finally {
     // Clear the flag after a short delay so any in-flight flight-ended
     // events from the close() calls have time to be processed and

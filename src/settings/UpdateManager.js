@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { invoke } from '@tauri-apps/api/core';
 import { compareVersions } from '../tasks/TaskUtils.js';
 import { isTauriRuntime } from '../utils.js';
@@ -53,7 +54,7 @@ export async function getCurrentVersion() {
 export function openReleasePage() {
   const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
   if (isTauriRuntime) {
-    invoke('open_url_in_browser', { url: GITHUB_DOWNLOAD_URL }).catch(() => {});
+    invoke('open_url_in_browser', { url: GITHUB_DOWNLOAD_URL }).catch(err => console.warn('open download page failed:', err));
   } else {
     window.open(GITHUB_DOWNLOAD_URL, '_blank');
   }
@@ -66,13 +67,13 @@ export async function autoCheckForUpdate() {
 
   if (cached && cached.version === currentVer) {
     localStorage.removeItem(UPDATE_CACHE_KEY);
-    if (updateStatus) updateStatus.textContent = '已是最新';
+    if (updateStatus) updateStatus.textContent = t('update.status_latest');
     showUpdateIndicator(false);
     return;
   }
 
   if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
-    if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
+    if (updateStatus) updateStatus.textContent = t('update.status_found', { version: cached.version });
     showUpdateIndicator(true);
     void checkForUpdate();
     return;
@@ -82,15 +83,15 @@ export async function autoCheckForUpdate() {
     const release = await invoke('check_latest_release');
     const latestVer = release.version || '';
     if (!latestVer || compareVersions('v' + latestVer, 'v' + currentVer) <= 0) {
-      if (updateStatus) updateStatus.textContent = '已是最新';
+      if (updateStatus) updateStatus.textContent = t('update.status_latest');
       return;
     }
     setCachedUpdate({ version: latestVer, url: release.html_url || GITHUB_DOWNLOAD_URL, notes: release.notes || '' });
-    if (updateStatus) updateStatus.textContent = `发现 v${latestVer}`;
+    if (updateStatus) updateStatus.textContent = t('update.status_found', { version: latestVer });
     showUpdateIndicator(true);
     void checkForUpdate();
   } catch {
-    if (updateStatus) updateStatus.textContent = '检查暂不可用';
+    if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
   }
 }
 
@@ -107,7 +108,7 @@ export async function checkForUpdate() {
   const updateDownloadBtn = document.getElementById('updateDownloadBtn');
   const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
 
-  if (updateStatus) updateStatus.textContent = '检查中...';
+  if (updateStatus) updateStatus.textContent = t('update.status_checking');
   if (updateModal) {
     updateModal.classList.remove('hidden');
     updateInfo.classList.add('hidden');
@@ -125,8 +126,8 @@ export async function checkForUpdate() {
     localStorage.removeItem(UPDATE_CACHE_KEY);
     if (updateLoading) updateLoading.classList.add('hidden');
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '已是最新版本';
-    if (updateStatus) updateStatus.textContent = '已是最新';
+    if (updateModalTitle) updateModalTitle.textContent = t('update.status_latest_text');
+    if (updateStatus) updateStatus.textContent = t('update.status_latest');
     return;
   }
 
@@ -155,7 +156,7 @@ export async function checkForUpdate() {
     if (updateLoading) updateLoading.classList.add('hidden');
     if (cached) {
       if (updateInfo) updateInfo.classList.remove('hidden');
-      if (updateModalTitle) updateModalTitle.textContent = '发现新版本（缓存）';
+      if (updateModalTitle) updateModalTitle.textContent = t('update.title_cached');
       if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
       if (updateLatestVersion) updateLatestVersion.textContent = `v${cached.version}`;
       if (updateReleaseNotes) {
@@ -170,31 +171,31 @@ export async function checkForUpdate() {
         updateDownloadBtn.classList.remove('hidden');
         updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
       }
-      if (updateStatus) updateStatus.textContent = `发现 v${cached.version}`;
+      if (updateStatus) updateStatus.textContent = t('update.status_found', { version: cached.version });
       showUpdateIndicator(false);
       return;
     }
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '检查更新';
+    if (updateModalTitle) updateModalTitle.textContent = t('update.check_title');
     const noUpdateIcon = document.getElementById('updateNoUpdateIcon');
     const noUpdateText = document.getElementById('updateNoUpdateText');
     if (noUpdateIcon) noUpdateIcon.textContent = '🌐';
-    if (noUpdateText) noUpdateText.textContent = '无法连接 GitHub，请前往发布页面查看';
+    if (noUpdateText) noUpdateText.textContent = t('update.network_error');
     if (updateOpenReleaseBtn) updateOpenReleaseBtn.classList.remove('hidden');
-    if (updateStatus) updateStatus.textContent = '检查暂不可用';
+    if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
     return;
   }
 
   if (!latestVer) {
     if (updateLoading) updateLoading.classList.add('hidden');
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '检查更新';
+    if (updateModalTitle) updateModalTitle.textContent = t('update.check_title');
     const noUpdateIcon = document.getElementById('updateNoUpdateIcon');
     const noUpdateText = document.getElementById('updateNoUpdateText');
     if (noUpdateIcon) noUpdateIcon.textContent = '📭';
-    if (noUpdateText) noUpdateText.textContent = '暂未发现发布版本';
+    if (noUpdateText) noUpdateText.textContent = t('update.no_release');
     if (updateOpenReleaseBtn) updateOpenReleaseBtn.classList.remove('hidden');
-    if (updateStatus) updateStatus.textContent = '检查暂不可用';
+    if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
     return;
   }
 
@@ -204,7 +205,7 @@ export async function checkForUpdate() {
   if (compareVersions('v' + latestVer, 'v' + currentVer) > 0) {
     showUpdateIndicator(false);
     if (updateInfo) updateInfo.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '发现新版本';
+    if (updateModalTitle) updateModalTitle.textContent = t('update.title');
     if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
     if (updateLatestVersion) updateLatestVersion.textContent = `v${latestVer}`;
     if (updateReleaseNotes) {
@@ -219,11 +220,11 @@ export async function checkForUpdate() {
       updateDownloadBtn.classList.remove('hidden');
       updateDownloadBtn.dataset.url = htmlUrl;
     }
-    if (updateStatus) updateStatus.textContent = `发现 v${latestVer}`;
+    if (updateStatus) updateStatus.textContent = t('update.status_found', { version: latestVer });
   } else {
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = '已是最新版本';
-    if (updateStatus) updateStatus.textContent = '已是最新';
+    if (updateModalTitle) updateModalTitle.textContent = t('update.status_latest_text');
+    if (updateStatus) updateStatus.textContent = t('update.status_latest');
   }
 }
 

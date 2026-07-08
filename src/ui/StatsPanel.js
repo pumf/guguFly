@@ -1,6 +1,10 @@
+import { t, ta } from '../i18n/index.js';
+
 const STATS_TYPE_LABELS = {
-  alarm: '定时', countdown: '倒计时',
-  holiday: '节假日', anniversary: '纪念日',
+  alarm: () => t('task.type.alarm'),
+  countdown: () => t('task.type.countdown'),
+  holiday: () => t('task.type.holiday'),
+  anniversary: () => t('task.type.anniversary'),
 };
 
 let tasks = [];
@@ -11,14 +15,14 @@ export function setStatsTasks(taskList) {
 
 export function computeAchievements(stats) {
   const badges = [];
-  if (stats.totalCount >= 1) badges.push({ icon: '🛫', name: '首次起飞', desc: '完成第 1 次飞行' });
-  if (stats.totalCount >= 10) badges.push({ icon: '✈️', name: '飞行新星', desc: '累计飞行 10 次' });
-  if (stats.totalCount >= 100) badges.push({ icon: '🚀', name: '百次飞行', desc: '累计飞行 100 次' });
-  if (stats.totalCount >= 500) badges.push({ icon: '👑', name: '飞行达人', desc: '累计飞行 500 次' });
-  if (stats.last7Total >= 7) badges.push({ icon: '🔥', name: '周活跃', desc: '本周飞行 7 次以上' });
-  if (stats.last7Total >= 21) badges.push({ icon: '💪', name: '高频飞行', desc: '本周飞行 21 次以上' });
+  if (stats.totalCount >= 1) badges.push({ icon: '🛫', name: t('achievement.first_flight'), desc: t('achievement.first_flight_desc') });
+  if (stats.totalCount >= 10) badges.push({ icon: '✈️', name: t('achievement.new_star'), desc: t('achievement.new_star_desc') });
+  if (stats.totalCount >= 100) badges.push({ icon: '🚀', name: t('achievement.century'), desc: t('achievement.century_desc') });
+  if (stats.totalCount >= 500) badges.push({ icon: '👑', name: t('achievement.expert'), desc: t('achievement.expert_desc') });
+  if (stats.last7Total >= 7) badges.push({ icon: '🔥', name: t('achievement.weekly_active'), desc: t('achievement.weekly_active_desc') });
+  if (stats.last7Total >= 21) badges.push({ icon: '💪', name: t('achievement.high_frequency'), desc: t('achievement.high_frequency_desc') });
   if (stats.byType && Object.values(stats.byType).filter(v => v > 0).length >= 4) {
-    badges.push({ icon: '🌟', name: '全能机长', desc: '使用过全部 4 种任务类型' });
+    badges.push({ icon: '🌟', name: t('achievement.all_rounder'), desc: t('achievement.all_rounder_desc') });
   }
   return badges;
 }
@@ -53,7 +57,8 @@ export async function renderStats(computeFlightStatsFn) {
   if (weeklySummaryEl && stats.last7Total > 0) {
     const topId = Object.entries(stats.taskTotals).sort((a,b) => b[1]-a[1])[0]?.[0];
     const topTask = tasks.find(t => String(t.id) === topId);
-    weeklySummaryEl.innerHTML = `✈ 本周已飞行 <em>${stats.last7Total}</em> 次${topTask ? ` · 最常触发 <em>${topTask.label || '未命名'}</em>` : ''}`;
+    const topSuffix = topTask ? t('stats.weekly_top', { name: topTask.label || t('stats.unnamed') }) : '';
+    weeklySummaryEl.innerHTML = t('stats.weekly_summary', { count: stats.last7Total, top: topSuffix });
     weeklySummaryEl.classList.remove('hidden');
   } else if (weeklySummaryEl) {
     weeklySummaryEl.classList.add('hidden');
@@ -66,10 +71,10 @@ export async function renderStats(computeFlightStatsFn) {
     statsTrendEl.classList.remove('up', 'down', 'flat');
     if (stats.trend === null) {
       statsTrendEl.classList.add('flat');
-      statsTrendEl.textContent = '— 暂无对比';
+      statsTrendEl.textContent = t('stats.trend_none');
     } else if (stats.trend === 0) {
       statsTrendEl.classList.add('flat');
-      statsTrendEl.textContent = '→ 持平';
+      statsTrendEl.textContent = t('stats.trend_flat');
     } else if (stats.trend > 0) {
       statsTrendEl.classList.add('up');
       statsTrendEl.textContent = `↑ ${stats.trend}%`;
@@ -85,18 +90,18 @@ export async function renderStats(computeFlightStatsFn) {
   if (topEntries.length > 0 && topEntries[0][1] > 0) {
     const [topId, topCount] = topEntries[0];
     const topTask = tasks.find(t => String(t.id) === String(topId));
-    if (statsTopTaskEl) statsTopTaskEl.textContent = topTask ? (topTask.label || '未命名') : `#${topId}`;
-    if (statsTopCountEl) statsTopCountEl.textContent = `${topCount} 次飞行`;
+    if (statsTopTaskEl) statsTopTaskEl.textContent = topTask ? (topTask.label || t('stats.unnamed')) : `#${topId}`;
+    if (statsTopCountEl) statsTopCountEl.textContent = t('stats.total_suffix').replace('{{count}}', topCount);
   } else {
     if (statsTopTaskEl) statsTopTaskEl.textContent = '—';
-    if (statsTopCountEl) statsTopCountEl.textContent = '暂无数据';
+    if (statsTopCountEl) statsTopCountEl.textContent = t('stats.top_count');
   }
 
   if (statsBarsEl) {
     statsBarsEl.innerHTML = '';
     const today = new Date();
     const dayMs = 86400000;
-    const weekDayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    const weekDayLabels = ta('calendar.day_labels');
     const dailyMap = new Map();
     for (const d of stats.daily) dailyMap.set(d.date, d.totalCount);
     const todayKey = (() => {
@@ -128,7 +133,7 @@ export async function renderStats(computeFlightStatsFn) {
       bar.style.height = `${Math.max(2, (count / maxCount) * 56)}px`;
       const label = document.createElement('div');
       label.className = 'stats-bar-label';
-      label.textContent = isToday ? '今' : weekDayLabels[d.getDay()];
+      label.textContent = isToday ? t('calendar.today') : weekDayLabels[d.getDay()];
       col.appendChild(countEl);
       col.appendChild(bar);
       col.appendChild(label);
@@ -146,7 +151,7 @@ export async function renderStats(computeFlightStatsFn) {
   if (statsTypesEl) {
     statsTypesEl.innerHTML = '';
     const total = Object.values(stats.byType).reduce((s, n) => s + n, 0);
-    if (statsTotalSubEl) statsTotalSubEl.textContent = total > 0 ? `总计 ${total} 次` : '暂无飞行';
+    if (statsTotalSubEl) statsTotalSubEl.textContent = total > 0 ? t('stats.total_count', { count: total }) : t('stats.no_flights');
     const types = ['alarm', 'countdown', 'holiday', 'anniversary'];
     for (const t of types) {
       const v = stats.byType[t] || 0;
@@ -155,7 +160,8 @@ export async function renderStats(computeFlightStatsFn) {
       row.className = 'stats-type-row';
       const name = document.createElement('div');
       name.className = 'stats-type-name';
-      name.textContent = STATS_TYPE_LABELS[t] || t;
+      const labelFn = STATS_TYPE_LABELS[t];
+      name.textContent = labelFn ? labelFn() : t;
       const bar = document.createElement('div');
       bar.className = 'stats-type-bar';
       const fill = document.createElement('div');

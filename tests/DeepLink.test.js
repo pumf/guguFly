@@ -49,4 +49,40 @@ describe('buildTaskFromDeepLink', () => {
     expect(task.type).toBe('holiday');
     expect(task.label).toBe('元旦');
   });
+
+  it('sanitizes malformed numeric params and deduplicates repeat days', () => {
+    const task = buildTaskFromDeepLink(
+      { type: 'alarm', hour: '99abc', minute: '-2', days: '1,1,3,hello,8' },
+      mockCtx,
+    );
+    expect(task.type).toBe('alarm');
+    expect(task.hour).toBe(0);
+    expect(task.minute).toBe(0);
+    expect(task.repeat).toEqual([1, 3, 6]);
+  });
+
+  it('falls back to a minimum countdown duration when params are invalid', () => {
+    const task = buildTaskFromDeepLink({ type: 'countdown', mins: 'foo', secs: 'bar' }, mockCtx);
+    expect(task.type).toBe('countdown');
+    expect(task.duration).toBe(60);
+    expect(task._remaining).toBe(60);
+  });
+
+  it('limits deep link message length and parses lunar anniversary flag', () => {
+    const task = buildTaskFromDeepLink(
+      {
+        type: 'anniversary',
+        month: '8',
+        day: '15',
+        hour: '9',
+        minute: '30',
+        lunar: '1',
+        msg: 'a'.repeat(600),
+      },
+      mockCtx,
+    );
+    expect(task.type).toBe('anniversary');
+    expect(task.lunar).toBe(true);
+    expect(task.msg).toHaveLength(500);
+  });
 });

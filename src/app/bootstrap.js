@@ -1,3 +1,11 @@
+import { t, setLanguage, onLanguageChange } from '../i18n/index.js';
+
+function syncLangButtons(lang) {
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('is-active', b.dataset.lang === lang);
+  });
+}
+
 export async function applySettings(ctx) {
   const {
     cfg,
@@ -154,12 +162,12 @@ export async function applySettings(ctx) {
   if (state.customImageData && refs.customizeImageBtn && refs.imageCollapse) {
     refs.imageCollapse.classList.remove('hidden');
     refs.customizeImageBtn.classList.add('is-open');
-    refs.customizeImageBtn.textContent = '▾ 收起';
+    refs.customizeImageBtn.textContent = t('media.collapse');
   }
   if (state.customAudioData && refs.customizeSoundBtn && refs.soundCollapse) {
     refs.soundCollapse.classList.remove('hidden');
     refs.customizeSoundBtn.classList.add('is-open');
-    refs.customizeSoundBtn.textContent = '▾ 收起';
+    refs.customizeSoundBtn.textContent = t('media.collapse');
   }
   updateTitleLogo();
 
@@ -188,6 +196,8 @@ export async function applySettings(ctx) {
   if (refs.quietEndHour) refs.quietEndHour.value = cfg.quietEndHour || 8;
   if (refs.miniWindowToggle) refs.miniWindowToggle.checked = !!cfg.miniWindowEnabled;
   if (cfg.miniWindowPosition) updateMiniPosGridActive(cfg.miniWindowPosition);
+  if (cfg.language) setLanguage(cfg.language);
+  onLanguageChange(syncLangButtons);
 }
 
 export async function runPostInit(ctx) {

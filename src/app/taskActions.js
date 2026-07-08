@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 export function createTaskActions(ctx) {
   const {
     state,
@@ -128,7 +130,7 @@ export function createTaskActions(ctx) {
   }
 
   function deleteTaskFn(task) {
-    window.showConfirm(`确认删除任务「${task.label || task.msg || '未命名任务'}」吗？`).then(confirmed => {
+    window.showConfirm(t('modal.delete_confirm', { name: task.label || task.msg || t('common.unnamed_task') })).then(confirmed => {
       if (!confirmed) return;
       deleteTask(task, state.tasks, () => closeModal(dom.modal, dom.modalError), saveTasks, (tasks) => getCleanTasks(tasks), renderTaskView, stopCountdown);
     }).catch(e => console.error('delete confirm failed:', e));

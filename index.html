@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>咕咕机长</title>
+    <title data-i18n="app.name">咕咕机长</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -11,24 +11,24 @@
       <div class="hero-card">
         <div class="hero-topline">
           <div class="title-bar">
-            <img id="titleLogo" class="title-logo" src="/logo.png" alt="咕咕机长" />
+            <img id="titleLogo" class="title-logo" src="/logo.png" data-i18n-title="app.name" alt="FlyCue" />
             <div class="title-copy">
               <div class="title-mainline">
-                <span class="title-text">咕咕机长</span>
-                <span class="hero-title">轻巧提醒，把每条任务都安排清楚。</span>
+                <span class="title-text" data-i18n="app.name">咕咕机长</span>
+                <span class="hero-title" data-i18n="app.tagline">轻巧提醒，把每条任务都安排清楚。</span>
               </div>
             </div>
           </div>
           <div class="hero-head-actions">
             <div class="hero-toolbar">
-              <button id="emergencyBtn" class="icon-btn icon-btn--warn" type="button" title="紧急降落">
+              <button id="emergencyBtn" class="icon-btn icon-btn--warn" type="button" data-i18n-title="btn.emergency">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e17055" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
               </button>
-              <button id="settingsBtn" class="icon-btn" type="button" title="设置">
+              <button id="settingsBtn" class="icon-btn" type="button" data-i18n-title="btn.settings">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                 <span class="update-dot hidden" id="settingsUpdateDot"></span>
               </button>
-              <button id="muteBtn" class="icon-btn" type="button" title="声音开关">
+              <button id="muteBtn" class="icon-btn" type="button" data-i18n-title="btn.mute">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
               </button>
             </div>
@@ -41,42 +41,94 @@
             <span class="hero-stat hero-stat--muted" id="heroStatus" title="">等待</span>
           </span>
           <span class="next-msg"></span>
-          <button class="hero-stats-toggle" id="statsToggle" title="飞行统计">📊</button>
+          <button class="hero-stats-toggle" id="statsToggle" data-i18n-title="hero.stats_toggle">📊</button>
         </div>
+      </div>
+
+      <div class="quick-create-bar">
+        <div class="quick-create-bar__input-wrap">
+          <svg class="quick-create-bar__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <input id="quickCreateInput" type="text" class="quick-create-bar__input" data-i18n-placeholder="quick_create.placeholder" placeholder="输入如：10分钟后喝水 / 每天9点站会 / 周一三五14点开会" />
+          <button id="quickCreateClear" class="quick-create-bar__clear" type="button" hidden>✕</button>
+          <button id="pomodoroStartBtn" class="quick-create-bar__pomodoro" type="button" title="开始番茄钟">🍅</button>
+          <button id="quickCreateBtn" class="quick-create-bar__btn" type="button" disabled data-i18n="quick_create.create">创建</button>
+        </div>
+        <div id="quickCreatePreview" class="quick-create-bar__preview hidden"></div>
       </div>
 
       <div class="task-section">
         <div class="task-toolbar">
           <div class="task-search-wrap">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
-            <input id="taskSearchInput" type="text" class="task-search-input" placeholder="搜索" />
+            <input id="taskSearchInput" type="text" class="task-search-input" data-i18n-placeholder="nav.search" placeholder="搜索" />
             <button id="taskSearchClear" class="task-search-clear" type="button" hidden>✕</button>
           </div>
           <select id="taskGroupSelect" class="task-group-select">
-            <option value="all">全部分组</option>
-            <option value="work">💼 工作</option>
-            <option value="health">💚 健康</option>
-            <option value="life">🏠 生活</option>
-            <option value="other">📌 其他</option>
-            <option value="none">未分组</option>
+            <option value="all" data-i18n="nav.filter_all_group">全部分组</option>
+            <option value="work" data-i18n="nav.filter_group_work">💼 工作</option>
+            <option value="health" data-i18n="nav.filter_group_health">💚 健康</option>
+            <option value="life" data-i18n="nav.filter_group_life">🏠 生活</option>
+            <option value="other" data-i18n="nav.filter_group_other">📌 其他</option>
+            <option value="none" data-i18n="nav.filter_group_none">未分组</option>
           </select>
           <select id="taskTypeSelect" class="task-group-select">
-            <option value="all">全部类型</option>
-            <option value="alarm">⏰ 定时</option>
-            <option value="countdown">⏱ 倒计时</option>
-            <option value="holiday">📅 节假日</option>
-            <option value="anniversary">💝 纪念日</option>
+            <option value="all" data-i18n="nav.filter_all_type">全部类型</option>
+            <option value="alarm" data-i18n="nav.filter_type_alarm">⏰ 定时</option>
+            <option value="countdown" data-i18n="nav.filter_type_countdown">⏱ 倒计时</option>
+            <option value="holiday" data-i18n="nav.filter_type_holiday">📅 节假日</option>
+            <option value="anniversary" data-i18n="nav.filter_type_anniversary">💝 纪念日</option>
           </select>
-          <button id="addTaskBtn" class="add-task-btn" type="button">+ 新建任务</button>
-          <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" title="快速模板">⚡</button>
+          <button id="addTaskBtn" class="add-task-btn" type="button" data-i18n="nav.new_task">+ 新建任务</button>
+          <button id="templateBtn" class="add-task-btn add-task-btn--ghost" type="button" data-i18n-title="nav.template">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button id="batchSelectBtn" class="add-task-btn add-task-btn--ghost" type="button" data-i18n-title="nav.batch_select">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </button>
           <div id="templateMenu" class="template-menu hidden">
-              <button class="template-item" data-template="pomodoro">🍅 番茄钟 25 分钟</button>
-              <button class="template-item" data-template="drink">💧 喝水提醒 · 每小时</button>
-              <button class="template-item" data-template="standup">📋 每日站会 09:30</button>
-              <button class="template-item" data-template="lunch">🍱 午休结束 13:30</button>
-              <button class="template-item" data-template="stretch">🧘 久坐拉伸 · 每 2 小时</button>
+              <button class="template-item" data-template="pomodoro" data-i18n="template.pomodoro">🍅 番茄钟 25 分钟</button>
+              <button class="template-item" data-template="drink" data-i18n="template.drink">💧 喝水提醒 · 每小时</button>
+              <button class="template-item" data-template="standup" data-i18n="template.standup">📋 每日站会 09:30</button>
+              <button class="template-item" data-template="lunch" data-i18n="template.lunch">🍱 午休结束 13:30</button>
+              <button class="template-item" data-template="stretch" data-i18n="template.stretch">🧘 久坐拉伸 · 每 2 小时</button>
             </div>
           </div>
+
+        <div id="pomodoroBar" class="pomodoro-bar hidden">
+          <div class="pomodoro-bar__info">
+            <span class="pomodoro-bar__icon">🍅</span>
+            <span id="pomodoroPhase" class="pomodoro-bar__phase"></span>
+            <span id="pomodoroTimer" class="pomodoro-bar__timer"></span>
+            <span id="pomodoroRound" class="pomodoro-bar__round"></span>
+          </div>
+          <div class="pomodoro-bar__actions">
+            <button id="pomodoroPauseBtn" class="pomodoro-bar__btn" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <button id="pomodoroSkipBtn" class="pomodoro-bar__btn" type="button" title="跳过当前阶段">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+            <button id="pomodoroStopBtn" class="pomodoro-bar__btn pomodoro-bar__btn--stop" type="button" title="停止番茄钟">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="batchOperationBar" class="batch-bar hidden">
+          <div class="batch-bar__info">
+            <span class="batch-bar__icon">☑️</span>
+            <span id="batchSelectedCount" class="batch-bar__count">0</span>
+            <span data-i18n="batch.selected">已选择</span>
+          </div>
+          <div class="batch-bar__actions">
+            <button id="batchSelectAll" class="batch-bar__btn" type="button" data-i18n="batch.select_all">全选</button>
+            <button id="batchDeselectAll" class="batch-bar__btn" type="button" data-i18n="batch.deselect_all">取消</button>
+            <button id="batchEnable" class="batch-bar__btn" type="button" disabled data-i18n="batch.enable">启用</button>
+            <button id="batchDisable" class="batch-bar__btn" type="button" disabled data-i18n="batch.disable">禁用</button>
+            <button id="batchDelete" class="batch-bar__btn batch-bar__btn--danger" type="button" disabled data-i18n="batch.delete">删除</button>
+            <button id="batchCancel" class="batch-bar__btn batch-bar__btn--cancel" type="button" data-i18n="batch.cancel">退出选择</button>
+          </div>
+        </div>
 
         <!-- Task list -->
         <div id="taskList" class="task-list"></div>
@@ -85,43 +137,43 @@
       <!-- Flight config (collapsible) -->
       <div class="bottom-section">
         <div class="bottom-toggle" id="configToggle">
-          <span>✈ 飞行外观与声音</span>
+          <span data-i18n="flight.config.title">✈ 飞行外观与声音</span>
           <span class="toggle-arrow collapsed" id="configArrow">▴</span>
         </div>
         <div id="configPanel" class="config-panel hidden">
           <div class="config-actions">
             <div class="preset-chips">
-              <button class="preset-btn" type="button" data-preset="work"><span class="preset-emoji">🏢</span>工作</button>
-              <button class="preset-btn" type="button" data-preset="quick"><span class="preset-emoji">⚡</span>速战</button>
-              <button class="preset-btn" type="button" data-preset="festive"><span class="preset-emoji">🎉</span>节日</button>
-              <button class="preset-btn" type="button" data-preset="anniversary"><span class="preset-emoji">💝</span>纪念日</button>
-              <button class="preset-btn" type="button" data-preset="night"><span class="preset-emoji">🌙</span>夜间</button>
+              <button class="preset-btn" type="button" data-preset="work"><span class="preset-emoji">🏢</span><span data-i18n="preset.work">工作</span></button>
+              <button class="preset-btn" type="button" data-preset="quick"><span class="preset-emoji">⚡</span><span data-i18n="preset.quick">速战</span></button>
+              <button class="preset-btn" type="button" data-preset="festive"><span class="preset-emoji">🎉</span><span data-i18n="preset.festive">节日</span></button>
+              <button class="preset-btn" type="button" data-preset="anniversary"><span class="preset-emoji">💝</span><span data-i18n="preset.anniversary">纪念日</span></button>
+              <button class="preset-btn" type="button" data-preset="night"><span class="preset-emoji">🌙</span><span data-i18n="preset.night">夜间</span></button>
             </div>
             <div class="config-actions-right">
-              <button id="previewFlightBtn" class="config-action-btn" type="button">立即预览</button>
-              <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button">恢复默认</button>
+              <button id="previewFlightBtn" class="config-action-btn" type="button" data-i18n="btn.preview_flight">立即预览</button>
+              <button id="resetFlightBtn" class="config-action-btn config-action-btn--ghost" type="button" data-i18n="btn.reset_flight">恢复默认</button>
             </div>
           </div>
           <div class="config-stack">
             <section class="config-card">
               <div class="config-card-head">
-                <strong>外观样式</strong>
+                <strong data-i18n="flight.config.appearance">外观样式</strong>
               </div>
               <div class="config-grid config-grid--appearance">
                 <div class="config-row">
-                  <label>飞机</label>
+                  <label data-i18n="flight.config.plane">飞机</label>
                   <select id="planeSelect">
-                    <option value="gif">🛩 飞机</option>
-                    <option value="classic">经典</option>
-                    <option value="rocket">火箭</option>
-                    <option value="butterfly">蝴蝶</option>
-                    <option value="jet">喷射</option>
-                    <option value="paper">纸飞机</option>
-                    <option value="ufo">飞碟</option>
+                    <option value="gif" data-i18n="plane.gif">🛩 飞机</option>
+                    <option value="classic" data-i18n="plane.classic">经典</option>
+                    <option value="rocket" data-i18n="plane.rocket">火箭</option>
+                    <option value="butterfly" data-i18n="plane.butterfly">蝴蝶</option>
+                    <option value="jet" data-i18n="plane.jet">喷射</option>
+                    <option value="paper" data-i18n="plane.paper">纸飞机</option>
+                    <option value="ufo" data-i18n="plane.ufo">飞碟</option>
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>飞机大小</label>
+                  <label data-i18n="flight.config.plane_size">飞机大小</label>
                   <select id="planeSizeSelect">
                     <option value="0.5">0.5x</option>
                     <option value="0.75">0.75x</option>
@@ -132,30 +184,30 @@
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>尾焰</label>
+                  <label data-i18n="flight.config.particle">尾焰</label>
                   <select id="particleSelect">
-                    <option value="classic">飘带</option>
-                    <option value="rocket">火焰</option>
-                    <option value="butterfly">星点</option>
-                    <option value="jet">尾迹</option>
-                    <option value="spark">闪光</option>
-                    <option value="cloud">云团</option>
+                    <option value="classic" data-i18n="particle.classic">飘带</option>
+                    <option value="rocket" data-i18n="particle.rocket">火焰</option>
+                    <option value="butterfly" data-i18n="particle.butterfly">星点</option>
+                    <option value="jet" data-i18n="particle.jet">尾迹</option>
+                    <option value="spark" data-i18n="particle.spark">闪光</option>
+                    <option value="cloud" data-i18n="particle.cloud">云团</option>
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>文案框</label>
+                  <label data-i18n="flight.config.bubble">文案框</label>
                   <select id="bubbleSelect">
-                    <option value="classic">圆角</option>
-                    <option value="rocket">锐角</option>
-                    <option value="butterfly">柔圆</option>
-                    <option value="jet">简约条</option>
-                    <option value="glass">玻璃感</option>
-                    <option value="stamp">贴纸感</option>
+                    <option value="classic" data-i18n="bubble.classic">圆角</option>
+                    <option value="rocket" data-i18n="bubble.rocket">锐角</option>
+                    <option value="butterfly" data-i18n="bubble.butterfly">柔圆</option>
+                    <option value="jet" data-i18n="bubble.jet">简约条</option>
+                    <option value="glass" data-i18n="bubble.glass">玻璃感</option>
+                    <option value="stamp" data-i18n="bubble.stamp">贴纸感</option>
                   </select>
                   <select id="bubblePositionSelect">
-                    <option value="top" selected>上方</option>
-                    <option value="center">居中</option>
-                    <option value="bottom">下方</option>
+                    <option value="top" selected data-i18n="flight.config.bubble_position">上方</option>
+                    <option value="center" data-i18n="flight.config.bubble_position_center">居中</option>
+                    <option value="bottom" data-i18n="flight.config.bubble_position_bottom">下方</option>
                   </select>
                   <select id="bubbleSizeSelect">
                     <option value="0.5">0.5x</option>
@@ -167,100 +219,100 @@
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>气泡颜色</label>
+                  <label data-i18n="flight.config.bubble_color">气泡颜色</label>
                   <input type="color" id="bubbleBgColor" value="#ffffff" style="width:36px;height:28px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer" />
-                  <label style="font-size:12px;color:var(--text-muted)">文字</label>
+                  <label data-i18n="flight.config.bubble_text" style="font-size:12px;color:var(--text-muted)">文字</label>
                   <input type="color" id="bubbleFontColor" value="#333333" style="width:36px;height:28px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer" />
                 </div>
               </div>
-              <button id="customizeImageBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button">＋ 自定义图片</button>
+              <button id="customizeImageBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button" data-i18n="btn.customize_image">＋ 自定义图片</button>
               <div id="imageCollapse" class="media-collapse hidden">
-                <button id="imageBtn" class="cfg-btn">📷 选择图片</button>
+                <button id="imageBtn" class="cfg-btn" data-i18n="btn.select_image">📷 选择图片</button>
                 <input type="file" id="imageInput" accept="image/png,image/jpeg,image/gif" hidden />
-                <img id="imagePreview" class="img-preview hidden" alt="飞行图片预览" />
+                <img id="imagePreview" class="img-preview hidden" alt="Flight Image Preview" />
                 <button id="clearImageBtn" class="cfg-btn small" hidden>✕</button>
                 <label class="img-toggle">
                   <input type="checkbox" id="useImageCheckbox" />
-                  <span>启用</span>
+                  <span data-i18n="common.enable">启用</span>
                 </label>
               </div>
             </section>
 
             <section class="config-card">
               <div class="config-card-head">
-                <strong>飞行节奏</strong>
+                <strong data-i18n="flight.config.rhythm">飞行节奏</strong>
               </div>
               <div class="config-grid config-grid--basic">
                 <div class="config-row">
-                  <label>速度</label>
+                  <label data-i18n="flight.config.speed">速度</label>
                   <select id="speedSelect">
-                    <option value="vslow">超慢</option>
-                    <option value="slow">慢速</option>
-                    <option value="normal" selected>正常</option>
-                    <option value="fast">快速</option>
+                    <option value="vslow" data-i18n="speed.vslow">超慢</option>
+                    <option value="slow" data-i18n="speed.slow">慢速</option>
+                    <option value="normal" selected data-i18n="speed.normal">正常</option>
+                    <option value="fast" data-i18n="speed.fast">快速</option>
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>高度</label>
+                  <label data-i18n="flight.config.height">高度</label>
                   <select id="heightSelect">
-                    <option value="top">上方</option>
-                    <option value="center" selected>居中</option>
-                    <option value="bottom">下方</option>
+                    <option value="top" data-i18n="height.top">上方</option>
+                    <option value="center" selected data-i18n="height.center">居中</option>
+                    <option value="bottom" data-i18n="height.bottom">下方</option>
                   </select>
                 </div>
                 <div class="config-row">
-                  <label>屏幕</label>
+                  <label data-i18n="flight.config.screen">屏幕</label>
                   <select id="displaySelect">
-                    <option value="all" selected>所有屏幕</option>
-                    <option value="active">当前屏幕</option>
+                    <option value="all" selected data-i18n="flight.config.screen_all">所有屏幕</option>
+                    <option value="active" data-i18n="flight.config.screen_active">当前屏幕</option>
                   </select>
                 </div>
               </div>
               <div class="config-row config-row--effect">
-                <label>效果</label>
+                <label data-i18n="flight.config.effect">效果</label>
                 <div class="effect-picker" id="effectPicker">
                     <button class="effect-card" type="button" data-effect="linear">
                       <span class="effect-preview effect-preview--linear"><span class="effect-dot"></span></span>
-                      <span class="effect-name">经典直穿</span>
+                      <span class="effect-name" data-i18n="effect.linear">经典直穿</span>
                     </button>
                     <button class="effect-card is-active" type="button" data-effect="steady">
                       <span class="effect-preview effect-preview--steady"><span class="effect-dot"></span></span>
-                      <span class="effect-name">自然滑过</span>
+                      <span class="effect-name" data-i18n="effect.steady">自然滑过</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="ceremony">
                       <span class="effect-preview effect-preview--ceremony"><span class="effect-dot"></span></span>
-                      <span class="effect-name">仪式感</span>
+                      <span class="effect-name" data-i18n="effect.ceremony">仪式感</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="swift">
                       <span class="effect-preview effect-preview--swift"><span class="effect-dot"></span></span>
-                      <span class="effect-name">利落提醒</span>
+                      <span class="effect-name" data-i18n="effect.swift">利落提醒</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="playful">
                       <span class="effect-preview effect-preview--playful"><span class="effect-dot"></span></span>
-                      <span class="effect-name">活泼一点</span>
+                      <span class="effect-name" data-i18n="effect.playful">活泼一点</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="spiral">
                       <span class="effect-preview effect-preview--spiral"><span class="effect-dot"></span></span>
-                      <span class="effect-name">螺旋</span>
+                      <span class="effect-name" data-i18n="effect.spiral">螺旋</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="heart">
                       <span class="effect-preview effect-preview--heart"><span class="effect-dot"></span></span>
-                      <span class="effect-name">心形</span>
+                      <span class="effect-name" data-i18n="effect.heart">心形</span>
                     </button>
                     <button class="effect-card" type="button" data-effect="figure8">
                       <span class="effect-preview effect-preview--figure8"><span class="effect-dot"></span></span>
-                      <span class="effect-name">8 字</span>
+                      <span class="effect-name" data-i18n="effect.figure8">8 字</span>
                     </button>
                   </div>
                   <select id="effectSelect" hidden>
-                    <option value="linear">经典直穿</option>
-                    <option value="steady" selected>自然滑过</option>
-                    <option value="ceremony">仪式感</option>
-                    <option value="swift">利落提醒</option>
-                    <option value="playful">活泼一点</option>
-                    <option value="spiral">螺旋</option>
-                    <option value="heart">心形</option>
-                    <option value="figure8">8 字</option>
+                    <option value="linear" data-i18n="effect.linear">经典直穿</option>
+                    <option value="steady" selected data-i18n="effect.steady">自然滑过</option>
+                    <option value="ceremony" data-i18n="effect.ceremony">仪式感</option>
+                    <option value="swift" data-i18n="effect.swift">利落提醒</option>
+                    <option value="playful" data-i18n="effect.playful">活泼一点</option>
+                    <option value="spiral" data-i18n="effect.spiral">螺旋</option>
+                    <option value="heart" data-i18n="effect.heart">心形</option>
+                    <option value="figure8" data-i18n="effect.figure8">8 字</option>
                   </select>
                 </div>
               </div>
@@ -268,41 +320,41 @@
 
             <section class="config-card">
               <div class="config-card-head">
-                <strong>提示音</strong>
+                <strong data-i18n="flight.config.sound">提示音</strong>
               </div>
               <div class="config-row">
-                <label>音色</label>
+                <label data-i18n="flight.config.sound_tone">音色</label>
                 <select id="soundSelect">
-                  <option value="whoosh">咻</option>
-                  <option value="dingdong">叮咚</option>
-                  <option value="ring">铃声</option>
-                  <option value="soft">柔和</option>
-                  <option value="chime">风铃</option>
-                  <option value="pulse">脉冲</option>
-                  <option value="bird">鸟鸣</option>
-                  <option value="bell">钟声</option>
-                  <option value="success">成功</option>
-                  <option value="bubble">水泡</option>
-                  <option value="laser">激光</option>
-                  <option value="morning">晨光</option>
+                  <option value="whoosh" data-i18n="sound.whoosh">咻</option>
+                  <option value="dingdong" data-i18n="sound.dingdong">叮咚</option>
+                  <option value="ring" data-i18n="sound.ring">铃声</option>
+                  <option value="soft" data-i18n="sound.soft">柔和</option>
+                  <option value="chime" data-i18n="sound.chime">风铃</option>
+                  <option value="pulse" data-i18n="sound.pulse">脉冲</option>
+                  <option value="bird" data-i18n="sound.bird">鸟鸣</option>
+                  <option value="bell" data-i18n="sound.bell">钟声</option>
+                  <option value="success" data-i18n="sound.success">成功</option>
+                  <option value="bubble" data-i18n="sound.bubble">水泡</option>
+                  <option value="laser" data-i18n="sound.laser">激光</option>
+                  <option value="morning" data-i18n="sound.morning">晨光</option>
                 </select>
                 <select id="soundModeSelect">
-                  <option value="once">一次</option>
-                  <option value="loop">循环</option>
+                  <option value="once" data-i18n="flight.config.sound_once">一次</option>
+                  <option value="loop" data-i18n="flight.config.sound_loop">循环</option>
                 </select>
               </div>
-              <button id="customizeSoundBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button">＋ 自定义音频</button>
+              <button id="customizeSoundBtn" class="cfg-btn customize-toggle customize-toggle--block" type="button" data-i18n="btn.customize_sound">＋ 自定义音频</button>
               <div id="soundCollapse" class="media-collapse hidden">
-                <button id="soundBtn" class="cfg-btn">🎵 选择音频</button>
+                <button id="soundBtn" class="cfg-btn" data-i18n="btn.select_audio">🎵 选择音频</button>
                 <input type="file" id="soundInput" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" hidden />
                 <div id="soundMeta" class="sound-meta">
-                  <span id="soundName" class="sound-name">未选择音频</span>
-                  <button id="previewSoundBtn" class="cfg-btn sound-preview-btn" type="button">试听</button>
+                  <span id="soundName" class="sound-name" data-i18n="sound.no_selection">未选择音频</span>
+                  <button id="previewSoundBtn" class="cfg-btn sound-preview-btn" type="button" data-i18n="sound.preview_play">试听</button>
                 </div>
                 <button id="clearSoundBtn" class="cfg-btn small" hidden>✕</button>
                 <label class="img-toggle sound-toggle">
                   <input type="checkbox" id="useSoundCheckbox" />
-                  <span>启用</span>
+                  <span data-i18n="common.enable">启用</span>
                 </label>
               </div>
             </section>
@@ -316,8 +368,8 @@
         <div class="modal-content" id="modalContent">
           <div class="modal-header">
             <div>
-              <span id="modalTitle">新建任务</span>
-              <p class="modal-subtitle">先选任务类型，再填写时间与提醒方式。</p>
+              <span id="modalTitle" data-i18n="modal.new_task">新建任务</span>
+              <p class="modal-subtitle" data-i18n="modal.subtitle">先选任务类型，再填写时间与提醒方式。</p>
             </div>
             <button id="modalCloseBtn" class="modal-close-btn">✕</button>
           </div>
@@ -325,99 +377,107 @@
             <div id="modalError" class="modal-error hidden" role="alert"></div>
             <div class="form-block">
               <div class="block-head">
-                <label>任务类型</label>
-                <span class="field-hint">决定这次提醒是定时、倒计时还是特殊日期。</span>
+                <label data-i18n="modal.field.type">任务类型</label>
+                <span class="field-hint" data-i18n="modal.field.type_hint">决定这次提醒是定时、倒计时还是特殊日期。</span>
               </div>
               <div class="type-toggle">
                 <button class="type-btn active" data-type="alarm">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  定时
+                  <span data-i18n="task.type.alarm">定时</span>
                 </button>
                 <button class="type-btn" data-type="countdown">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>
-                  倒计时
+                  <span data-i18n="task.type.countdown">倒计时</span>
                 </button>
                 <button class="type-btn" data-type="holiday">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  节假日
+                  <span data-i18n="task.type.holiday">节假日</span>
                 </button>
                 <button class="type-btn" data-type="anniversary">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-                  纪念日
+                  <span data-i18n="task.type.anniversary">纪念日</span>
                 </button>
               </div>
             </div>
 
             <div class="form-block">
               <div class="block-head">
-                <label>名称</label>
-                <span class="field-hint">给这条提醒航线起个好认的名字，留空也可以。</span>
+                <label data-i18n="modal.field.name">名称</label>
+                <span class="field-hint" data-i18n="modal.field.name_hint">给这条提醒航线起个好认的名字，留空也可以。</span>
               </div>
-              <input type="text" id="editLabel" class="edit-input" placeholder="给任务起个名字" maxlength="20" />
+              <input type="text" id="editLabel" class="edit-input" data-i18n-placeholder="modal.field.name_placeholder" placeholder="给任务起个名字" maxlength="20" />
             </div>
 
             <div id="alarmFields" class="form-group">
               <div class="form-row">
-                <label>时间</label>
-                <input type="number" id="editHour" class="time-input" min="0" max="23" value="12" placeholder="时" />
+                <label data-i18n="modal.field.time">时间</label>
+                <input type="number" id="editHour" class="time-input" min="0" max="23" value="12" data-i18n-placeholder="modal.field.hour" placeholder="时" />
                 <span class="input-sep">:</span>
-                <input type="number" id="editMinute" class="time-input" min="0" max="59" value="0" placeholder="分" />
+                <input type="number" id="editMinute" class="time-input" min="0" max="59" value="0" data-i18n-placeholder="modal.field.minute" placeholder="分" />
               </div>
               <div class="form-row">
-                <label>重复</label>
+                <label data-i18n="modal.field.repeat">重复</label>
                 <select id="editRepeatType" class="edit-input" style="flex:1;max-width:200px">
-                  <option value="weekly">每周特定日期</option>
-                  <option value="monthly_date">每月某号</option>
-                  <option value="monthly_weekday">每月第几个周X</option>
-                  <option value="interval">每N天</option>
+                  <option value="daily" data-i18n="modal.field.repeat_daily">每天</option>
+                  <option value="weekly" data-i18n="modal.field.repeat_weekly">每周特定日期</option>
+                  <option value="monthly_date" data-i18n="modal.field.repeat_monthly_date">每月某号</option>
+                  <option value="monthly_weekday" data-i18n="modal.field.repeat_monthly_weekday">每月第几个周X</option>
+                  <option value="yearly" data-i18n="modal.field.repeat_yearly">每年同一天</option>
+                  <option value="interval" data-i18n="modal.field.repeat_interval">每N天</option>
                 </select>
               </div>
+              <div id="repeatDailyFields" class="form-row hidden">
+                <label data-i18n="modal.field.daily_hint" style="font-size:12px;color:#b2bec3">每天同一时间提醒</label>
+              </div>
               <div id="repeatWeeklyFields" class="form-row">
-                <label>星期</label>
+                <label data-i18n="modal.field.weekday">星期</label>
                 <div class="repeat-days">
-                  <button class="day-btn" data-day="1">一</button>
-                  <button class="day-btn" data-day="2">二</button>
-                  <button class="day-btn" data-day="3">三</button>
-                  <button class="day-btn" data-day="4">四</button>
-                  <button class="day-btn" data-day="5">五</button>
-                  <button class="day-btn" data-day="6">六</button>
-                  <button class="day-btn" data-day="0">日</button>
+                  <button class="day-btn" data-day="1" data-i18n="day.mon">一</button>
+                  <button class="day-btn" data-day="2" data-i18n="day.tue">二</button>
+                  <button class="day-btn" data-day="3" data-i18n="day.wed">三</button>
+                  <button class="day-btn" data-day="4" data-i18n="day.thu">四</button>
+                  <button class="day-btn" data-day="5" data-i18n="day.fri">五</button>
+                  <button class="day-btn" data-day="6" data-i18n="day.sat">六</button>
+                  <button class="day-btn" data-day="0" data-i18n="day.sun">日</button>
                 </div>
               </div>
               <div id="repeatMonthlyDateFields" class="form-row hidden">
-                <label>日期</label>
+                <label data-i18n="modal.field.date">日期</label>
                 <input type="number" id="editRepeatMonthDay" class="time-input" min="1" max="31" value="15" style="width:80px" />
-                <span style="font-size:12px;color:#b2bec3;margin-left:8px">号</span>
+                <span data-i18n="modal.field.day_unit" style="font-size:12px;color:#b2bec3;margin-left:8px">号</span>
               </div>
               <div id="repeatMonthlyWeekdayFields" class="form-row hidden">
-                <label>第</label>
+                <label data-i18n="modal.field.ordinal">第</label>
                 <select id="editRepeatWeek" class="edit-input" style="width:100px">
-                  <option value="1">第一个</option>
-                  <option value="2">第二个</option>
-                  <option value="3">第三个</option>
-                  <option value="4">第四个</option>
-                  <option value="5">最后一个</option>
+                  <option value="1" data-i18n="ordinal.week.1">第一个</option>
+                  <option value="2" data-i18n="ordinal.week.2">第二个</option>
+                  <option value="3" data-i18n="ordinal.week.3">第三个</option>
+                  <option value="4" data-i18n="ordinal.week.4">第四个</option>
+                  <option value="5" data-i18n="ordinal.week.5">最后一个</option>
                 </select>
-                <span style="margin:0 6px;color:#b2bec3">个</span>
+                <span data-i18n="modal.field.ordinal_unit" style="margin:0 6px;color:#b2bec3">个</span>
                 <select id="editRepeatWeekday" class="edit-input" style="width:80px">
-                  <option value="1">周一</option>
-                  <option value="2">周二</option>
-                  <option value="3">周三</option>
-                  <option value="4">周四</option>
-                  <option value="5">周五</option>
-                  <option value="6">周六</option>
-                  <option value="0">周日</option>
+                  <option value="1" data-i18n="weekday.mon">周一</option>
+                  <option value="2" data-i18n="weekday.tue">周二</option>
+                  <option value="3" data-i18n="weekday.wed">周三</option>
+                  <option value="4" data-i18n="weekday.thu">周四</option>
+                  <option value="5" data-i18n="weekday.fri">周五</option>
+                  <option value="6" data-i18n="weekday.sat">周六</option>
+                  <option value="0" data-i18n="weekday.sun">周日</option>
                 </select>
               </div>
+              <div id="repeatYearlyFields" class="form-row hidden">
+                <label data-i18n="modal.field.yearly_hint" style="font-size:12px;color:#b2bec3">每年同一日期提醒</label>
+              </div>
               <div id="repeatIntervalFields" class="form-row hidden">
-                <label>间隔</label>
+                <label data-i18n="modal.field.interval">间隔</label>
                 <input type="number" id="editRepeatInterval" class="time-input" min="1" max="999" value="3" style="width:80px" />
-                <span style="font-size:12px;color:#b2bec3;margin-left:8px">天</span>
+                <span data-i18n="modal.field.interval_days" style="font-size:12px;color:#b2bec3;margin-left:8px">天</span>
               </div>
             </div>
             <div id="countdownFields" class="form-group hidden">
               <div class="form-row">
-                <label>时长</label>
+                <label data-i18n="modal.field.duration">时长</label>
                 <input type="number" id="editMinutes" class="time-input" min="0" max="999" value="25" />
                 <span class="input-sep">:</span>
                 <input type="number" id="editSeconds" class="time-input" min="0" max="59" value="0" />
@@ -425,11 +485,11 @@
             </div>
             <div id="holidayFields" class="form-group hidden">
               <div class="form-row" style="align-items:flex-start">
-                <label style="margin-top:4px">节假日</label>
+                <label data-i18n="modal.field.holiday" style="margin-top:4px">节假日</label>
                 <div id="holidayChecklist" class="holiday-checklist"></div>
               </div>
               <div class="form-row">
-                <label>提醒时间</label>
+                <label data-i18n="modal.field.remind_time">提醒时间</label>
                 <input type="number" id="editHolidayHour" class="time-input" min="0" max="23" value="9" />
                 <span class="input-sep">:</span>
                 <input type="number" id="editHolidayMinute" class="time-input" min="0" max="59" value="0" />
@@ -437,16 +497,16 @@
             </div>
             <div id="anniversaryFields" class="form-group hidden">
               <div class="form-row">
-                <label>日期</label>
-                <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" placeholder="月" />
-                <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" placeholder="日" />
+                <label data-i18n="modal.field.date">日期</label>
+                <input type="number" id="editAnniMonth" class="time-input" min="1" max="12" value="1" data-i18n-placeholder="modal.field.month" placeholder="月" />
+                <input type="number" id="editAnniDay" class="time-input" min="1" max="31" value="1" data-i18n-placeholder="modal.field.day" placeholder="日" />
                 <label class="img-toggle">
                   <input type="checkbox" id="editAnniLunar" />
-                  <span>农历</span>
+                  <span data-i18n="modal.field.lunar">农历</span>
                 </label>
               </div>
               <div class="form-row">
-                <label>提醒时间</label>
+                <label data-i18n="modal.field.remind_time">提醒时间</label>
                 <input type="number" id="editAnniHour" class="time-input" min="0" max="23" value="9" />
                 <span class="input-sep">:</span>
                 <input type="number" id="editAnniMinute" class="time-input" min="0" max="59" value="0" />
@@ -454,97 +514,97 @@
             </div>
           <div class="form-block">
             <div class="block-head">
-              <label>飞行方式</label>
-              <span class="field-hint">一次提醒、连续往返，或按固定间隔多次出现。</span>
+              <label data-i18n="modal.field.flight_mode">飞行方式</label>
+              <span class="field-hint" data-i18n="modal.field.flight_hint">一次提醒、连续往返，或按固定间隔多次出现。</span>
             </div>
             <div class="form-row">
                 <select id="editFlightMode" class="edit-input">
-                  <option value="once">一次性</option>
-                  <option value="loop_times">连续循环</option>
-                  <option value="loop_interval">间隔循环</option>
+                  <option value="once" data-i18n="modal.field.flight_once">一次性</option>
+                  <option value="loop_times" data-i18n="modal.field.flight_loop">连续循环</option>
+                  <option value="loop_interval" data-i18n="modal.field.flight_interval">间隔循环</option>
                 </select>
               </div>
               <div id="loopTimesField" class="form-row hidden">
-                <label>次数</label>
+                <label data-i18n="modal.field.flight_count">次数</label>
                 <input type="number" id="editLoopCount" class="time-input" min="1" max="99" value="3" style="width:80px" />
-                <span style="font-size:12px;color:#b2bec3">次（往返）</span>
+                <span data-i18n="modal.field.flight_times" style="font-size:12px;color:#b2bec3">次（往返）</span>
               </div>
               <div id="loopIntervalField" class="form-row hidden">
-                <label>间隔</label>
+                <label data-i18n="modal.field.flight_every">间隔</label>
                 <input type="number" id="editLoopInterval" class="time-input" min="1" max="999" value="5" style="width:80px" />
-                <span style="font-size:12px;color:#b2bec3">分钟</span>
-                <label style="font-size:12px;color:#b2bec3;margin-left:4px">共</label>
+                <span data-i18n="modal.field.flight_minutes" style="font-size:12px;color:#b2bec3">分钟</span>
+                <label data-i18n="modal.field.flight_total" style="font-size:12px;color:#b2bec3;margin-left:4px">共</label>
                 <input type="number" id="editIntervalCount" class="time-input" min="1" max="999" value="10" style="width:60px" />
-                <span style="font-size:12px;color:#b2bec3">次</span>
+                <span data-i18n="modal.field.flight_count" style="font-size:12px;color:#b2bec3">次</span>
               </div>
             <div class="block-head compact">
-              <label>文案</label>
-              <span class="field-hint">留空则使用随机短句。</span>
+              <label data-i18n="modal.field.msg">文案</label>
+              <span class="field-hint" data-i18n="modal.field.msg_hint">留空则使用随机短句。</span>
             </div>
-            <input type="text" id="editMsg" class="edit-input" placeholder="飞行文案（留空随机）" maxlength="30" />
+            <input type="text" id="editMsg" class="edit-input" data-i18n-placeholder="modal.field.msg_placeholder" placeholder="飞行文案（留空随机）" maxlength="30" />
           </div>
           <div class="form-block">
             <div class="block-head">
-              <label>飞行后操作</label>
-              <span class="field-hint">飞行结束后自动执行的操作。</span>
+              <label data-i18n="modal.field.post_flight">飞行后操作</label>
+              <span class="field-hint" data-i18n="modal.field.post_flight_hint">飞行结束后自动执行的操作。</span>
             </div>
             <div class="form-row">
               <select id="editPostFlightAction" class="edit-input">
-                <option value="none">无操作</option>
-                <option value="app">打开软件</option>
-                <option value="url">打开网页</option>
-                <option value="lock">锁屏休息</option>
-                <option value="folder">打开文件夹</option>
-                <option value="tts">语音播报文案</option>
-                <option value="script">运行脚本</option>
-                <option value="video">播放视频</option>
-                <option value="effect">播放特效动画</option>
+                <option value="none" data-i18n="modal.field.post_flight_none">无操作</option>
+                <option value="app" data-i18n="modal.field.post_flight_app">打开软件</option>
+                <option value="url" data-i18n="modal.field.post_flight_url">打开网页</option>
+                <option value="lock" data-i18n="modal.field.post_flight_lock">锁屏休息</option>
+                <option value="folder" data-i18n="modal.field.post_flight_folder">打开文件夹</option>
+                <option value="tts" data-i18n="modal.field.post_flight_tts">语音播报文案</option>
+                <option value="script" data-i18n="modal.field.post_flight_script">运行脚本</option>
+                <option value="video" data-i18n="modal.field.post_flight_video">播放视频</option>
+                <option value="effect" data-i18n="modal.field.post_flight_effect">播放特效动画</option>
               </select>
             </div>
             <div id="postFlightAppField" class="form-row hidden">
-              <label style="white-space:nowrap">软件路径</label>
-              <input type="text" id="editPostFlightAppPath" class="edit-input" placeholder="/Applications/Calculator.app" style="flex:1" />
-              <button id="selectAppBtn" class="cfg-btn" type="button">📁 选择</button>
+              <label style="white-space:nowrap" data-i18n="modal.field.post_flight_app_path">软件路径</label>
+              <input type="text" id="editPostFlightAppPath" class="edit-input" data-i18n-placeholder="app.placeholder" placeholder="/Applications/Calculator.app" style="flex:1" />
+              <button id="selectAppBtn" class="cfg-btn" type="button" data-i18n="btn.select_app">📁 选择</button>
               <input type="file" id="selectAppInput" hidden />
             </div>
             <div id="postFlightUrlField" class="form-row hidden">
-              <label style="white-space:nowrap">网址</label>
-              <input type="url" id="editPostFlightUrl" class="edit-input" placeholder="https://example.com" />
+              <label style="white-space:nowrap" data-i18n="modal.field.post_flight_url_input">网址</label>
+              <input type="url" id="editPostFlightUrl" class="edit-input" data-i18n-placeholder="url.placeholder" placeholder="https://example.com" />
             </div>
             <div id="postFlightFolderField" class="form-row hidden">
-              <label style="white-space:nowrap">文件夹路径</label>
-              <input type="text" id="editPostFlightFolder" class="edit-input" placeholder="~/Documents/项目" style="flex:1" />
-              <button id="selectFolderBtn" class="cfg-btn" type="button">📁 选择</button>
+              <label style="white-space:nowrap" data-i18n="modal.field.post_flight_folder_path">文件夹路径</label>
+              <input type="text" id="editPostFlightFolder" class="edit-input" data-i18n-placeholder="folder.placeholder" placeholder="~/Documents/项目" style="flex:1" />
+              <button id="selectFolderBtn" class="cfg-btn" type="button" data-i18n="btn.select_folder">📁 选择</button>
               <input type="file" id="selectFolderInput" hidden webkitdirectory directory />
             </div>
             <div id="postFlightScriptField" class="form-row hidden">
-              <label style="white-space:nowrap">脚本命令</label>
-              <input type="text" id="editPostFlightScript" class="edit-input" placeholder="pmset displaysleepnow" />
+              <label style="white-space:nowrap" data-i18n="modal.field.post_flight_script_cmd">脚本命令</label>
+              <input type="text" id="editPostFlightScript" class="edit-input" data-i18n-placeholder="script.placeholder" placeholder="pmset displaysleepnow" />
             </div>
             <div id="postFlightVideoSelectField" class="form-row hidden">
-              <label style="white-space:nowrap">内置视频</label>
+              <label style="white-space:nowrap" data-i18n="modal.field.post_flight_video">内置视频</label>
               <select id="editPostFlightVideoSelect" class="edit-input">
-                <option value="cat.mov">🐱 猫咪</option>
-                <option value="dog.mov">🐶 狗狗</option>
+                <option value="cat.mov" data-i18n="postflight.video.cat">🐱 猫咪</option>
+                <option value="dog.mov" data-i18n="postflight.video.dog">🐶 狗狗</option>
               </select>
-              <span style="color:var(--text-muted);font-size:12px">或</span>
+              <span data-i18n="video.placeholder" style="color:var(--text-muted);font-size:12px">或</span>
               <input type="file" id="selectVideoInput" accept="video/mov,video/mp4,video/quicktime" hidden />
-              <button id="selectVideoBtn" class="cfg-btn" type="button">📁 选本地视频</button>
+              <button id="selectVideoBtn" class="cfg-btn" type="button" data-i18n="btn.select_video">📁 选本地视频</button>
             </div>
             <div id="postFlightVideoCustomField" class="form-row hidden">
-              <label style="white-space:nowrap">自定义路径</label>
+              <label style="white-space:nowrap" data-i18n="video.custom_path">自定义路径</label>
               <input type="text" id="editPostFlightVideoPath" class="edit-input" placeholder="" style="flex:1" readonly />
-              <button id="clearVideoPathBtn" class="cfg-btn small" type="button">✕</button>
+              <button id="clearVideoPathBtn" class="cfg-btn small" type="button" data-i18n="btn.clear_video">✕</button>
             </div>
             <div id="postFlightVideoDurationField" class="form-row hidden">
-              <label>播放时长</label>
+              <label data-i18n="modal.field.post_flight_duration">播放时长</label>
               <input type="number" id="editPostFlightVideoDurationMin" class="edit-input" value="0" min="0" max="30" style="width:60px" />
-              <span style="color:var(--text-muted);font-size:13px">分</span>
+              <span data-i18n="video.duration_min" style="color:var(--text-muted);font-size:13px">分</span>
               <input type="number" id="editPostFlightVideoDurationSec" class="edit-input" value="30" min="0" max="59" style="width:60px" />
-              <span style="color:var(--text-muted);font-size:13px">秒</span>
+              <span data-i18n="video.duration_sec" style="color:var(--text-muted);font-size:13px">秒</span>
             </div>
             <div id="postFlightVideoSpeedField" class="form-row hidden">
-              <label>播放速度</label>
+              <label data-i18n="video.speed">播放速度</label>
               <select id="editPostFlightVideoSpeed" class="edit-input" style="width:100px">
                 <option value="0.5">0.5x</option>
                 <option value="0.75">0.75x</option>
@@ -555,78 +615,80 @@
               </select>
             </div>
             <div id="postFlightVideoScaleField" class="form-row hidden">
-              <label>视频尺寸</label>
+              <label data-i18n="video.size">视频尺寸</label>
               <input type="range" id="editPostFlightVideoScale" class="edit-input" min="0.2" max="1" step="0.1" value="1" style="width:100px" />
               <span id="postFlightVideoScaleValue" style="color:var(--text-muted);font-size:13px;min-width:40px">100%</span>
             </div>
             <div id="postFlightEffectField" class="form-row hidden">
-              <label>特效类型</label>
+              <label data-i18n="modal.field.post_flight_effect_type">特效类型</label>
               <select id="editPostFlightEffectType" class="edit-input" style="flex:1">
-                <option value="fireworks">🎆 烟花</option>
-                <option value="firecrackers">🧨 爆竹</option>
-                <option value="emojis">😊 表情包</option>
-                <option value="rainbow">🌈 彩虹</option>
-                <option value="bubbles">🫧 气泡</option>
+                <option value="fireworks" data-i18n="postflight.effect.fireworks">🎆 烟花</option>
+                <option value="firecrackers" data-i18n="postflight.effect.firecrackers">🧨 爆竹</option>
+                <option value="emojis" data-i18n="postflight.effect.emojis">😊 表情包</option>
+                <option value="rainbow" data-i18n="postflight.effect.rainbow">🌈 彩虹</option>
+                <option value="bubbles" data-i18n="postflight.effect.bubbles">🫧 气泡</option>
               </select>
             </div>
             <div id="postFlightEffectDurationField" class="form-row hidden">
-              <label>持续时间</label>
+              <label data-i18n="modal.field.post_flight_duration">持续时间</label>
               <select id="editPostFlightEffectDuration" class="edit-input" style="width:120px">
-                <option value="10">10 秒</option>
-                <option value="15" selected>15 秒</option>
-                <option value="20">20 秒</option>
-                <option value="30">30 秒</option>
-                <option value="60">60 秒</option>
+                <option value="10">10 <span data-i18n="video.duration_sec">秒</span></option>
+                <option value="15" selected>15 <span data-i18n="video.duration_sec">秒</span></option>
+                <option value="20">20 <span data-i18n="video.duration_sec">秒</span></option>
+                <option value="30">30 <span data-i18n="video.duration_sec">秒</span></option>
+                <option value="60">60 <span data-i18n="video.duration_sec">秒</span></option>
               </select>
             </div>
             <div class="field-hint" style="margin-top:8px;padding:0 4px;color:var(--soft-muted);font-size:11px">
-              播放特效或视频时，按 <kbd style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--border-strong);background:var(--panel-strong)">Esc</kbd> 可立即关闭
+              <span data-i18n="modal.field.post_flight_esc_before">播放特效或视频时，按 </span>
+              <kbd style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--border-strong);background:var(--panel-strong)">Esc</kbd>
+              <span data-i18n="modal.field.post_flight_esc_after"> 可立即关闭</span>
             </div>
           </div>
           <div class="form-block">
             <div class="block-head">
-              <label>任务级图片（可选）</label>
-              <span class="field-hint">不上传则使用全局飞行图片设置。</span>
+              <label data-i18n="modal.field.task_image">任务级图片（可选）</label>
+              <span class="field-hint" data-i18n="modal.field.task_image_hint">不上传则使用全局飞行图片设置。</span>
             </div>
             <div class="form-row" style="gap:8px;align-items:center">
-              <button id="editImageBtn" class="cfg-btn" type="button">📷 上传</button>
+              <button id="editImageBtn" class="cfg-btn" type="button" data-i18n="btn.select_image">📷 上传</button>
               <input type="file" id="editImageInput" accept="image/png,image/jpeg,image/gif" hidden />
-              <button id="editClearImageBtn" class="cfg-btn small" type="button" hidden>✕ 移除</button>
-              <img id="editImagePreview" class="img-preview hidden" alt="任务图片预览" />
+              <button id="editClearImageBtn" class="cfg-btn small" type="button" hidden data-i18n="common.remove">✕ 移除</button>
+              <img id="editImagePreview" class="img-preview hidden" alt="Task Image Preview" />
               <label class="img-toggle">
                 <input type="checkbox" id="editUseImageCheckbox" />
-                <span>启用</span>
+                <span data-i18n="common.enable">启用</span>
               </label>
             </div>
           </div>
           <div class="form-block">
             <div class="block-head">
-              <label>分组</label>
-              <span class="field-hint">可选，方便分类管理。</span>
+              <label data-i18n="modal.field.group">分组</label>
+              <span class="field-hint" data-i18n="modal.field.group_hint">可选，方便分类管理。</span>
             </div>
             <div class="form-row">
               <select id="editGroup" class="edit-input">
-                <option value="">未分组</option>
-                <option value="work">💼 工作</option>
-                <option value="health">💚 健康</option>
-                <option value="life">🏠 生活</option>
-                <option value="other">📌 其他</option>
+                <option value="" data-i18n="modal.field.group_none">未分组</option>
+                <option value="work" data-i18n="nav.filter_group_work">💼 工作</option>
+                <option value="health" data-i18n="nav.filter_group_health">💚 健康</option>
+                <option value="life" data-i18n="nav.filter_group_life">🏠 生活</option>
+                <option value="other" data-i18n="nav.filter_group_other">📌 其他</option>
               </select>
             </div>
           </div>
           <div class="form-block">
             <div class="block-head">
-              <label>颜色标签</label>
-              <span class="field-hint">给任务分类，方便在列表里快速识别。</span>
+              <label data-i18n="modal.field.color">颜色标签</label>
+              <span class="field-hint" data-i18n="modal.field.color_hint">给任务分类，方便在列表里快速识别。</span>
             </div>
             <div class="color-picker" id="editColorPicker">
-              <button class="color-swatch color-swatch--none" type="button" data-color="" title="无颜色">✕</button>
+              <button class="color-swatch color-swatch--none" type="button" data-color="" data-i18n-title="modal.field.color_none">✕</button>
             </div>
           </div>
           </div>
           <div class="modal-footer">
-            <button id="deleteTaskBtn" class="del-btn hidden">删除此任务</button>
-            <button id="saveTaskBtn" class="save-btn">保存</button>
+            <button id="deleteTaskBtn" class="del-btn hidden" data-i18n="common.delete">删除此任务</button>
+            <button id="saveTaskBtn" class="save-btn" data-i18n="common.save">保存</button>
           </div>
         </div>
       </div>
@@ -637,51 +699,54 @@
         <div class="modal-overlay" id="settingsOverlay"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <span>设置</span>
+            <span data-i18n="settings.title">设置</span>
             <button id="settingsCloseBtn" class="modal-close-btn">✕</button>
           </div>
           <div class="modal-body">
             <div style="font-size:13px;line-height:1.6;color:#636e72">
-              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px">咕咕机长 <span id="appVersionDisplay">v0.7.0</span></p>
-              <p>一款桌面提醒工具，可以统一管理闹钟、倒计时、节日和纪念日任务。</p>
-              <p style="margin-top:6px">提醒触发时会出现飞机飞行动画，并带上你的自定义文案，但不会再抢走当前输入焦点。</p>
-              <p style="margin-top:6px;font-size:11px;color:#b2bec3">macOS · 轻量 · 免费</p>
+              <p style="font-weight:700;font-size:15px;color:#2d3436;margin-bottom:4px"><span data-i18n="app.name">咕咕机长</span> <span id="appVersionDisplay">v0.7.0</span></p>
+              <p data-i18n="app.description">一款桌面提醒工具，可以统一管理闹钟、倒计时、节日和纪念日任务。</p>
             </div>
-            <div class="settings-panel">
+            <div class="settings-tabs">
+              <button class="settings-tab active" data-tab="general" data-i18n="settings.tab_general">常规</button>
+              <button class="settings-tab" data-tab="data" data-i18n="settings.tab_data">数据</button>
+              <button class="settings-tab" data-tab="about" data-i18n="settings.tab_about">关于</button>
+            </div>
+            <div class="settings-panel" id="settingsTabGeneral">
               <div class="settings-block">
-                <div class="settings-block-title">迷你悬浮窗</div>
-                <p class="settings-hint">在屏幕角落显示下次提醒倒计时，位置可拖动。</p>
+                <div class="settings-block-title" data-i18n="settings.mini_window">迷你悬浮窗</div>
+                <p class="settings-hint" data-i18n="settings.mini_window_hint">在屏幕角落显示下次提醒倒计时，位置可拖动。</p>
                 <div class="form-row" style="margin-top:6px">
                   <label class="img-toggle">
                     <input type="checkbox" id="miniWindowToggle" />
-                    <span>启用</span>
+                    <span data-i18n="common.enable">启用</span>
                   </label>
                 </div>
                 <div class="form-row" style="margin-top:10px;align-items:flex-start">
-                  <label style="white-space:nowrap;padding-top:6px">位置</label>
+                  <label style="white-space:nowrap;padding-top:6px" data-i18n="settings.mini_window_position">位置</label>
                   <div class="mini-pos-grid" id="miniPosGrid">
-                    <button type="button" class="mini-pos-cell" data-pos="top-left" title="左上角"><span class="mini-pos-dot dot-tl"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="top-center" title="顶部居中"><span class="mini-pos-dot dot-tc"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="top-right" title="右上角"><span class="mini-pos-dot dot-tr"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-left" title="左下角"><span class="mini-pos-dot dot-bl"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-center" title="底部居中"><span class="mini-pos-dot dot-bc"></span></button>
-                    <button type="button" class="mini-pos-cell" data-pos="bottom-right" title="右下角"><span class="mini-pos-dot dot-br"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-left" data-i18n-title="mini_pos.top_left"><span class="mini-pos-dot dot-tl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-center" data-i18n-title="mini_pos.top_center"><span class="mini-pos-dot dot-tc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="top-right" data-i18n-title="mini_pos.top_right"><span class="mini-pos-dot dot-tr"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-left" data-i18n-title="mini_pos.bottom_left"><span class="mini-pos-dot dot-bl"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-center" data-i18n-title="mini_pos.bottom_center"><span class="mini-pos-dot dot-bc"></span></button>
+                    <button type="button" class="mini-pos-cell" data-pos="bottom-right" data-i18n-title="mini_pos.bottom_right"><span class="mini-pos-dot dot-br"></span></button>
                   </div>
                 </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">启动选项</div>
+                <div class="settings-block-title" data-i18n="settings.startup">启动选项</div>
                 <div class="form-row" style="margin-top:10px">
-                  <label style="min-width:80px">开机自启</label>
+                  <label style="min-width:80px" data-i18n="settings.autostart">开机自启</label>
                   <label class="img-toggle">
                     <input type="checkbox" id="autostartToggle" />
-                    <span>开机后自动启动</span>
+                    <span data-i18n="settings.autostart_label">开机后自动启动</span>
                   </label>
                 </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">静默时段</div>
-                <p class="settings-hint">在指定时间段内自动跳过飞行提醒。</p>
+                <div class="settings-block-title" data-i18n="settings.quiet_hours">静默时段</div>
+                <p class="settings-hint" data-i18n="settings.quiet_hours_hint">在指定时间段内自动跳过飞行提醒。</p>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
                   <input type="number" id="quietStartHour" class="time-input" min="0" max="23" value="22" style="width:50px" />
                   <span style="font-size:12px;color:var(--muted)">:00 —</span>
@@ -689,64 +754,117 @@
                   <span style="font-size:12px;color:var(--muted)">:00</span>
                   <label class="img-toggle" style="margin-left:4px">
                     <input type="checkbox" id="quietHoursToggle" />
-                    <span>启用</span>
+                    <span data-i18n="common.enable">启用</span>
                   </label>
                 </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">主题</div>
+                <div class="settings-block-title" data-i18n="settings.theme">主题</div>
                 <div class="form-row" style="margin-top:10px;gap:8px">
-                  <button class="theme-btn" data-theme="light">浅色</button>
-                  <button class="theme-btn" data-theme="dark">深色</button>
-                  <button class="theme-btn" data-theme="system">跟随系统</button>
-                  <button class="theme-btn" data-theme="auto-time">随时间</button>
+                  <button class="theme-btn" data-theme="light" data-i18n="settings.theme_light">浅色</button>
+                  <button class="theme-btn" data-theme="dark" data-i18n="settings.theme_dark">深色</button>
+                  <button class="theme-btn" data-theme="system" data-i18n="settings.theme_system">跟随系统</button>
+                  <button class="theme-btn" data-theme="auto-time" data-i18n="settings.theme_auto">随时间</button>
                 </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">数据备份</div>
+                <div class="settings-block-title" data-i18n="settings.language">语言</div>
+                <div class="form-row" style="margin-top:10px;gap:8px">
+                  <button class="lang-btn" data-lang="zh-CN" data-i18n="settings.language_zh">中文</button>
+                  <button class="lang-btn" data-lang="en" data-i18n="settings.language_en">English</button>
+                </div>
+              </div>
+            </div>
+            <div class="settings-panel hidden" id="settingsTabData">
+              <div class="settings-block">
+                <div class="settings-block-title" data-i18n="settings.backup">数据备份</div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
-                  <button id="exportTasksBtn" class="settings-action-btn">导出任务</button>
-                  <button id="importTasksBtn" class="settings-action-btn">导入任务</button>
+                  <button id="exportTasksBtn" class="settings-action-btn" data-i18n="settings.export">导出任务</button>
+                  <button id="importTasksBtn" class="settings-action-btn" data-i18n="settings.import">导入任务</button>
                   <input type="file" id="importTasksInput" accept="application/json,.json" hidden />
                 </div>
-                <p class="settings-hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
+                <p class="settings-hint" data-i18n="settings.backup_hint">备份会包含全部任务、飞行配置、提示音设置等。</p>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">视频缓存</div>
-                <p class="settings-hint">内置视频（猫咪/狗狗）的本地缓存，可加速播放并支持离线使用。</p>
+                <div class="settings-block-title" data-i18n="settings.video_cache">视频缓存</div>
+                <p class="settings-hint" data-i18n="settings.video_cache_hint">内置视频（猫咪/狗狗）的本地缓存，可加速播放并支持离线使用。</p>
                 <div id="videoCacheList" class="settings-list" style="margin-top:8px"></div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
-                  <button id="refreshCacheBtn" class="settings-action-btn">刷新</button>
-                  <button id="clearCacheBtn" class="settings-action-btn" style="color:var(--danger)">清空缓存</button>
+                  <button id="refreshCacheBtn" class="settings-action-btn" data-i18n="common.refresh">刷新</button>
+                  <button id="clearCacheBtn" class="settings-action-btn" style="color:var(--danger)" data-i18n="common.clear">清空缓存</button>
                 </div>
               </div>
+            </div>
+            <div class="settings-panel hidden" id="settingsTabAbout">
               <div class="settings-block">
-                <div class="settings-block-title">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>
+                <div class="settings-block-title" data-i18n="settings.update">版本更新 <span class="update-dot hidden" id="updateSectionDot"></span></div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
-                  <button id="checkUpdateBtn" class="settings-action-btn">检查更新</button>
+                  <button id="checkUpdateBtn" class="settings-action-btn" data-i18n="settings.check_update">检查更新</button>
                   <span id="updateStatus" class="settings-hint" style="display:inline-flex;align-items:center;margin:0"></span>
                 </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">问题反馈</div>
+                <div class="settings-block-title" data-i18n="settings.feedback">问题反馈</div>
                 <div class="form-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
-                  <button id="feedbackBtn" class="settings-action-btn">报告问题 / 建议</button>
+                  <button id="feedbackBtn" class="settings-action-btn" data-i18n="settings.feedback_btn">报告问题 / 建议</button>
                 </div>
-                <p class="settings-hint">通过 GitHub Issues 提交问题或功能建议。</p>
+                <p class="settings-hint" data-i18n="settings.feedback_hint">通过 GitHub Issues 提交问题或功能建议。</p>
               </div>
               <div class="settings-block">
-                  <div class="settings-block-title">软件说明</div>
+                  <div class="settings-block-title" data-i18n="settings.about">软件说明</div>
                   <div class="settings-list">
-                    <div class="settings-item">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
-                    <div class="settings-item">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
-                    <div class="settings-item">任务触发后，任务列表仍可继续编辑和操作。</div>
+                    <div class="settings-item" data-i18n="settings.about_item_1">「开始 / 暂停 / 停止」可以直接控制倒计时。</div>
+                    <div class="settings-item" data-i18n="settings.about_item_2">支持连续飞行、间隔飞行、自定义图片和提示音。</div>
+                    <div class="settings-item" data-i18n="settings.about_item_3">任务触发后，任务列表仍可继续编辑和操作。</div>
+                    <div class="settings-item" data-i18n="settings.about_item_4">快捷键：⌘/Ctrl+N 新建任务，⌘/Ctrl+, 设置，⌘/Ctrl+D 切换主题</div>
                   </div>
               </div>
               <div class="settings-block">
-                <div class="settings-block-title">开源信息</div>
-                <p class="settings-hint">本软件基于 MIT 协议开源</p>
+                <div class="settings-block-title" data-i18n="settings.open_source">开源信息</div>
+                <p class="settings-hint" data-i18n="settings.open_source_hint">本软件基于 MIT 协议开源</p>
                 <p class="settings-hint">GitHub: <a href="#" id="repoLink" style="color:var(--accent);text-decoration:none">pumf/guguFly</a></p>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import preview modal -->
+      <div id="importPreviewModal" class="modal hidden">
+        <div class="modal-overlay" id="importPreviewOverlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <span data-i18n="import.title">导入预览</span>
+            <button id="importPreviewCloseBtn" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="import-preview-info">
+              <p id="importPreviewSummary" class="import-preview-summary"></p>
+            </div>
+            <div class="import-preview-tasks" id="importPreviewTasks"></div>
+            <div class="import-strategy">
+              <p class="import-strategy-label" data-i18n="import.strategy_label">导入策略</p>
+              <div class="import-strategy-options">
+                <label class="import-strategy-option">
+                  <input type="radio" name="importStrategy" value="overwrite" checked />
+                  <span class="import-strategy-name" data-i18n="import.overwrite">覆盖现有</span>
+                  <span class="import-strategy-desc" data-i18n="import.overwrite_desc">清空当前任务，替换为导入的任务</span>
+                </label>
+                <label class="import-strategy-option">
+                  <input type="radio" name="importStrategy" value="merge" />
+                  <span class="import-strategy-name" data-i18n="import.merge">合并导入</span>
+                  <span class="import-strategy-desc" data-i18n="import.merge_desc">保留现有任务，添加导入的任务</span>
+                </label>
+                <label class="import-strategy-option">
+                  <input type="radio" name="importStrategy" value="add_only" />
+                  <span class="import-strategy-name" data-i18n="import.add_only">仅新增</span>
+                  <span class="import-strategy-desc" data-i18n="import.add_only_desc">只添加不重复的任务</span>
+                </label>
+              </div>
+            </div>
+            <div class="import-preview-actions">
+              <button id="importPreviewCancelBtn" class="settings-action-btn" data-i18n="common.cancel">取消</button>
+              <button id="importPreviewConfirmBtn" class="settings-action-btn settings-action-btn--primary" data-i18n="import.confirm">确认导入</button>
             </div>
           </div>
         </div>
@@ -757,7 +875,7 @@
         <div class="modal-overlay" id="updateOverlay"></div>
         <div class="modal-content update-modal-content">
           <div class="modal-header">
-            <span id="updateModalTitle">发现新版本</span>
+            <span id="updateModalTitle" data-i18n="update.title">发现新版本</span>
             <button id="updateCloseBtn" class="modal-close-btn">✕</button>
           </div>
           <div class="modal-body">
@@ -771,21 +889,21 @@
             </div>
             <div id="updateLoading" class="update-loading hidden">
               <span class="update-spinner"></span>
-              <span>正在检查更新...</span>
+              <span data-i18n="update.loading">正在检查更新...</span>
             </div>
             <div id="updateNoUpdate" class="update-no-update hidden">
               <span id="updateNoUpdateIcon" style="font-size:32px">✅</span>
-              <p id="updateNoUpdateText">已是最新版本</p>
+              <p id="updateNoUpdateText" data-i18n="update.no_update">已是最新版本</p>
             </div>
             <div id="updateError" class="update-error hidden">
               <span style="font-size:32px">❌</span>
-              <p id="updateErrorMsg">检查更新失败，请检查网络后重试</p>
+              <p id="updateErrorMsg" data-i18n="update.error_network">检查更新失败，请检查网络后重试</p>
             </div>
           </div>
           <div class="modal-footer">
-            <button id="updateDownloadBtn" class="save-btn hidden" type="button">前往下载</button>
-            <button id="updateOpenReleaseBtn" class="save-btn hidden" type="button">前往发布页面</button>
-            <button id="updateCloseActionBtn" class="del-btn" type="button">关闭</button>
+            <button id="updateDownloadBtn" class="save-btn hidden" type="button" data-i18n="common.download">前往下载</button>
+            <button id="updateOpenReleaseBtn" class="save-btn hidden" type="button" data-i18n="common.release_page">前往发布页面</button>
+            <button id="updateCloseActionBtn" class="del-btn" type="button" data-i18n="common.close">关闭</button>
           </div>
         </div>
       </div>
@@ -795,39 +913,39 @@
         <div class="modal-overlay" id="statsOverlay"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <span>飞行统计</span>
+            <span data-i18n="stats.title">飞行统计</span>
             <button id="statsCloseBtn" class="modal-close-btn">✕</button>
           </div>
           <div class="modal-body">
             <div id="statsPanel">
               <div class="stats-cards">
                 <div class="stats-card">
-                  <span class="stats-label">累计飞行</span>
+                  <span class="stats-label" data-i18n="stats.total">累计飞行</span>
                   <strong class="stats-value" id="statsTotal">0</strong>
-                  <span class="stats-suffix">次提醒</span>
+                  <span class="stats-suffix" data-i18n="stats.total_suffix">次提醒</span>
                 </div>
                 <div class="stats-card">
-                  <span class="stats-label">本周</span>
+                  <span class="stats-label" data-i18n="stats.week">本周</span>
                   <strong class="stats-value" id="statsWeek">0</strong>
                   <span class="stats-trend" id="statsTrend"></span>
                 </div>
                 <div class="stats-card">
-                  <span class="stats-label">最常触发</span>
+                  <span class="stats-label" data-i18n="stats.top_task">最常触发</span>
                   <strong class="stats-value stats-value--text" id="statsTopTask">—</strong>
-                  <span class="stats-suffix" id="statsTopCount">暂无数据</span>
+                  <span class="stats-suffix" data-i18n="stats.top_count" id="statsTopCount">暂无数据</span>
                 </div>
               </div>
               <div class="stats-block">
                 <div class="stats-block-head">
-                  <strong>近 7 天</strong>
+                  <strong data-i18n="stats.last_7_days">近 7 天</strong>
                   <span id="statsRange"></span>
                 </div>
                 <div class="stats-bars" id="statsBars"></div>
               </div>
               <div class="stats-block">
                 <div class="stats-block-head">
-                  <strong>类型分布</strong>
-                  <span id="statsTotalSub">总计 0 次</span>
+                  <strong data-i18n="stats.type_distribution">类型分布</strong>
+                  <span id="statsTotalSub" data-i18n="stats.total_count">总计 0 次</span>
                 </div>
                 <div class="stats-types" id="statsTypes"></div>
               </div>
@@ -835,6 +953,39 @@
               <div id="achievementBadges" class="achievement-badges hidden"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Task Detail Drawer -->
+      <div id="taskDetailDrawer" class="task-drawer hidden">
+        <div class="task-drawer-overlay" id="taskDetailDrawerOverlay"></div>
+        <div class="task-drawer-content">
+          <div class="task-drawer-header">
+            <div class="task-drawer-title-row">
+              <span id="taskDetailDrawerIcon" class="task-drawer-icon"></span>
+              <h3 id="taskDetailDrawerTitle" class="task-drawer-title"></h3>
+            </div>
+            <button id="taskDetailDrawerClose" class="task-drawer-close">✕</button>
+          </div>
+          <div class="task-drawer-body">
+            <div id="taskDetailDrawerInfo" class="task-drawer-info"></div>
+            <div id="taskDetailDrawerStats" class="task-drawer-stats"></div>
+            <div id="taskDetailDrawerActions" class="task-drawer-actions">
+              <button id="taskDetailDrawerEdit" class="task-drawer-action-btn" data-i18n="btn.quick_edit">快速编辑</button>
+              <button id="taskDetailDrawerCopy" class="task-drawer-action-btn" data-i18n="btn.copy">复制任务</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onboarding -->
+      <div id="onboardingOverlay" class="onboarding-overlay hidden">
+        <div class="onboarding-modal">
+          <div class="onboarding-header">
+            <img src="/logo.png" class="onboarding-logo" alt="咕咕机长" />
+            <h2 class="onboarding-title" data-i18n="onboarding.welcome">欢迎使用咕咕机长</h2>
+          </div>
+          <div id="onboardingContent" class="onboarding-content"></div>
         </div>
       </div>
 

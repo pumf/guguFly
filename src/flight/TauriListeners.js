@@ -1,3 +1,5 @@
+import { t as _t } from '../i18n/index.js';
+
 // Hold unlisten functions for all event subscriptions so that
 // repeated calls to initTauriListeners (e.g., during HMR or tests)
 // do not accumulate duplicate listeners.
@@ -24,7 +26,7 @@ export function initTauriListeners(ctx) {
 
   const addUnlisten = (p) => {
     if (p && typeof p.then === 'function') {
-      p.then(fn => { if (typeof fn === 'function') unlistenFns.push(fn); }).catch(() => {});
+      p.then(fn => { if (typeof fn === 'function') unlistenFns.push(fn); }).catch(err => console.warn('event listener registration failed:', err));
     }
   };
 
@@ -50,22 +52,22 @@ export function initTauriListeners(ctx) {
     // flight-ended event fires from the close, the listener will see
     // the flag and suppress the post-flight action (video/effect/etc).
     if (setSkipPostFlight) setSkipPostFlight(true);
-    invoke('close_flight_windows').catch(() => {});
-    showToast('已跳过');
+    invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
+    showToast(_t('flight.skipped'));
   }));
   addUnlisten(listen('emergency-landing', () => { void triggerEmergencyLanding(tasksRef.get()); }));
   addUnlisten(listen('quick-countdown', (event) => {
     const duration = event.payload;
     const task = createCountdownTask();
     const mins = Math.floor(duration / 60);
-    task.label = `快速倒计时 ${mins} 分钟`;
+    task.label = _t('flight.quick_countdown_label', { mins });
     task.duration = duration; task._remaining = duration; task._status = 'idle';
     const tasks = tasksRef.get();
     tasks.push(task);
     saveTasks(getCleanTasks(tasks));
     startCountdown(task);
     renderTaskView();
-    showToast(`已启动 ${mins} 分钟倒计时`);
+    showToast(_t('flight.quick_countdown_started', { mins }));
   }));
 
   const w = getCurrentWebviewWindow();

@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 let ctx;
 
 export function initFlightSync(c) {
@@ -66,7 +68,7 @@ export function applyPreset(presetKey) {
       soundMode: def.soundMode, useSound: ctx.useSoundCheckbox.checked,
       useImage: ctx.useImageCheckbox.checked,
     });
-    ctx.showToast('已取消预设选择');
+    ctx.showToast(t('flight.preset_cleared'));
     return;
   }
   const preset = ctx.FLIGHT_PRESETS[presetKey];
@@ -89,5 +91,5 @@ export function applyPreset(presetKey) {
     soundMode: preset.soundMode, useSound: ctx.useSoundCheckbox.checked,
     useImage: ctx.useImageCheckbox.checked,
   });
-  ctx.showToast(`已应用预设：${preset.label}`);
+  ctx.showToast(t('flight.preset_applied', { label: preset.label }));
 }

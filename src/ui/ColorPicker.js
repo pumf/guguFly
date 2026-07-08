@@ -1,4 +1,5 @@
 import { TASK_COLORS, TASK_COLOR_VALUES } from '../tasks/TaskColors.js';
+import { t } from '../i18n/index.js';
 
 let editColorPickerEl;
 let selectedEditColor = null;
@@ -9,7 +10,7 @@ export function initColorPicker(ctx) {
   TASK_COLORS.forEach(c => {
     const sw = document.createElement('button');
     sw.type = 'button'; sw.className = 'color-swatch';
-    sw.dataset.color = c.id; sw.title = c.label;
+    sw.dataset.color = c.id; sw.title = t(`color.${c.id}`);
     sw.style.background = c.value;
     sw.addEventListener('click', () => selectColor(c.id));
     editColorPickerEl.appendChild(sw);

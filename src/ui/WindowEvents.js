@@ -1,29 +1,31 @@
+import { t } from '../i18n/index.js';
+
 export function initWindowEvents(ctx) {
   const { saveTasks, getCleanTasks, tasks, set, speedSelect, heightSelect, effectSelect,
     planeSelect, planeSizeSelect, particleSelect, bubbleSelect, bubblePositionSelect, bubbleSizeSelect, bubbleBgColor, bubbleFontColor, soundSelect, soundModeSelect,
     useSoundCheckbox, useImageCheckbox,
     showToast, getCustomImageData, getCustomAudioData, getCustomAudioName } = ctx;
 
-  window.addEventListener('beforeunload', async () => {
-    await saveTasks(getCleanTasks(tasks));
-    await set('speed', speedSelect.value);
-    await set('height', heightSelect.value);
-    await set('effect', effectSelect.value);
-    await set('plane', planeSelect.value);
-    await set('planeSize', planeSizeSelect.value);
-    await set('particle', particleSelect.value);
-    await set('bubble', bubbleSelect.value);
-    await set('bubblePosition', bubblePositionSelect.value);
-    await set('bubbleSize', bubbleSizeSelect.value);
-    await set('bubbleBgColor', bubbleBgColor.value);
-    await set('bubbleFontColor', bubbleFontColor.value);
-    await set('sound', soundSelect.value);
-    await set('soundMode', soundModeSelect.value);
-    await set('useSound', useSoundCheckbox.checked);
-    await set('customImage', getCustomImageData());
-    await set('customAudio', getCustomAudioData());
-    await set('customAudioName', getCustomAudioName());
-    await set('useImage', useImageCheckbox.checked);
+  window.addEventListener('beforeunload', () => {
+    saveTasks(getCleanTasks(tasks)).catch(err => console.warn('save tasks on unload failed:', err));
+    set('speed', speedSelect.value);
+    set('height', heightSelect.value);
+    set('effect', effectSelect.value);
+    set('plane', planeSelect.value);
+    set('planeSize', planeSizeSelect.value);
+    set('particle', particleSelect.value);
+    set('bubble', bubbleSelect.value);
+    set('bubblePosition', bubblePositionSelect.value);
+    set('bubbleSize', bubbleSizeSelect.value);
+    set('bubbleBgColor', bubbleBgColor.value);
+    set('bubbleFontColor', bubbleFontColor.value);
+    set('sound', soundSelect.value);
+    set('soundMode', soundModeSelect.value);
+    set('useSound', useSoundCheckbox.checked);
+    set('customImage', getCustomImageData());
+    set('customAudio', getCustomAudioData());
+    set('customAudioName', getCustomAudioName());
+    set('useImage', useImageCheckbox.checked);
   });
 
   window.addEventListener('unhandledrejection', (event) => {
@@ -35,12 +37,12 @@ export function initWindowEvents(ctx) {
       // to the clipboard so the user can share it with developers.
       const brief = reason?.message || String(reason).slice(0, 80);
       const fullStack = message;
-      const toastEl = showToast(`后台任务出错了：${brief}`);
+      const toastEl = showToast(t('error.background_task', { brief }));
       if (toastEl && navigator.clipboard && fullStack) {
         const onDblClick = () => {
           navigator.clipboard.writeText(fullStack).then(() => {
-            showToast('错误栈已复制到剪贴板');
-          }).catch(() => {});
+            showToast(t('error.stack_copied'));
+          }).catch(err => console.warn('clipboard write failed:', err));
         };
         // Use both dblclick and a touch-based fallback for touchscreens
         toastEl.addEventListener('dblclick', onDblClick);

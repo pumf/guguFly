@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { availableMonitors, currentMonitor } from '@tauri-apps/api/window';
 import { listen, emit } from '@tauri-apps/api/event';
@@ -366,7 +367,7 @@ async function playSound() {
 
   if (useCustomSound) {
     void playCustomAudio(loopMode).catch(() => {
-      showToast('自定义音频播放失败，已回退到内置提示音');
+      showToast(t('toast.custom_audio_fallback'));
       void playOscillator(sound, playPresetSound);
       if (loopMode) {
         loopOscInterval = setInterval(() => { void playOscillator(sound, playPresetSound); }, 800);
@@ -391,7 +392,7 @@ async function playOscillator(sound, playPresetSound) {
   }
 }
 
-let showToast = (msg) => { console.log(msg); };
+let showToast = (msg) => { console.warn('[FlightOrchestrator] showToast called before init:', msg); };
 export function setToastFn(fn) { showToast = fn; }
 
 // Single canonical cleanup for the post-flight notify window. Closes
@@ -433,13 +434,13 @@ async function showPostFlightNotify(action) {
 
     const pfVideoFile = activeFlightJob?.postFlight?.videoFile || 'cat.mov';
     const pfEffectType = activeFlightJob?.postFlight?.effectType || 'fireworks';
-    const builtinLabels = { 'cat.mov': '播放猫咪', 'dog.mov': '播放狗狗' };
-    const videoLabel = (action === 'video') ? (builtinLabels[pfVideoFile] || '播放视频') : '';
-    const effectLabels = { fireworks: '播放烟花', firecrackers: '播放爆竹', emojis: '播放表情包', rainbow: '播放彩虹', bubbles: '播放气泡' };
-    const effectLabel = (action === 'effect') ? (effectLabels[pfEffectType] || '播放特效') : '';
-    const labels = { app: '打开软件', url: '打开网页', lock: '锁屏休息', folder: '打开文件夹', tts: '语音播报', script: '运行脚本', video: videoLabel, effect: effectLabel };
+    const builtinLabels = { 'cat.mov': t('postflight.video.cat'), 'dog.mov': t('postflight.video.dog') };
+    const videoLabel = (action === 'video') ? (builtinLabels[pfVideoFile] || t('postflight.video.cat')) : '';
+    const effectLabels = { fireworks: t('postflight.effect.fireworks'), firecrackers: t('postflight.effect.firecrackers'), emojis: t('postflight.effect.emojis'), rainbow: t('postflight.effect.rainbow'), bubbles: t('postflight.effect.bubbles') };
+    const effectLabel = (action === 'effect') ? (effectLabels[pfEffectType] || t('postflight.effect.fireworks')) : '';
+    const labels = { app: t('postflight.app'), url: t('postflight.url'), lock: t('postflight.lock'), folder: t('postflight.folder'), tts: t('postflight.tts'), script: t('postflight.script'), video: videoLabel, effect: effectLabel };
     const label = labels[action] || action;
-    const fullText = '飞行后' + label;
+    const fullText = t('postflight.label', { label });
 
     pfNotifyWin.once('tauri://created', async () => {
       try {
@@ -466,14 +467,38 @@ async function showPostFlightNotify(action) {
       pfUnlistenClick = null;
     }
     const unlisten = await listen('pf-notify-clicked', async () => {
-      if (pendingPfCancel) {
-        pendingPfCancel();
-        pendingPfCancel = null;
-      }
+      // Mark as cancelled - don't clear pendingPostFlightJob yet
+      // The flight-ended handler will check this flag and skip execution
+      postFlightCancelled = true;
+      if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
+      
+      // Close the popup
       await cleanupPostFlightNotify();
-      showToast('已取消飞行后操作');
+      
+      // Show toast
+      if (showToast) showToast(t('toast.cancelled_postflight'));
     });
     pfUnlistenClick = unlisten;
+
+    const unlistenAction = await listen('pf-action', async (event) => {
+      const { action, minutes } = event.payload || {};
+      if (action === 'skip') {
+        if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
+        pendingPostFlightJob = null;
+        postFlightCancelled = true;
+      }
+      if (pfActionHandler) {
+        await pfActionHandler(action, { minutes, task: activeFlightJob?.task });
+      }
+      await cleanupPostFlightNotify();
+    });
+    if (pfUnlistenClick) {
+      const prevUnlisten = pfUnlistenClick;
+      pfUnlistenClick = () => {
+        try { prevUnlisten(); } catch (_) { /* cleanup */ }
+        try { unlistenAction(); } catch (_) { /* cleanup */ }
+      };
+    }
   } catch (e) { console.error('showPostFlightNotify failed:', e); }
 }
 
@@ -489,6 +514,13 @@ export function getPendingPfCancel() { return pendingPfCancel; }
 export function clearPendingPfCancel() {
   pendingPfCancel = null;
 }
+
+let pfActionHandler = null;
+let pendingPostFlightJob = null;
+let postFlightTimeout = null;
+let postFlightCancelled = false;
+
+export function setPfActionHandler(handler) { pfActionHandler = handler; }
 
 async function processFlightQueue() {
   if (activeFlightJob || !flightQueue.length) return;
@@ -506,7 +538,12 @@ async function processFlightQueue() {
       return;
     }
     if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
-      pendingPfCancel = () => { nextJob.postFlight.action = 'none'; };
+      pendingPostFlightJob = nextJob;
+      postFlightCancelled = false;
+      pendingPfCancel = () => { 
+        if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
+        postFlightCancelled = true;
+      };
       showPostFlightNotify(nextJob.postFlight.action);
     }
   } catch (e) {
@@ -599,7 +636,7 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
     try {
       const compositorOk = await invoke('is_compositor_available');
       if (!compositorOk) {
-        showToast('Linux 环境下透明窗口需要桌面合成器支持，如飞行动画显示为黑屏请启用合成器（如 picom/mutter/kwin）', 6000);
+        showToast(t('error.linux_compositor'), 6000);
       }
     } catch { /* ignore */ }
   }
@@ -639,6 +676,7 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
 export async function executePostFlightAction(postFlight) {
   if (!postFlight || postFlight.action === 'none') return;
   if (!isTauriRuntime()) return;
+  if (emergencyLandingActive) return;
   // Respect the quiet-hours setting for post-flight actions too. The
   // user has explicitly opted out of disruptive reminders during
   // configured hours, so we suppress the follow-up as well.
@@ -655,7 +693,7 @@ export async function executePostFlightAction(postFlight) {
       // injection. The Rust side has its own allowlist, but defense
       // in depth is cheap.
       if (/[;&|`$<>\\]/.test(postFlight.appPath)) {
-        if (typeof showToast === 'function') showToast('应用路径包含非法字符');
+        if (typeof showToast === 'function') showToast(t('validation.path_invalid'));
         return;
       }
       await invoke('open_app', { path: postFlight.appPath });
@@ -664,12 +702,12 @@ export async function executePostFlightAction(postFlight) {
       // dangerous schemes from being passed to the OS browser opener.
       const url = String(postFlight.url).trim();
       if (!/^https?:\/\//i.test(url)) {
-        if (typeof showToast === 'function') showToast('只支持 http(s) 链接');
+        if (typeof showToast === 'function') showToast(t('validation.url_invalid'));
         return;
       }
       await invoke('open_url_in_browser', { url });
     } else if (postFlight.action === 'lock') {
-      const confirmed = await window.showConfirm('即将锁屏，是否继续？');
+      const confirmed = await window.showConfirm(t('validation.lock_confirm'));
       if (!confirmed) return;
       const ua = navigator.userAgent;
       const isWin = ua.includes('Win');
@@ -683,7 +721,7 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'folder' && postFlight.folder) {
       await invoke('open_app', { path: postFlight.folder });
     } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
-      const confirmed = await window.showConfirm('将执行语音播报，是否继续？');
+      const confirmed = await window.showConfirm(t('validation.tts_confirm'));
       if (!confirmed) return;
       const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
       const ua = navigator.userAgent;
@@ -696,7 +734,7 @@ export async function executePostFlightAction(postFlight) {
         : `say "${ttsText}"`;
       await invoke('run_script', { script: ttsScript });
     } else if (postFlight.action === 'script' && postFlight.script) {
-      const confirmed = await window.showConfirm('将执行自定义脚本，是否继续？');
+      const confirmed = await window.showConfirm(t('validation.script_confirm'));
       if (!confirmed) return;
       await invoke('run_script', { script: postFlight.script });
     } else if (postFlight.action === 'effect') {
@@ -736,7 +774,6 @@ export async function executePostFlightAction(postFlight) {
         videoWinMutex = false;
       }
     } else if (postFlight.action === 'video') {
-      if (postFlight.videoEnable === false) return;
       if (videoWinMutex) await waitForVideoMutex();
       if (videoWinMutex) return;
       videoWinMutex = true;
@@ -756,7 +793,7 @@ export async function executePostFlightAction(postFlight) {
           const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
           const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
           const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
-          const label = postFlight.taskMsg || '休息一下';
+          const label = postFlight.taskMsg || t('notification.rest');
           const videoWin = new WebviewWindow('gugufly-video', {
             url: `/video.html?file=${encodeURIComponent(localPath)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}&v=${Date.now()}`,
             width: sw, height: sh, x: sx, y: sy,
@@ -809,7 +846,7 @@ export async function executePostFlightAction(postFlight) {
       const sh = monitor ? Math.round(monitor.size.height / scale) : 800;
       const sx = monitor ? Math.round(monitor.position.x / scale) : 0;
       const sy = monitor ? Math.round(monitor.position.y / scale) : 0;
-      const label = postFlight.taskMsg || '休息一下';
+      const label = postFlight.taskMsg || t('notification.rest');
       const videoWin = new WebviewWindow('gugufly-video', {
         url: `/video.html?file=${encodeURIComponent(initialFile)}&duration=${postFlight.videoDuration || 30}&speed=${postFlight.videoSpeed || 1}&scale=${postFlight.videoScale || 1}&label=${encodeURIComponent(label)}&v=${Date.now()}`,
         width: sw, height: sh, x: sx, y: sy,
@@ -850,7 +887,6 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
     url: task.postFlightUrl || '',
     folder: task.postFlightFolder || '',
     script: task.postFlightScript || '',
-    videoEnable: task.postFlightVideoEnable !== false,
     videoFile: task.postFlightVideoFile || 'cat.mov',
     videoDuration: task.postFlightVideoDuration || 30,
     videoSpeed: parseFloat(task.postFlightVideoSpeed) || 1,
@@ -988,16 +1024,44 @@ export async function initFlightListeners() {
     }
 
     releaseFlightQueue();
-    await closePostFlightNotify();
     if (continued) return;
 
     // If the user clicked "skip current flight", suppress the
     // post-flight action so they don't see the video/effect anyway.
     if (skipPostFlight) {
       skipPostFlight = false;
+      await closePostFlightNotify();
       return;
     }
 
+    // Check if there's a pending post-flight job from processFlightQueue
+    if (pendingPostFlightJob) {
+      const job = pendingPostFlightJob;
+      pendingPostFlightJob = null;
+      if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
+      
+      // Execute the post-flight action after a short delay
+      // This gives the user time to click cancel on the popup
+      postFlightTimeout = setTimeout(async () => {
+        postFlightTimeout = null;
+        // Check if the user cancelled while we were waiting
+        if (postFlightCancelled) {
+          postFlightCancelled = false;
+          pendingPostFlightJob = null;
+          return;
+        }
+        pendingPostFlightJob = null;
+        await closePostFlightNotify();
+        if (inLoop && loopState) {
+          await executePostFlightAction(loopState.postFlight);
+        } else {
+          await executePostFlightAction(job.postFlight);
+        }
+      }, 200);
+      return;
+    }
+
+    await closePostFlightNotify();
     if (inLoop && loopState) {
       await executePostFlightAction(loopState.postFlight);
     } else {

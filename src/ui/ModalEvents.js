@@ -1,5 +1,6 @@
 import { getSelectedEditColor } from './ColorPicker.js';
 import { invoke } from '@tauri-apps/api/core';
+import { t } from '../i18n/index.js';
 
 export function initModalEvents(ctx) {
   const {
@@ -110,17 +111,17 @@ export function initModalEvents(ctx) {
     item.addEventListener('click', () => {
       const tpl = item.dataset.template;
       let task;
-      if (tpl === 'pomodoro') { task = createCountdownTask(); task.label = '番茄钟'; task.duration = 1500; task._remaining = 1500; }
-      else if (tpl === 'drink') { task = createAlarmTask(); task.label = '喝水提醒'; task.hour = Math.floor(Math.random() * 14) + 8; task.minute = 0; task.repeat = [1,2,3,4,5,6,0]; }
-      else if (tpl === 'standup') { task = createAlarmTask(); task.label = '每日站会'; task.hour = 9; task.minute = 30; task.repeat = [1,2,3,4,5]; }
-      else if (tpl === 'lunch') { task = createAlarmTask(); task.label = '午休结束'; task.hour = 13; task.minute = 30; task.repeat = [1,2,3,4,5]; }
-      else if (tpl === 'stretch') { task = createAlarmTask(); task.label = '久坐拉伸'; task.hour = Math.floor(Math.random() * 6) + 9; task.minute = 0; task.repeat = [1,2,3,4,5,6,0]; task.flightMode = 'loop_interval'; task.loopInterval = 120; task.intervalCount = 5; }
+      if (tpl === 'pomodoro') { task = createCountdownTask(); task.label = t('template.label.pomodoro'); task.duration = 1500; task._remaining = 1500; }
+      else if (tpl === 'drink') { task = createAlarmTask(); task.label = t('template.label.drink'); task.hour = Math.floor(Math.random() * 14) + 8; task.minute = 0; task.repeat = [1,2,3,4,5,6,0]; }
+      else if (tpl === 'standup') { task = createAlarmTask(); task.label = t('template.label.standup'); task.hour = 9; task.minute = 30; task.repeat = [1,2,3,4,5]; }
+      else if (tpl === 'lunch') { task = createAlarmTask(); task.label = t('template.label.lunch'); task.hour = 13; task.minute = 30; task.repeat = [1,2,3,4,5]; }
+      else if (tpl === 'stretch') { task = createAlarmTask(); task.label = t('template.label.stretch'); task.hour = Math.floor(Math.random() * 6) + 9; task.minute = 0; task.repeat = [1,2,3,4,5,6,0]; task.flightMode = 'loop_interval'; task.loopInterval = 120; task.intervalCount = 5; }
       const tasks = tasksRef.get();
       tasks.push(task);
       saveTasks(getCleanTasks(tasks));
       renderTaskView();
       templateMenu.classList.add('hidden');
-      showToast(`已创建：${task.label}`);
+      showToast(t('quick_create.success', { label: task.label }));
     });
   });
 
