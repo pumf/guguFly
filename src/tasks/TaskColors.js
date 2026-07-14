@@ -11,3 +11,10 @@ export const TASK_COLORS = [
 
 export const TASK_COLOR_VALUES = Object.fromEntries(TASK_COLORS.map(c => [c.id, c.value]));
 export const TASK_COLOR_IDS = TASK_COLORS.map(c => c.id);
+
+export const TASK_TYPE_COLORS = {
+  alarm:      '#2d7ff9',
+  countdown:  '#ff9560',
+  holiday:    '#e74c3c',
+  anniversary:'#f783ac',
+};

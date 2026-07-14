@@ -6,6 +6,26 @@
   var scale = parseFloat(params.get('scale')) || 1;
   var label = params.get('label') || '';
 
+  var isZh = navigator.language.startsWith('zh');
+  var i18n = {
+    switching: isZh ? '正在切换到本地缓存…' : 'Switching to local cache…',
+    trying: isZh ? '正在尝试远程加载…' : 'Trying remote loading…',
+    loadError: isZh ? '⚠️ 视频加载失败' : '⚠️ Video failed to load',
+    networkError: isZh ? '请检查网络连接' : 'Please check your network',
+    localError: isZh ? '⚠️ 本地视频文件无法访问' : '⚠️ Local file inaccessible',
+    localHint: isZh ? '文件可能已被移动或删除' : 'File may have been moved or deleted',
+    loadSlow: isZh ? '视频加载较慢，请耐心等待…' : 'Loading slowly, please wait…',
+    'video.loading': isZh ? '正在加载视频…' : 'Loading video…',
+    'video.buffering': isZh ? '⏳ 视频缓冲中，请稍候…' : '⏳ Buffering, please wait…',
+    'video.rest_label': isZh ? '🐱 休息一下' : '🐱 Take a break',
+    'video.countdown': isZh ? '还剩 <strong id=\"remaining\">0</strong> 秒' : '<strong id=\"remaining\">0</strong> sec remaining',
+  };
+
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    if (i18n[key]) el.innerHTML = i18n[key];
+  });
+
   var BUILTIN_VIDEO_BASE = 'https://fly.pumf.top/resource';
   var builtinNames = ['cat.mov', 'dog.mov'];
   var originalFile = videoFile;
@@ -75,16 +95,16 @@
     console.error('[video] video element error:', video.error, 'code:', video.error?.code, 'message:', video.error?.message);
     if (isBuiltinVideo && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
       if (localPath) {
-        loadingEl.innerHTML = '<div class="spinner"></div><div>正在尝试远程加载…</div>';
+        loadingEl.innerHTML = '<div class="spinner"></div><div>' + i18n.trying + '</div>';
         switchToLocalFile(localPath, false);
       } else {
-        loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div><div style="font-size:12px;margin-top:8px;opacity:0.7">请检查网络连接</div>';
+        loadingEl.innerHTML = '<div>' + i18n.loadError + '</div><div style="font-size:12px;margin-top:8px;opacity:0.7">' + i18n.networkError + '</div>';
       }
     } else {
       if (originalFile && originalFile.startsWith('/')) {
-        loadingEl.innerHTML = '<div>⚠️ 本地视频文件无法访问</div><div style="font-size:12px;margin-top:8px;opacity:0.7">文件可能已被移动或删除</div>';
+        loadingEl.innerHTML = '<div>' + i18n.localError + '</div><div style="font-size:12px;margin-top:8px;opacity:0.7">' + i18n.localHint + '</div>';
       } else {
-        loadingEl.innerHTML = '<div>⚠️ 视频加载失败</div>';
+        loadingEl.innerHTML = '<div>' + i18n.loadError + '</div>';
       }
     }
   });
@@ -99,7 +119,7 @@
       var wasPlaying = !video.paused;
       console.log('[video] switching to local cached file:', converted, 'silent:', silent);
       if (!silent) {
-        loadingEl.innerHTML = '<div class="spinner"></div><div>正在切换到本地缓存…</div>';
+        loadingEl.innerHTML = '<div class="spinner"></div><div>' + i18n.switching + '</div>';
         loadingEl.classList.remove('hidden');
       }
       video.src = converted;
@@ -139,20 +159,29 @@
     if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; }
   });
 
+  var lastRecoverTime = 0;
   video.addEventListener('stalled', function(){
     stallHintEl.classList.remove('hidden');
     stallCount++;
     if (stallCount > 3) {
-      video.pause();
-      setTimeout(function(){
-        video.currentTime = video.currentTime || 0;
-        video.play().catch(function(){});
-      }, 500);
+      var now = Date.now();
+      if (now - lastRecoverTime > 3000) {
+        lastRecoverTime = now;
+        video.pause();
+        setTimeout(function(){
+          video.currentTime = video.currentTime || 0;
+          video.play().catch(function(){});
+        }, 500);
+      }
     }
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = setTimeout(function(){
       stallHintEl.classList.add('hidden');
     }, 4000);
+  });
+
+  video.addEventListener('playing', function(){
+    stallCount = 0;
   });
 
   video.addEventListener('play', function(){
@@ -212,6 +241,10 @@
       if (video.duration && isFinite(video.duration) && video.currentTime >= video.duration - 0.1) {
         scheduleClose();
       }
+      if (stallCount > 0 && !video.paused) {
+        stallCount = 0;
+        stallHintEl.classList.add('hidden');
+      }
     });
   }
 
@@ -224,7 +257,7 @@
 
   setTimeout(function(){
     if (!ready) {
-      loadingEl.innerHTML = '<div class="spinner"></div><div>视频加载较慢，请耐心等待…</div>';
+      loadingEl.innerHTML = '<div class="spinner"></div><div>' + i18n.loadSlow + '</div>';
     }
   }, 5000);
 })();

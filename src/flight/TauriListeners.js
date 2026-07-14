@@ -71,11 +71,11 @@ export function initTauriListeners(ctx) {
   }));
 
   const w = getCurrentWebviewWindow();
-  w.onCloseRequested(async (e) => {
+  addUnlisten(w.onCloseRequested(async (e) => {
     e.preventDefault();
     await saveTasks(getCleanTasks(tasksRef.get()));
     await w.hide();
-  });
+  }));
 
   setTimeout(() => { void autoCheckForUpdate(); }, 3000);
 }

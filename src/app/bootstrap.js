@@ -88,6 +88,7 @@ export async function applySettings(ctx) {
   });
 
   initFlightTrigger({
+    t,
     incrementTodayCount,
     todayCountEl: refs.todayCountEl,
     getDateKey,
@@ -124,7 +125,7 @@ export async function applySettings(ctx) {
 
   syncMuteToTray();
 
-  refs.todayCountEl.textContent = `${cfg.todayCount} 次`;
+  refs.todayCountEl.textContent = t('hero.today_count', { count: cfg.todayCount });
   if (cfg.speed) refs.speedSelect.value = cfg.speed;
   if (cfg.height) refs.heightSelect.value = cfg.height;
   if (cfg.display) refs.displaySelect.value = cfg.display;
@@ -174,7 +175,7 @@ export async function applySettings(ctx) {
   const date = new Date().toDateString();
   if (cfg.lastDate !== date) {
     await set('todayCount', 0);
-    refs.todayCountEl.textContent = '0 次';
+    refs.todayCountEl.textContent = t('hero.today_count_default');
   }
 
   const streakLastDate = await get('streakLastDate');
@@ -196,8 +197,8 @@ export async function applySettings(ctx) {
   if (refs.quietEndHour) refs.quietEndHour.value = cfg.quietEndHour || 8;
   if (refs.miniWindowToggle) refs.miniWindowToggle.checked = !!cfg.miniWindowEnabled;
   if (cfg.miniWindowPosition) updateMiniPosGridActive(cfg.miniWindowPosition);
-  if (cfg.language) setLanguage(cfg.language);
   onLanguageChange(syncLangButtons);
+  if (cfg.language) setLanguage(cfg.language);
 }
 
 export async function runPostInit(ctx) {

@@ -135,18 +135,18 @@ const PLAYERS = {
 };
 
 export const SOUND_PRESETS = [
-  { value: 'whoosh', label: '咻' },
-  { value: 'dingdong', label: '叮咚' },
-  { value: 'ring', label: '铃声' },
-  { value: 'soft', label: '柔和' },
-  { value: 'chime', label: '风铃' },
-  { value: 'pulse', label: '脉冲' },
-  { value: 'bird', label: '鸟鸣' },
-  { value: 'bell', label: '钟声' },
-  { value: 'success', label: '成功' },
-  { value: 'bubble', label: '水泡' },
-  { value: 'laser', label: '激光' },
-  { value: 'morning', label: '晨光' },
+  { value: 'whoosh', labelKey: 'sound.whoosh' },
+  { value: 'dingdong', labelKey: 'sound.dingdong' },
+  { value: 'ring', labelKey: 'sound.ring' },
+  { value: 'soft', labelKey: 'sound.soft' },
+  { value: 'chime', labelKey: 'sound.chime' },
+  { value: 'pulse', labelKey: 'sound.pulse' },
+  { value: 'bird', labelKey: 'sound.bird' },
+  { value: 'bell', labelKey: 'sound.bell' },
+  { value: 'success', labelKey: 'sound.success' },
+  { value: 'bubble', labelKey: 'sound.bubble' },
+  { value: 'laser', labelKey: 'sound.laser' },
+  { value: 'morning', labelKey: 'sound.morning' },
 ];
 
 export async function playPreset(audioCtx, sound) {

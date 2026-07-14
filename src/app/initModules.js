@@ -160,6 +160,7 @@ export async function initCoreModules(ctx) {
     }),
     normalizeRepeat: deps.normalizeRepeat,
     isAlarmDueToday: deps.isAlarmDueToday,
+    onDateChange: deps.onDateChange,
   });
 
   initEmergency({

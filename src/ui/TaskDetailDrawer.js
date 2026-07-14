@@ -146,3 +146,9 @@ export function closeDrawer() {
 export function isDrawerOpen() {
   return !drawerEl?.classList.contains('hidden');
 }
+
+export function refreshDrawer() {
+  if (currentTask && !drawerEl?.classList.contains('hidden')) {
+    openTaskDetailDrawer(currentTask, { onEdit: onEditFn, onCopy: onCopyFn });
+  }
+}

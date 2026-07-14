@@ -1,5 +1,5 @@
 import { t } from '../i18n/index.js';
-import { TASK_COLOR_VALUES } from '../tasks/TaskColors.js';
+import { TASK_COLOR_VALUES, TASK_TYPE_COLORS } from '../tasks/TaskColors.js';
 import { getTaskTypeMeta } from '../tasks/TaskFactory.js';
 import {
   getTaskStatusLabel, getTaskInfoText, getTaskSortScore,
@@ -12,6 +12,34 @@ const svgClock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 const svgTimer = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 10"/></svg>';
 const svgCal = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
 const svgHeart = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+
+const COLLAPSE_STORAGE_KEY = 'taskGroupCollapsed';
+const COMPACT_STORAGE_KEY = 'taskCompactMode';
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-dropdown')) {
+    document.querySelectorAll('.task-dropdown:not(.hidden)').forEach(d => {
+      d.classList.add('hidden');
+      d.closest('.task-card')?.classList.remove('task-card--menu-open');
+    });
+  }
+});
+
+export function isCompactMode() {
+  try { return localStorage.getItem(COMPACT_STORAGE_KEY) === '1'; } catch { return false; }
+}
+
+export function setCompactMode(val) {
+  try { localStorage.setItem(COMPACT_STORAGE_KEY, val ? '1' : '0'); } catch {}
+}
+
+function loadCollapsedGroups() {
+  try { return JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY)) || {}; } catch { return {}; }
+}
+
+function saveCollapsedGroups(state) {
+  try { localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
 
 export function renderTasks({
   tasks, taskListEl, holidayPresets, expandedTaskId, toggleTaskExpandedFn,
@@ -30,15 +58,6 @@ export function renderTasks({
     filterType, filterGroup, filterKeyword,
   };
   taskListEl.innerHTML = '';
-
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-dropdown')) {
-      document.querySelectorAll('.task-dropdown:not(.hidden)').forEach(d => {
-        d.classList.add('hidden');
-        d.closest('.task-card')?.classList.remove('task-card--menu-open');
-      });
-    }
-  });
 
   if (tasks.length === 0) {
     taskListEl.innerHTML = `<div class="empty-hint"><span class="big-icon">🛩</span><strong>${t('task.empty.title')}</strong><span>${t('task.empty.desc')}</span></div>`;
@@ -68,22 +87,62 @@ export function renderTasks({
     return acc;
   }, {});
 
+  const compactMode = isCompactMode();
+  const collapsedGroups = loadCollapsedGroups();
+
   ['in_progress', 'upcoming', 'special_dates', 'disabled'].forEach(groupKey => {
     const groupTasks = grouped[groupKey];
     if (!groupTasks?.length) return;
 
     const groupMeta = getTaskGroupMeta(groupKey);
+    const isCollapsed = collapsedGroups[groupKey];
     const section = document.createElement('section');
-    section.className = `task-group task-group--${groupKey}`;
+    section.className = `task-group task-group--${groupKey}${isCollapsed ? ' task-group--collapsed' : ''}`;
 
     const header = document.createElement('div');
     header.className = 'task-group-head';
     const titleWrap = document.createElement('div');
     titleWrap.className = 'task-group-copy';
+
+    const collapseBtn = document.createElement('button');
+    collapseBtn.className = 'task-group-collapse';
+    collapseBtn.innerHTML = isCollapsed
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    collapseBtn.addEventListener('click', () => {
+      collapsedGroups[groupKey] = !collapsedGroups[groupKey];
+      saveCollapsedGroups(collapsedGroups);
+      section.classList.toggle('task-group--collapsed');
+      collapseBtn.innerHTML = collapsedGroups[groupKey]
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    });
+    titleWrap.appendChild(collapseBtn);
     const title = document.createElement('h3');
     title.className = 'task-group-title';
     title.textContent = `${groupMeta.title} (${groupTasks.length})`;
     titleWrap.appendChild(title);
+
+    if (isSelectionModeActive()) {
+      const groupSelectAll = document.createElement('input');
+      groupSelectAll.type = 'checkbox';
+      groupSelectAll.className = 'task-group-select-all';
+      const allIds = groupTasks.map(t => t.id);
+      const selectedCount = allIds.filter(id => isTaskSelected(id)).length;
+      groupSelectAll.checked = selectedCount === allIds.length;
+      groupSelectAll.indeterminate = selectedCount > 0 && selectedCount < allIds.length;
+      groupSelectAll.addEventListener('change', () => {
+        allIds.forEach(id => {
+          if (groupSelectAll.checked) {
+            if (!isTaskSelected(id)) toggleTaskSelection(id);
+          } else {
+            if (isTaskSelected(id)) toggleTaskSelection(id);
+          }
+        });
+        renderTasksFn();
+      });
+      titleWrap.appendChild(groupSelectAll);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'task-group-actions';
@@ -102,6 +161,9 @@ export function renderTasks({
     header.appendChild(actions);
     section.appendChild(header);
 
+    const groupBody = document.createElement('div');
+    groupBody.className = 'task-group-body';
+
     groupTasks.forEach(task => {
       const typeMeta = getTaskTypeMeta(task);
       const card = document.createElement('div');
@@ -110,11 +172,13 @@ export function renderTasks({
       if (task._status === 'running') card.classList.add('active');
       if (task._status === 'completed') card.classList.add('completed');
       if (isTaskSelected(task.id)) card.classList.add('selected');
+      if (compactMode) card.classList.add('task-card--compact');
 
-      if (task.color && TASK_COLOR_VALUES[task.color]) {
+      const barColor = TASK_COLOR_VALUES[task.color] || TASK_TYPE_COLORS[task.type] || null;
+      if (barColor) {
         const bar = document.createElement('div');
         bar.className = 'task-color-bar';
-        bar.style.background = TASK_COLOR_VALUES[task.color];
+        bar.style.background = barColor;
         card.appendChild(bar);
       }
 
@@ -136,12 +200,32 @@ export function renderTasks({
       const body = document.createElement('div');
       body.className = 'task-body';
 
+      if (compactMode) {
+        const labelRow = document.createElement('div');
+        labelRow.className = 'task-label-row';
+        const label = document.createElement('span');
+        label.className = 'task-label';
+        label.textContent = task.label || (task.type === 'alarm' ? t('task.label.alarm') : task.type === 'countdown' ? t('task.label.countdown') : task.type === 'holiday' ? t('task.label.holiday') : t('task.label.anniversary'));
+        labelRow.appendChild(label);
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'task-status-badge';
+        statusBadge.textContent = getTaskStatusLabel(task);
+        labelRow.appendChild(statusBadge);
+        body.appendChild(labelRow);
+      } else {
+
       const labelRow = document.createElement('div');
       labelRow.className = 'task-label-row';
 
       const label = document.createElement('span');
       label.className = 'task-label';
-      label.textContent = task.label || (task.type === 'alarm' ? t('task.label.alarm') : task.type === 'countdown' ? t('task.label.countdown') : task.type === 'holiday' ? t('task.label.holiday') : t('task.label.anniversary'));
+      const labelText = task.label || (task.type === 'alarm' ? t('task.label.alarm') : task.type === 'countdown' ? t('task.label.countdown') : task.type === 'holiday' ? t('task.label.holiday') : t('task.label.anniversary'));
+      if (filterKeyword && labelText.toLowerCase().includes(filterKeyword)) {
+        const regex = new RegExp(`(${filterKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        label.innerHTML = labelText.replace(regex, '<mark>$1</mark>');
+      } else {
+        label.textContent = labelText;
+      }
       labelRow.appendChild(label);
 
       const typeBadge = document.createElement('span');
@@ -191,6 +275,7 @@ export function renderTasks({
         const details = buildTaskDetails(task, holidayPresets, openEditModalFn);
         body.appendChild(details);
       }
+      } // end non-compact
 
       const actionsEl = document.createElement('div');
       actionsEl.className = 'task-actions';
@@ -297,7 +382,7 @@ export function renderTasks({
       card.appendChild(toggle);
       card.appendChild(icon);
       card.appendChild(body);
-      card.appendChild(actionsEl);
+      if (!compactMode) card.appendChild(actionsEl);
 
       card.addEventListener('click', () => {
         if (isSelectionModeActive()) {
@@ -331,9 +416,49 @@ export function renderTasks({
         renderTasks(fullCtx);
       });
 
-      section.appendChild(card);
+      if (!compactMode && !isSelectionModeActive()) {
+        let touchStartX = 0, touchCurrentX = 0, swiping = false;
+        const THRESHOLD = 80;
+        card.addEventListener('touchstart', (e) => {
+          touchStartX = e.touches[0].clientX;
+          touchCurrentX = touchStartX;
+          swiping = false;
+        }, { passive: true });
+        card.addEventListener('touchmove', (e) => {
+          touchCurrentX = e.touches[0].clientX;
+          const dx = touchCurrentX - touchStartX;
+          if (Math.abs(dx) > 10) {
+            swiping = true;
+            e.preventDefault();
+            const clamped = Math.max(-120, Math.min(120, dx));
+            card.style.transform = `translateX(${clamped}px)`;
+            card.style.transition = 'none';
+          }
+        }, { passive: false });
+        card.addEventListener('touchend', () => {
+          if (!swiping) { card.style.transform = ''; return; }
+          const dx = touchCurrentX - touchStartX;
+          card.style.transition = 'transform 0.2s ease';
+          if (dx > THRESHOLD) {
+            card.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+              task.enabled = !task.enabled;
+              saveTasks(getCleanTasksFn(tasks));
+              renderTasksFn();
+            }, 200);
+          } else if (dx < -THRESHOLD) {
+            card.style.transform = 'translateX(-100%)';
+            setTimeout(() => openEditModalFn(task), 200);
+          } else {
+            card.style.transform = '';
+          }
+        }, { passive: true });
+      }
+
+      groupBody.appendChild(card);
     });
 
+    section.appendChild(groupBody);
     taskListEl.appendChild(section);
   });
 
@@ -466,7 +591,7 @@ export function toggleTaskExpandedCard(prevExpandedId, newExpandedId, ctx) {
   }
 }
 
-function copyTask(task, tasks, saveTasks, getCleanTasksFn, renderTasksFn) {
+export function copyTask(task, tasks, saveTasks, getCleanTasksFn, renderTasksFn) {
   const copy = JSON.parse(JSON.stringify(task));
   copy.id = Date.now();
   copy.label = `${task.label} ${t('task.copy_suffix')}`;

@@ -361,9 +361,9 @@ async function playSound() {
   stopLoopSound();
   await unlockAudioIfNeeded();
 
-  const sound = soundSelectEl.value;
-  const loopMode = soundModeSelectEl.value === 'loop';
-  const useCustomSound = useSoundCheckboxEl.checked && customAudioData_;
+  const sound = soundSelectEl?.value || 'whoosh';
+  const loopMode = soundModeSelectEl?.value === 'loop';
+  const useCustomSound = useSoundCheckboxEl?.checked && customAudioData_;
 
   if (useCustomSound) {
     void playCustomAudio(loopMode).catch(() => {
@@ -565,22 +565,22 @@ export function releaseFlightQueue() {
 async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskImageData = null, taskUseImage = null) {
   if (!isTauriRuntime()) return;
 
-  const speed = speedSelectEl.value;
-  const height = heightSelectEl.value;
-  const effect = effectSelectEl.value;
-  const plane = planeSelectEl.value;
+  const speed = speedSelectEl?.value || '1';
+  const height = heightSelectEl?.value || '30';
+  const effect = effectSelectEl?.value || 'none';
+  const plane = planeSelectEl?.value || 'plane';
   const planeSize = planeSizeSelectEl?.value || '1';
-  const particle = particleSelectEl.value;
-  const bubble = bubbleSelectEl.value;
-  const bubblePosition = bubblePositionSelectEl.value;
+  const particle = particleSelectEl?.value || 'none';
+  const bubble = bubbleSelectEl?.value || 'none';
+  const bubblePosition = bubblePositionSelectEl?.value || 'top';
   const bubbleSize = bubbleSizeSelectEl?.value || '1';
 
   const effectiveImage = taskImageData !== null ? taskImageData : customImageData_;
-  const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckboxEl.checked;
+  const effectiveUseImage = taskUseImage !== null ? taskUseImage : useImageCheckboxEl?.checked;
 
   // Determine which monitors to fly on
   let monitorConfigs = [];
-  if (displaySelectEl.value === 'all') {
+  if (displaySelectEl?.value === 'all') {
     try {
       const monitors = await availableMonitors();
       monitorConfigs = monitors.map(m => ({
@@ -595,7 +595,7 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
     }
   } else {
     let mx = 0, my = 0, mw = screen.width, mh = screen.height;
-    if (displaySelectEl.value === 'active') {
+    if (displaySelectEl?.value === 'active') {
       try {
         const monitor = await currentMonitor();
         if (monitor) {
@@ -630,8 +630,8 @@ async function createFlightWindow(msg, direction = 'ltr', sequenceId = '', taskI
   localStorage.setItem('_flightDir', direction);
   localStorage.setItem('_flightSeq', sequenceId);
 
-  const ua = navigator.userAgent;
-  const isLinux = ua.includes('Linux') && !ua.includes('Android');
+  const platform = isTauriRuntime() ? await invoke('get_platform').catch(() => '') : '';
+  const isLinux = platform === 'linux';
   if (isLinux && isTauriRuntime()) {
     try {
       const compositorOk = await invoke('is_compositor_available');
@@ -709,9 +709,9 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'lock') {
       const confirmed = await window.showConfirm(t('validation.lock_confirm'));
       if (!confirmed) return;
-      const ua = navigator.userAgent;
-      const isWin = ua.includes('Win');
-      const isLinux = ua.includes('Linux') && !ua.includes('Android');
+      const platform = isTauriRuntime() ? await invoke('get_platform').catch(() => '') : '';
+      const isWin = platform === 'windows';
+      const isLinux = platform === 'linux';
       const lockScript = isWin
         ? 'rundll32.exe user32.dll,LockWorkStation'
         : isLinux
@@ -724,12 +724,12 @@ export async function executePostFlightAction(postFlight) {
       const confirmed = await window.showConfirm(t('validation.tts_confirm'));
       if (!confirmed) return;
       const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
-      const ua = navigator.userAgent;
-      const isWin = ua.includes('Win');
-      const isLinux = ua.includes('Linux') && !ua.includes('Android');
-      const ttsScript = isWin
+      const platform2 = isTauriRuntime() ? await invoke('get_platform').catch(() => '') : '';
+      const isWin2 = platform2 === 'windows';
+      const isLinux2 = platform2 === 'linux';
+      const ttsScript = isWin2
         ? `mshta vbscript:Execute("CreateObject(""SAPI.SpVoice"").Speak(""${ttsText}"" ) :close")`
-        : isLinux
+        : isLinux2
         ? `spd-say "${ttsText}"`
         : `say "${ttsText}"`;
       await invoke('run_script', { script: ttsScript });
@@ -935,7 +935,7 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
 
   if (mode === 'loop_interval') {
     const sequenceId = createSequenceId(task.id);
-    const totalIntervalMs = (task.intervalCount - 1) * task.loopInterval * 60 * 1000 + 60000;
+    const totalIntervalMs = (task.intervalCount - 1) * (task.loopInterval || 5) * 60 * 1000 + 60000;
     task._flightRemaining = task.intervalCount || 10;
     updateTaskFlightCb?.(task.id, task._flightRemaining);
     flightSequences.set(sequenceId, {

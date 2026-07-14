@@ -1,38 +1,38 @@
-# Changelog
+# 更新日志
 
-## v0.8.0 (2026-07-07)
+## v0.8.0
 
-### ✨ New Features
-- **Task card overflow menu**: Consolidated less-used buttons (copy, delete, stop, repeat) into ⋯ dropdown menu, keeping cards clean
-- **Quick create Chinese time**: Support "三点"/"三点钟" → 3:00 parsing
-- **+5/+10 minute buttons**: Now work correctly with countdown timers (persist + re-render)
+### ✨ 新功能
+- 任务卡片新增 ⋯ 菜单，复制、删除、停止、重复等操作收入下拉菜单，界面更清爽
+- 快速创建支持"三点"/"三点钟"等中文时间写法
+- 倒计时 +5/+10 分钟按钮现在可以正常工作
 
-### 🐛 Bug Fixes
-- **Detail sidebar English params**: Fixed `{{status}}`, `{{summary}}`, `{{time}}` placeholders showing in task detail drawer
-- **Detail sidebar unclickable buttons**: Fixed z-index issue where overlay intercepted button clicks
-- **Flight statistics = 0**: Fixed post-flight "repeat" action not recording flights to log
-- **SettingsPanel test**: Fixed failing import preview test (200/200 tests passing)
+### 🐛 问题修复
+- 修复任务详情面板显示 `{{status}}`、`{{summary}}` 等占位符的问题
+- 修复详情面板按钮无法点击的问题
+- 修复飞行统计始终显示 0 的问题
+- 修复暗色主题下多个界面元素显示异常
+- 修复视频播放卡顿（尤其是 Intel Mac）
+- 修复 Windows 安装包启动闪退的问题
 
-### 🌍 Internationalization
-- Added missing en.js keys: `stats.flight_count`, `stats.loading`, `stats.times`
-- Replaced 29+ hardcoded Chinese strings across 14 files with i18n `t()` calls
-- Added `labelOnly()` helper to strip `{{param}}` placeholders from drawer labels
-- Fixed ESC hint in edit modal showing raw `{{key}}` placeholder
+### 🎨 界面优化
+- 暗色主题适配更完善，新增 11 处样式覆盖
+- 任务卡片按钮精简：仅保留详情和播放/暂停，其他操作收入菜单
+- 视频播放改用原生硬件加速，Intel Mac 上流畅度提升 2-4 倍
 
-### 🎨 UI/UX
-- **Dark theme**: Added 11 missing CSS overrides (task-list, task-toggle, hero-toolbar, form-block, etc.)
-- **Task card buttons**: Only expand + play/pause remain inline; all others in ⋯ dropdown
-- **Dropdown z-index**: Added `.task-drawer-content { z-index: 1 }` and `.task-card--menu-open { z-index: 10 }` to prevent overlay/button click issues
+### 📦 安装说明
 
-### ⚡ Performance
-- **Video playback optimization**: Replaced Canvas 2D drawImage with DOM video element for hardware-accelerated compositing (2-4x faster on Intel Macs)
+**macOS**：
+1. 下载 `.dmg` 文件
+2. 双击打开，将「咕咕机长」拖入 Applications 文件夹
+3. 首次打开如提示"无法验证开发者"，请前往 **系统设置 → 隐私与安全性**，点击「仍要打开」
+4. 如提示"Apple 无法检查恶意软件"，请在终端执行：`xattr -cr /Applications/咕咕机长.app`
 
-### 🔧 Infrastructure
-- **storage.js**: Added `setStoreFailureHandler()` with toast notification when Tauri store fails to initialize
-- **Windows packaging**: Removed unused `staticlib` crate type; wrapped global shortcuts in try-catch to prevent startup crashes
-- **Crash log**: Improved to append with timestamps instead of overwriting
-- **NSIS config**: Added bundle.nsis configuration for Windows installer
-- **Code quality**: Changed 3 placeholder `showToast` functions from `console.log` to `console.warn`
+**Windows**：
+1. 下载 `.exe` 安装包
+2. 双击运行，按向导完成安装
+3. 如提示缺少 WebView2 运行时，请按提示安装
 
-### 📦 Dependencies
-- Tauri 2.11.2 (unchanged)
+**Linux**：
+- AppImage：下载后 `chmod +x` 赋予执行权限，双击运行
+- DEB：`sudo dpkg -i 咕咕机长_*.deb`

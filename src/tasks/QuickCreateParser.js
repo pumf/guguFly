@@ -1,4 +1,5 @@
 import { t, ta } from '../i18n/index.js';
+import { HOLIDAY_PRESETS } from './HolidayPresets.js';
 
 const WEEKDAY_MAP = {
   '周一': 1, '星期一': 1, '礼拜一': 1,
@@ -45,15 +46,72 @@ function parseDuration(str) {
   return parts.reduce((a, b) => a + b, 0);
 }
 
+const HOLIDAY_LABEL_MAP = {};
+for (const [key, preset] of Object.entries(HOLIDAY_PRESETS)) {
+  HOLIDAY_LABEL_MAP[preset.label] = { key, ...preset };
+}
+
+const HOLIDAY_ALIASES = {
+  '过年': '春节', '新年': '元旦', '五一': '劳动节', '十一': '国庆节',
+  '团圆节': '中秋节', '粽子节': '端午节', '腊八': null,
+  '七夕': null, '腊八节': null, '中元节': null, '情人节': '情人节',
+};
+
+function matchHoliday(input) {
+  for (const [label, preset] of Object.entries(HOLIDAY_LABEL_MAP)) {
+    if (input.includes(label)) {
+      return { holidayKey: preset.key, label: preset.label, month: preset.month, day: preset.day, lunar: preset.lunar };
+    }
+  }
+  for (const [alias, target] of Object.entries(HOLIDAY_ALIASES)) {
+    if (input.includes(alias)) {
+      if (target && HOLIDAY_LABEL_MAP[target]) {
+        const preset = HOLIDAY_LABEL_MAP[target];
+        return { holidayKey: preset.key, label: preset.label, month: preset.month, day: preset.day, lunar: preset.lunar };
+      }
+    }
+  }
+  return null;
+}
+
+function parseAnniversaryDate(input) {
+  const cnHourPattern = '(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二)';
+  const cnMonthPattern = '(?:一|二|三|四|五|六|七|八|九|十|十一|十二)';
+  const cnDayPattern = '(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二|十三|十四|十五|十六|十七|十八|十九|二十|二十一|二十二|二十三|二十四|二十五|二十六|二十七|二十八|二十九|三十|三十一)';
+
+  const patterns = [
+    { re: /(\d{1,2})\s*[月]\s*(\d{1,2})\s*[日号]/, lunar: false },
+    { re: /(\d{1,2})\/(\d{1,2})/, lunar: false },
+    { re: /(\d{1,2})\.(\d{1,2})/, lunar: false },
+    { re: new RegExp(`${cnMonthPattern}\\s*月\\s*${cnDayPattern}\\s*[日号]`), lunar: false, cn: true },
+  ];
+
+  for (const p of patterns) {
+    const m = input.match(p.re);
+    if (m) {
+      let month, day;
+      if (p.cn) {
+        month = cnToNum(m[1]);
+        day = cnToNum(m[2]);
+      } else {
+        month = parseInt(m[1]);
+        day = parseInt(m[2]);
+      }
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const lunar = /农历|阴历/.test(input);
+        return { month, day, lunar };
+      }
+    }
+  }
+
+  return null;
+}
+
+const ANNIVERSARY_KEYWORDS = ['生日', '纪念日', '结婚', '相识', '在一起', '入职', 'birthday', 'anniversary'];
+
 export function parseQuickInput(text) {
   if (!text || !text.trim()) return null;
   const input = text.trim();
-
-  const weekdays = [];
-  for (const [label, val] of Object.entries(WEEKDAY_MAP)) {
-    if (input.includes(label)) weekdays.push(val);
-  }
-  const uniqueWeekdays = [...new Set(weekdays)].sort((a, b) => a - b);
 
   const duration = parseDuration(input);
   if (duration && duration > 0) {
@@ -71,6 +129,62 @@ export function parseQuickInput(text) {
     };
   }
 
+  const holiday = matchHoliday(input);
+  if (holiday) {
+    const time = parseTime(input);
+    const label = extractLabel(input, [
+      holiday.label,
+      ...Object.keys(HOLIDAY_ALIASES).map(k => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')),
+      /农历|阴历/i,
+      /(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二)\s*[点时]\s*(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二|十三|十四|十五|十六|十七|十八|十九|二十|二十一|二十二|二十三|二十四)\s*分?/,
+      /\d{1,2}\s*[:：.]\s*\d{2}/,
+      /上午|下午|晚[上间]|早[上晨]/,
+    ]);
+    return {
+      type: 'holiday',
+      label: label || holiday.label,
+      holidayKey: holiday.holidayKey,
+      month: holiday.month,
+      day: holiday.day,
+      lunar: holiday.lunar,
+      hour: time ? time.hour : 9,
+      minute: time ? time.minute : 0,
+      msg: '',
+    };
+  }
+
+  const hasAnniversaryKeyword = ANNIVERSARY_KEYWORDS.some(kw => input.toLowerCase().includes(kw.toLowerCase()));
+  if (hasAnniversaryKeyword) {
+    const date = parseAnniversaryDate(input);
+    if (date) {
+      const time = parseTime(input);
+      const label = extractLabel(input, [
+        ...ANNIVERSARY_KEYWORDS.map(k => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')),
+        /\d{1,2}\s*[月]\s*\d{1,2}\s*[日号]/,
+        /农历|阴历/i,
+        /(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二)\s*月\s*(?:零|一|二|两|三|四|五|六|七|八|九|十|十一|十二|十三|十四|十五|十六|十七|十八|十九|二十|二十一|二十二|二十三|二十四|二十五|二十六|二十七|二十八|二十九|三十|三十一)\s*[日号]/,
+        /\d{1,2}\s*[:：.]\s*\d{2}/,
+        /上午|下午|晚[上间]|早[上晨]/,
+      ]);
+      return {
+        type: 'anniversary',
+        label: label || input.replace(/\d+/g, '').replace(/\s+/g, ' ').trim().slice(0, 30),
+        month: date.month,
+        day: date.day,
+        lunar: date.lunar,
+        hour: time ? time.hour : 9,
+        minute: time ? time.minute : 0,
+        msg: '',
+      };
+    }
+  }
+
+  const weekdays = [];
+  for (const [label, val] of Object.entries(WEEKDAY_MAP)) {
+    if (input.includes(label)) weekdays.push(val);
+  }
+  const uniqueWeekdays = [...new Set(weekdays)].sort((a, b) => a - b);
+
   if (uniqueWeekdays.length > 0) {
     const time = parseTime(input);
     const label = extractLabel(input, [
@@ -82,8 +196,8 @@ export function parseQuickInput(text) {
     return {
       type: 'alarm',
       label: label || `${t('task.status.weekday')} ${uniqueWeekdays.map(d => dayNames[d]).join('/')}`,
-      hour: time.hour,
-      minute: time.minute,
+      hour: time ? time.hour : 9,
+      minute: time ? time.minute : 0,
       repeat: { type: 'weekly', days: uniqueWeekdays },
       msg: '',
     };
@@ -98,9 +212,9 @@ export function parseQuickInput(text) {
     const weekdays = [1, 2, 3, 4, 5];
     return {
       type: 'alarm',
-      label: label || t('pomodoro.started', { minutes: 0 }).replace(/\d+/, '').trim() || t('task.status.everyday'),
-      hour: time.hour,
-      minute: time.minute,
+      label: label || t('task.status.everyday'),
+      hour: time ? time.hour : 9,
+      minute: time ? time.minute : 0,
       repeat: { type: 'weekly', days: weekdays },
       msg: '',
     };
@@ -187,7 +301,7 @@ function parseTime(input) {
     return { hour, minute: 30 };
   }
 
-  return { hour: 12, minute: 0 };
+  return null;
 }
 
 function extractLabel(input, skipPatterns) {
@@ -222,6 +336,18 @@ export function formatPreview(result) {
     const mins = Math.floor(result.duration / 60);
     const secs = result.duration % 60;
     detail = mins > 0 ? `${mins}${t('video.duration_min')}${secs > 0 ? secs + t('video.duration_sec') : ''}` : `${secs}${t('video.duration_sec')}`;
+  } else if (result.type === 'holiday') {
+    const lunarTag = result.lunar ? t('date.lunar_label') : '';
+    detail = `${result.month}${t('modal.field.month')}${result.day}${t('modal.field.day')}${lunarTag}`;
+    if (result.hour !== undefined) {
+      detail += ` ${result.hour}:${String(result.minute || 0).padStart(2, '0')}`;
+    }
+  } else if (result.type === 'anniversary') {
+    const lunarTag = result.lunar ? t('date.lunar_label') : '';
+    detail = `${result.month}${t('modal.field.month')}${result.day}${t('modal.field.day')}${lunarTag}`;
+    if (result.hour !== undefined) {
+      detail += ` ${result.hour}:${String(result.minute || 0).padStart(2, '0')}`;
+    }
   }
 
   return `${typeLabel} · ${result.label}${detail ? ' · ' + detail : ''}`;

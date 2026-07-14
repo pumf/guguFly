@@ -1,13 +1,15 @@
 let ctx;
+let _t;
 
 export function initFlightTrigger(c) {
   ctx = c;
+  _t = c.t;
 }
 
 export async function registerFlightTrigger() {
   if (!ctx) return 0;
   const count = await ctx.incrementTodayCount();
-  if (ctx.todayCountEl) ctx.todayCountEl.textContent = `${count} 次`;
+  if (ctx.todayCountEl) ctx.todayCountEl.textContent = _t ? _t('hero.today_count', { count }) : `${count} 次`;
   const today = ctx.getDateKey();
   const lastStreakDate = await ctx.get('streakLastDate');
   let streak = await ctx.get('streak');

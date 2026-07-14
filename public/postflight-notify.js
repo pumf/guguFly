@@ -1,6 +1,16 @@
 (async function(){
+  var isZh = navigator.language.startsWith('zh');
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    var map = {
+      'postflight.notify_label': isZh ? '飞行后操作' : 'Post-flight',
+      'postflight.notify_click_cancel': isZh ? '· 点击取消' : '· Click to cancel',
+    };
+    if (map[key]) el.textContent = map[key];
+  });
+
   function setLabel(text) {
-    try { document.getElementById('x').textContent = String(text || '飞行后操作'); } catch(e) {}
+    try { document.getElementById('x').textContent = String(text || (isZh ? '飞行后操作' : 'Post-flight')); } catch(e) {}
   }
 
   function notifyClicked() {

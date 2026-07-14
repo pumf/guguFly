@@ -1,5 +1,5 @@
 import { parseQuickInput, formatPreview } from '../tasks/QuickCreateParser.js';
-import { createAlarmTask, createCountdownTask } from '../tasks/TaskFactory.js';
+import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask } from '../tasks/TaskFactory.js';
 import { t } from '../i18n/index.js';
 
 let showToastFn = (msg) => console.warn('[QuickCreateBar] showToast called before init:', msg);
@@ -81,12 +81,31 @@ export function initQuickCreate() {
         tomorrow.setDate(tomorrow.getDate() + 1);
         task.repeat = { type: 'weekly', days: [tomorrow.getDay()] };
       }
-    } else {
+    } else if (currentResult.type === 'countdown') {
       task = createCountdownTask();
       task.label = currentResult.label;
       task.msg = currentResult.msg || '';
       task.duration = currentResult.duration;
       task._remaining = currentResult.duration;
+    } else if (currentResult.type === 'holiday') {
+      task = createHolidayTask();
+      task.label = currentResult.label;
+      task.msg = currentResult.msg || '';
+      task.holidayKey = currentResult.holidayKey;
+      task.month = currentResult.month;
+      task.day = currentResult.day;
+      task.lunar = currentResult.lunar;
+      task.hour = currentResult.hour ?? 9;
+      task.minute = currentResult.minute ?? 0;
+    } else if (currentResult.type === 'anniversary') {
+      task = createAnniversaryTask();
+      task.label = currentResult.label;
+      task.msg = currentResult.msg || '';
+      task.month = currentResult.month;
+      task.day = currentResult.day;
+      task.lunar = currentResult.lunar;
+      task.hour = currentResult.hour ?? 9;
+      task.minute = currentResult.minute ?? 0;
     }
 
     stateRef.tasks.push(task);

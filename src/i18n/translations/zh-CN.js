@@ -85,9 +85,10 @@ export const zhCN = {
   'pomodoro.work_resume': '🍅 开始第 {{round}} 轮专注',
   'pomodoro.stopped': '番茄钟已停止',
   'pomodoro.round': '第 {{round}}/{{total}} 轮',
+  'pomodoro.skip': '跳过当前阶段',
 
   // ---- Quick Create ----
-  'quick_create.placeholder': '输入如：10分钟后喝水 / 每天9点站会 / 周一三五14点开会',
+  'quick_create.placeholder': '输入如：10分钟后喝水 / 每天9点站会 / 中秋节 / 妈妈生日3月15日',
   'quick_create.create': '创建',
   'quick_create.success': '✅ 已创建：{{label}}',
 
@@ -553,6 +554,11 @@ export const zhCN = {
   'update.status_latest_text': '已是最新版本',
   'update.loading': '正在检查更新...',
   'update.no_update': '已是最新版本',
+  'update.install_now': '立即更新',
+  'update.downloading': '下载中... {{percent}}%',
+  'update.installing': '安装中...',
+  'update.install_failed': '更新失败，请前往发布页面手动下载',
+  'update.downloading_wait': '正在下载更新，请稍候...',
 
   // ---- Stats ----
   'stats.title': '飞行统计',
@@ -607,6 +613,7 @@ export const zhCN = {
   'toast.snoozed': '⏰ 已设置{{minutes}}分钟后再次提醒：{{label}}',
   'toast.skipped': '⏭ 已跳过：{{label}}',
   'toast.repeated': '🔄 已创建：{{label}}',
+  'toast.missed_alarms': '⏰ 您错过了 {{count}} 个提醒：{{labels}}',
 
   // ---- Validation ----
   'validation.select_holiday': '请至少选择一个节假日',
@@ -770,6 +777,8 @@ export const zhCN = {
 
   // ---- Mini Window ----
   'mini.default_label': '提醒',
+  'mini.loading': '加载中',
+  'mini.hint': '🔄 滚动切换任务',
 
   'repeat.monthly_date': '每月{{day}}号',
   'repeat.monthly_weekday': '每月{{ordinal}}{{weekday}}',
@@ -780,4 +789,65 @@ export const zhCN = {
   'and': '和',
   'or': '或',
   'colon': '：',
+
+  // ---- Pomodoro UI ----
+  'pomodoro.focus_round': '第{{round}}轮专注',
+  'pomodoro.focusing': '专注中',
+  'pomodoro.short_rest': '短休息',
+  'pomodoro.long_rest': '长休息',
+
+  // ---- Task Labels (snooze/repeat) ----
+  'task.snooze_suffix': '（稍后{{minutes}}分钟）',
+  'task.repeat_suffix': '（再来一次）',
+
+  // ---- Confirm dialog ----
+  'confirm.title': '确认',
+  'confirm.cancel': '取消',
+  'confirm.ok': '确定',
+
+  // ---- Video player ----
+  'video.loading': '正在加载视频…',
+  'video.buffering': '⏳ 视频缓冲中，请稍候…',
+  'video.rest_label': '🐱 休息一下',
+  'video.countdown': '还剩 <strong>{{seconds}}</strong> 秒',
+  'video.load_slow': '视频加载较慢，请耐心等待…',
+  'video.load_error': '⚠️ 视频加载失败',
+  'video.load_error_network': '请检查网络连接',
+  'video.load_error_local': '⚠️ 本地视频文件无法访问',
+  'video.load_error_local_hint': '文件可能已被移动或删除',
+  'video.switching_cache': '正在切换到本地缓存…',
+  'video.trying_remote': '正在尝试远程加载…',
+
+  // ---- Post-flight notify ----
+  'postflight.notify_label': '飞行后操作',
+  'postflight.notify_click_cancel': '· 点击取消',
+
+  // ---- Keyboard Shortcuts ----
+  'shortcut.new_task': '新建任务',
+  'shortcut.settings': '设置',
+  'shortcut.toggle_theme': '切换主题',
+  'shortcut.focus_search': '搜索任务',
+  'shortcut.focus_quick_create': '快速创建',
+  'shortcut.toggle_mini': '迷你悬浮窗',
+  'shortcut.toggle_stats': '飞行统计',
+  'shortcut.emergency': '紧急降落',
+  'shortcut.toggle_pomodoro': '番茄钟',
+  'shortcut.preview_flight': '预览飞行',
+  'shortcut.filter_alarm': '筛选定时',
+  'shortcut.filter_countdown': '筛选倒计时',
+  'shortcut.filter_holiday': '筛选节假日',
+  'shortcut.filter_anniversary': '筛选纪念日',
+  'shortcut.title': '快捷键',
+  'shortcut.hint': '快捷键操作',
+
+  // ---- Quick Create Holiday/Anniversary ----
+  'quick_create.holiday_matched': '识别到节假日：{{name}}',
+  'quick_create.anniversary_matched': '识别到纪念日：{{name}}',
+  'quick_create.date_hint': '（{{date}}）',
+
+  // ---- Mini Window Actions ----
+  'mini.snooze': '稍后提醒',
+  'mini.trigger': '立即起飞',
+  'mini.dismiss': '忽略',
+  'mini.actions_hint': '悬停显示操作',
 };

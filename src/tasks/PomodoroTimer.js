@@ -76,7 +76,7 @@ function startPomodoroPhase() {
   pomodoroState.timer = new AccurateTimer(
     duration,
     (remaining) => {
-      const secs = Math.ceil(remaining / 1000);
+      const secs = Math.round(remaining / 1000);
       pomodoroState.remaining = secs;
       if (pomodoroState.task) {
         pomodoroState.task._remaining = secs;
@@ -106,9 +106,10 @@ function onPomodoroPhaseComplete() {
       showToastFn(t('pomodoro.short_break', { minutes: POMODORO_CONFIG.shortBreak / 60 }));
     }
   } else {
+    const wasLongBreak = phase === 'longBreak';
     pomodoroState.phase = 'work';
     pomodoroState.remaining = POMODORO_CONFIG.work;
-    if (pomodoroState.phase === 'longBreak') {
+    if (wasLongBreak) {
       pomodoroState.round = 1;
     } else {
       pomodoroState.round++;

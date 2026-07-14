@@ -29,6 +29,16 @@ fn get_app_version() -> String {
 }
 
 #[tauri::command]
+fn get_platform() -> String {
+    #[cfg(target_os = "macos")]
+    { "macos".to_string() }
+    #[cfg(target_os = "windows")]
+    { "windows".to_string() }
+    #[cfg(target_os = "linux")]
+    { "linux".to_string() }
+}
+
+#[tauri::command]
 fn is_compositor_available() -> bool {
     #[cfg(target_os = "linux")]
     {
@@ -532,6 +542,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, _event| {
@@ -715,7 +726,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, get_platform, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

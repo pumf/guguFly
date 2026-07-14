@@ -8,24 +8,24 @@ export function initWindowEvents(ctx) {
 
   window.addEventListener('beforeunload', () => {
     saveTasks(getCleanTasks(tasks)).catch(err => console.warn('save tasks on unload failed:', err));
-    set('speed', speedSelect.value);
-    set('height', heightSelect.value);
-    set('effect', effectSelect.value);
-    set('plane', planeSelect.value);
-    set('planeSize', planeSizeSelect.value);
-    set('particle', particleSelect.value);
-    set('bubble', bubbleSelect.value);
-    set('bubblePosition', bubblePositionSelect.value);
-    set('bubbleSize', bubbleSizeSelect.value);
-    set('bubbleBgColor', bubbleBgColor.value);
-    set('bubbleFontColor', bubbleFontColor.value);
-    set('sound', soundSelect.value);
-    set('soundMode', soundModeSelect.value);
-    set('useSound', useSoundCheckbox.checked);
+    if (speedSelect) set('speed', speedSelect.value);
+    if (heightSelect) set('height', heightSelect.value);
+    if (effectSelect) set('effect', effectSelect.value);
+    if (planeSelect) set('plane', planeSelect.value);
+    if (planeSizeSelect) set('planeSize', planeSizeSelect.value);
+    if (particleSelect) set('particle', particleSelect.value);
+    if (bubbleSelect) set('bubble', bubbleSelect.value);
+    if (bubblePositionSelect) set('bubblePosition', bubblePositionSelect.value);
+    if (bubbleSizeSelect) set('bubbleSize', bubbleSizeSelect.value);
+    if (bubbleBgColor) set('bubbleBgColor', bubbleBgColor.value);
+    if (bubbleFontColor) set('bubbleFontColor', bubbleFontColor.value);
+    if (soundSelect) set('sound', soundSelect.value);
+    if (soundModeSelect) set('soundMode', soundModeSelect.value);
+    if (useSoundCheckbox) set('useSound', useSoundCheckbox.checked);
     set('customImage', getCustomImageData());
     set('customAudio', getCustomAudioData());
     set('customAudioName', getCustomAudioName());
-    set('useImage', useImageCheckbox.checked);
+    if (useImageCheckbox) set('useImage', useImageCheckbox.checked);
   });
 
   window.addEventListener('unhandledrejection', (event) => {

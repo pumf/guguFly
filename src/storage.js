@@ -98,8 +98,12 @@ export async function get(key) {
 export async function set(key, value) {
   const s = await getStore();
   if (!s) return;
-  await s.set(key, value);
-  if (s.save) await s.save();
+  try {
+    await s.set(key, value);
+    if (s.save) await s.save();
+  } catch (e) {
+    console.error('storage set failed:', key, e);
+  }
 }
 
 export async function loadTasks() {

@@ -18,8 +18,11 @@ let updateMiniWindowFn;
 let normalizeRepeatFn;
 let isAlarmDueTodayFn;
 let renderTasksFn;
+let onDateChangeFn;
 
 let prevInProgressIds = new Set();
+let lastDate = new Date().toDateString();
+let lastStatusRender = 0;
 
 let saveDebounceTimer = null;
 function debouncedSave() {
@@ -41,6 +44,7 @@ export function initAlarmChecker(ctx) {
   normalizeRepeatFn = ctx.normalizeRepeat;
   isAlarmDueTodayFn = ctx.isAlarmDueToday;
   renderTasksFn = ctx.renderTasks;
+  onDateChangeFn = ctx.onDateChange;
 }
 
 export function destroyAlarmChecker() {
@@ -208,25 +212,58 @@ function runAlarmCheck() {
 function runSleepRecovery(fromTime, toTime) {
   if (!fromTime || !toTime || toTime <= fromTime) return;
   const today = new Date().toDateString();
-  // Cap recovery at 24 hours so we don't trigger stale alarms
-  if (toTime - fromTime > 24 * 60 * 60 * 1000) fromTime = toTime - 24 * 60 * 60 * 1000;
+  const maxWindow = 60 * 60 * 1000;
+  if (toTime - fromTime > maxWindow) fromTime = toTime - maxWindow;
+  const missed = [];
   getTasksFn().forEach(task => {
     if (!task.enabled) return;
     if (task._lastTriggeredDate === today) return;
+    if ((task.type === 'holiday' || task.type === 'anniversary') && task._lastTriggeredDate) return;
     if (task.type === 'alarm' || task.type === 'holiday' || task.type === 'anniversary') {
       const next = computeNextAlarmDate(task, new Date(fromTime));
       if (next && next.getTime() >= fromTime && next.getTime() <= toTime) {
-        task._lastTriggeredDate = today;
-        debouncedSave();
-        doTriggerFlightFn(task);
+        missed.push(task);
       }
     }
   });
+  if (missed.length === 1) {
+    doTriggerFlightFn(missed[0]);
+  } else if (missed.length > 1) {
+    const labels = missed.map(task => task.label || t('common.unnamed')).join('、');
+    if (showToastFn) {
+      showToastFn(t('toast.missed_alarms', { count: missed.length, labels }), 8000);
+    }
+  }
 }
 
 export function startAlarmChecker() {
   if (alarmInterval) return;
   lastCheckTime = Date.now();
+
+  const today = new Date().toDateString();
+  let needsSave = false;
+  getTasksFn().forEach(task => {
+    if (!task._lastTriggeredDate || task._lastTriggeredDate !== today) return;
+    if (task.type === 'holiday' || task.type === 'anniversary') {
+      const now = new Date();
+      let dateMatches = false;
+      if (task.lunar) {
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const solar = getNextSolarFromLunar(task.month, task.day, nowDate);
+        if (solar && solar.solarMonth === now.getMonth() + 1 && solar.solarDay === now.getDate()) {
+          dateMatches = true;
+        }
+      } else {
+        dateMatches = task.month === now.getMonth() + 1 && task.day === now.getDate();
+      }
+      if (!dateMatches) {
+        task._lastTriggeredDate = null;
+        needsSave = true;
+      }
+    }
+  });
+  if (needsSave) debouncedSave();
+
   checkPreTrigger();
   // Recover from any alarms missed before the app was running.
   runSleepRecovery(0, lastCheckTime);
@@ -238,6 +275,16 @@ export function startAlarmChecker() {
       runSleepRecovery(lastCheckTime, now);
     }
     lastCheckTime = now;
+
+    const todayStr = new Date().toDateString();
+    if (todayStr !== lastDate) {
+      lastDate = todayStr;
+      getTasksFn().forEach(task => { task._lastTriggeredDate = null; });
+      debouncedSave();
+      if (renderTasksFn) renderTasksFn();
+      if (onDateChangeFn) onDateChangeFn();
+    }
+
     runAlarmCheck();
     checkPreTrigger();
     if (renderTasksFn) {
@@ -254,8 +301,11 @@ export function startAlarmChecker() {
         }
       }
       if (changed) {
-        renderTasksFn();
         prevInProgressIds = newInProgressIds;
+      }
+      if (changed || now - lastStatusRender > 60000) {
+        lastStatusRender = now;
+        if (renderTasksFn) renderTasksFn();
       }
     }
     updateNextUpcomingFn();

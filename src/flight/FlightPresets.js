@@ -17,31 +17,31 @@ export const DEFAULT_FLIGHT_SETTINGS = {
 
 export const FLIGHT_PRESETS = {
   work: {
-    label: '工作模式',
+    labelKey: 'preset.name.work',
     speed: 'normal', height: 'center', effect: 'steady',
     plane: 'classic', particle: 'classic', bubble: 'classic', bubblePosition: 'top',
     sound: 'dingdong', soundMode: 'once',
   },
   quick: {
-    label: '速战速决',
+    labelKey: 'preset.name.quick',
     speed: 'fast', height: 'center', effect: 'swift',
     plane: 'jet', particle: 'jet', bubble: 'jet', bubblePosition: 'top',
     sound: 'whoosh', soundMode: 'once',
   },
   festive: {
-    label: '节日氛围',
+    labelKey: 'preset.name.festive',
     speed: 'slow', height: 'top', effect: 'playful',
     plane: 'butterfly', particle: 'spark', bubble: 'butterfly', bubblePosition: 'top',
     sound: 'bird', soundMode: 'once',
   },
   anniversary: {
-    label: '纪念日',
+    labelKey: 'preset.name.anniversary',
     speed: 'normal', height: 'center', effect: 'ceremony',
     plane: 'paper', particle: 'cloud', bubble: 'glass', bubblePosition: 'top',
     sound: 'bell', soundMode: 'once',
   },
   night: {
-    label: '夜间低调',
+    labelKey: 'preset.name.night',
     speed: 'vslow', height: 'bottom', effect: 'linear',
     plane: 'paper', particle: 'cloud', bubble: 'jet', bubblePosition: 'bottom',
     sound: 'soft', soundMode: 'once',

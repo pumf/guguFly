@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "咕咕机长",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "identifier": "com.gugufly.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -17,10 +17,10 @@
         "title": "咕咕机长",
         "label": "main",
         "width": 620,
-"height": 920,
-"minWidth": 620,
-"maxWidth": 620,
-"minHeight": 760,
+        "height": 920,
+        "minWidth": 620,
+        "maxWidth": 620,
+        "minHeight": 760,
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
@@ -38,6 +38,7 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "app", "nsis", "appimage", "deb"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -51,6 +52,14 @@
       "desktop": {
         "schemes": ["gugufly"]
       }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/pumf/guguFly/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGMDQyM0ZBMTA0MzM4MjUKUldRbE9FTVEraU1FUHlHOHV0QkRPNGd6V0tZOHJzLzRLSHlCb29EUkJoQW1mUVJWcForeVVYTHcK"
     }
   }
 }

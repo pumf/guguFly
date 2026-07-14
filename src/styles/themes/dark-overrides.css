@@ -1,0 +1,46 @@
+[data-active-theme="dark"] .task-list {
+  background: rgba(20, 26, 38, 0.34);
+}
+
+[data-active-theme="dark"] .task-group-head {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-active-theme="dark"] .task-toggle {
+  background: #3a4458;
+}
+
+[data-active-theme="dark"] .task-stop-btn {
+  background: rgba(20, 26, 38, 0.96);
+}
+
+[data-active-theme="dark"] .hero-toolbar {
+  background: rgba(20, 26, 38, 0.64);
+}
+
+[data-active-theme="dark"] .task-group-select {
+  background: rgba(20, 26, 38, 0.5);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-active-theme="dark"] .form-block,
+[data-active-theme="dark"] .form-group {
+  background: rgba(20, 26, 38, 0.88);
+}
+
+[data-active-theme="dark"] .bottom-toggle {
+  background: rgba(20, 26, 38, 0.66);
+}
+
+[data-active-theme="dark"] .modal-close-btn {
+  background: rgba(20, 26, 38, 0.92);
+}
+
+[data-active-theme="dark"] .holiday-item {
+  background: rgba(20, 26, 38, 0.9);
+}
+
+[data-active-theme="dark"] .empty-hint {
+  background: rgba(20, 26, 38, 0.38);
+}

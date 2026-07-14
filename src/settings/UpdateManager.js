@@ -10,6 +10,7 @@ const GITHUB_ISSUES_URL = `https://github.com/${GITHUB_REPO}/issues/new/choose`;
 const UPDATE_CACHE_KEY = '_updateCache';
 
 let updateStatus = null;
+let updateAvailable = null;
 
 export function setUpdateStatusEl(el) { updateStatus = el; }
 
@@ -39,8 +40,8 @@ function showUpdateIndicator(show) {
 }
 
 export async function getCurrentVersion() {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (isTauriRuntime) {
+  const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+  if (isTauri) {
     try {
       return await invoke('get_app_version');
     } catch (error) {
@@ -52,17 +53,95 @@ export async function getCurrentVersion() {
 }
 
 export function openReleasePage() {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (isTauriRuntime) {
+  const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+  if (isTauri) {
     invoke('open_url_in_browser', { url: GITHUB_DOWNLOAD_URL }).catch(err => console.warn('open download page failed:', err));
   } else {
     window.open(GITHUB_DOWNLOAD_URL, '_blank');
   }
 }
 
+async function checkUpdaterPlugin() {
+  if (!isTauriRuntime()) return null;
+  try {
+    const { check } = await import('@tauri-apps/plugin-updater');
+    const update = await check();
+    if (update) {
+      return {
+        available: true,
+        version: update.version,
+        notes: update.body || '',
+        downloadAndInstall: async (onProgress) => {
+          let total = 0;
+          let downloaded = 0;
+          await update.downloadAndInstall((event) => {
+            switch (event.event) {
+              case 'Started':
+                total = event.data.contentLength || 0;
+                break;
+              case 'Progress':
+                downloaded += event.data.chunkLength;
+                if (onProgress) onProgress(total > 0 ? Math.round((downloaded / total) * 100) : 0);
+                break;
+              case 'Finished':
+                if (onProgress) onProgress(100);
+                break;
+            }
+          });
+          await update.close();
+        },
+      };
+    }
+    return { available: false };
+  } catch (error) {
+    console.warn('updater plugin check failed:', error);
+    return null;
+  }
+}
+
+export async function installUpdate() {
+  const updateProgress = document.getElementById('updateProgress');
+  const updateProgressFill = document.getElementById('updateProgressFill');
+  const updateProgressText = document.getElementById('updateProgressText');
+  const updateInstallBtn = document.getElementById('updateInstallBtn');
+
+  if (updateInstallBtn) updateInstallBtn.disabled = true;
+  if (updateProgress) updateProgress.classList.remove('hidden');
+  if (updateProgressText) updateProgressText.textContent = t('update.downloading_wait');
+
+  if (updateAvailable && updateAvailable.downloadAndInstall) {
+    try {
+      await updateAvailable.downloadAndInstall((percent) => {
+        if (updateProgressFill) updateProgressFill.style.width = `${percent}%`;
+        if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent });
+        if (percent >= 100 && updateProgressText) {
+          updateProgressText.textContent = t('update.installing');
+        }
+      });
+    } catch (error) {
+      console.error('update install failed:', error);
+      if (updateProgressText) updateProgressText.textContent = t('update.install_failed');
+      if (updateInstallBtn) updateInstallBtn.disabled = false;
+      openReleasePage();
+    }
+  } else {
+    openReleasePage();
+  }
+}
+
 export async function autoCheckForUpdate() {
   if (!isTauriRuntime()) return;
   const currentVer = await getCurrentVersion();
+
+  const updaterResult = await checkUpdaterPlugin();
+  if (updaterResult && updaterResult.available) {
+    updateAvailable = updaterResult;
+    if (updateStatus) updateStatus.textContent = t('update.status_found', { version: updaterResult.version });
+    showUpdateIndicator(true);
+    showUpdatePopup(currentVer, updaterResult);
+    return;
+  }
+
   const cached = getCachedUpdate();
 
   if (cached && cached.version === currentVer) {
@@ -75,7 +154,7 @@ export async function autoCheckForUpdate() {
   if (cached && compareVersions('v' + cached.version, 'v' + currentVer) > 0) {
     if (updateStatus) updateStatus.textContent = t('update.status_found', { version: cached.version });
     showUpdateIndicator(true);
-    void checkForUpdate();
+    showUpdatePopup(currentVer, { version: cached.version, notes: cached.notes });
     return;
   }
 
@@ -89,9 +168,50 @@ export async function autoCheckForUpdate() {
     setCachedUpdate({ version: latestVer, url: release.html_url || GITHUB_DOWNLOAD_URL, notes: release.notes || '' });
     if (updateStatus) updateStatus.textContent = t('update.status_found', { version: latestVer });
     showUpdateIndicator(true);
-    void checkForUpdate();
+    showUpdatePopup(currentVer, { version: latestVer, notes: release.notes || '' });
   } catch {
     if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
+  }
+}
+
+function showUpdatePopup(currentVer, updateInfo) {
+  const updateModal = document.getElementById('updateModal');
+  const updateLoading = document.getElementById('updateLoading');
+  const updateInfoEl = document.getElementById('updateInfo');
+  const updateNoUpdate = document.getElementById('updateNoUpdate');
+  const updateError = document.getElementById('updateError');
+  const updateModalTitle = document.getElementById('updateModalTitle');
+  const updateCurrentVersion = document.getElementById('updateCurrentVersion');
+  const updateLatestVersion = document.getElementById('updateLatestVersion');
+  const updateReleaseNotes = document.getElementById('updateReleaseNotes');
+  const updateInstallBtn = document.getElementById('updateInstallBtn');
+  const updateDownloadBtn = document.getElementById('updateDownloadBtn');
+  const updateProgress = document.getElementById('updateProgress');
+
+  if (updateModal) {
+    updateModal.classList.remove('hidden');
+    updateLoading?.classList.add('hidden');
+    updateNoUpdate?.classList.add('hidden');
+    updateError?.classList.add('hidden');
+    updateInfoEl?.classList.remove('hidden');
+    updateDownloadBtn?.classList.add('hidden');
+    updateProgress?.classList.add('hidden');
+
+    if (updateModalTitle) updateModalTitle.textContent = t('update.title');
+    if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
+    if (updateLatestVersion) updateLatestVersion.textContent = `v${updateInfo.version}`;
+    if (updateReleaseNotes) {
+      updateReleaseNotes.textContent = '';
+      (updateInfo.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        updateReleaseNotes.appendChild(p);
+      });
+    }
+    if (updateInstallBtn) {
+      updateInstallBtn.classList.remove('hidden');
+      updateInstallBtn.onclick = () => installUpdate();
+    }
   }
 }
 
@@ -106,7 +226,9 @@ export async function checkForUpdate() {
   const updateLatestVersion = document.getElementById('updateLatestVersion');
   const updateReleaseNotes = document.getElementById('updateReleaseNotes');
   const updateDownloadBtn = document.getElementById('updateDownloadBtn');
+  const updateInstallBtn = document.getElementById('updateInstallBtn');
   const updateOpenReleaseBtn = document.getElementById('updateOpenReleaseBtn');
+  const updateProgress = document.getElementById('updateProgress');
 
   if (updateStatus) updateStatus.textContent = t('update.status_checking');
   if (updateModal) {
@@ -115,11 +237,39 @@ export async function checkForUpdate() {
     updateLoading.classList.remove('hidden');
     updateNoUpdate.classList.add('hidden');
     updateError.classList.add('hidden');
-    updateDownloadBtn.classList.add('hidden');
-    updateOpenReleaseBtn.classList.add('hidden');
+    updateDownloadBtn?.classList.add('hidden');
+    updateInstallBtn?.classList.add('hidden');
+    updateOpenReleaseBtn?.classList.add('hidden');
+    updateProgress?.classList.add('hidden');
   }
 
   const currentVer = await getCurrentVersion();
+
+  const updaterResult = await checkUpdaterPlugin();
+  if (updaterResult && updaterResult.available) {
+    updateAvailable = updaterResult;
+    if (updateLoading) updateLoading.classList.add('hidden');
+    if (updateInfo) updateInfo.classList.remove('hidden');
+    if (updateModalTitle) updateModalTitle.textContent = t('update.title');
+    if (updateCurrentVersion) updateCurrentVersion.textContent = `v${currentVer}`;
+    if (updateLatestVersion) updateLatestVersion.textContent = `v${updaterResult.version}`;
+    if (updateReleaseNotes) {
+      updateReleaseNotes.textContent = '';
+      (updaterResult.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        updateReleaseNotes.appendChild(p);
+      });
+    }
+    if (updateInstallBtn) {
+      updateInstallBtn.classList.remove('hidden');
+      updateInstallBtn.onclick = () => installUpdate();
+    }
+    if (updateStatus) updateStatus.textContent = t('update.status_found', { version: updaterResult.version });
+    showUpdateIndicator(false);
+    return;
+  }
+
   const cached = getCachedUpdate();
 
   if (cached && cached.version === currentVer) {
@@ -134,10 +284,10 @@ export async function checkForUpdate() {
   let latestVer = cached ? cached.version : '';
   let htmlUrl = cached ? cached.url : GITHUB_DOWNLOAD_URL;
   let notes = cached ? cached.notes : '';
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+  const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
   try {
-    if (isTauriRuntime) {
+    if (isTauri) {
       const release = await invoke('check_latest_release');
       latestVer = release.version || '';
       htmlUrl = release.html_url || GITHUB_DOWNLOAD_URL;
@@ -176,11 +326,11 @@ export async function checkForUpdate() {
       return;
     }
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = t('update.check_title');
+    if (updateModalTitle) updateModalTitle.textContent = t('update.title_checking');
     const noUpdateIcon = document.getElementById('updateNoUpdateIcon');
     const noUpdateText = document.getElementById('updateNoUpdateText');
     if (noUpdateIcon) noUpdateIcon.textContent = '🌐';
-    if (noUpdateText) noUpdateText.textContent = t('update.network_error');
+    if (noUpdateText) noUpdateText.textContent = t('update.error_network');
     if (updateOpenReleaseBtn) updateOpenReleaseBtn.classList.remove('hidden');
     if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
     return;
@@ -189,11 +339,11 @@ export async function checkForUpdate() {
   if (!latestVer) {
     if (updateLoading) updateLoading.classList.add('hidden');
     if (updateNoUpdate) updateNoUpdate.classList.remove('hidden');
-    if (updateModalTitle) updateModalTitle.textContent = t('update.check_title');
+    if (updateModalTitle) updateModalTitle.textContent = t('update.title_checking');
     const noUpdateIcon = document.getElementById('updateNoUpdateIcon');
     const noUpdateText = document.getElementById('updateNoUpdateText');
     if (noUpdateIcon) noUpdateIcon.textContent = '📭';
-    if (noUpdateText) noUpdateText.textContent = t('update.no_release');
+    if (noUpdateText) noUpdateText.textContent = t('update.error_no_release');
     if (updateOpenReleaseBtn) updateOpenReleaseBtn.classList.remove('hidden');
     if (updateStatus) updateStatus.textContent = t('update.status_unavailable');
     return;
@@ -229,10 +379,11 @@ export async function checkForUpdate() {
 }
 
 export function openFeedbackPage() {
-  const isTauriRuntime = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-  if (isTauriRuntime) {
+  const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+  if (isTauri) {
     invoke('open_url_in_browser', { url: GITHUB_ISSUES_URL }).catch(() => window.open(GITHUB_ISSUES_URL, '_blank'));
   } else {
     window.open(GITHUB_ISSUES_URL, '_blank');
   }
 }
+

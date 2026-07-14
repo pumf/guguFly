@@ -85,9 +85,10 @@ export const en = {
   'pomodoro.work_resume': '🍅 Starting round {{round}}',
   'pomodoro.stopped': 'Pomodoro stopped',
   'pomodoro.round': 'Round {{round}}/{{total}}',
+  'pomodoro.skip': 'Skip current phase',
 
   // ---- Quick Create ----
-  'quick_create.placeholder': 'Try: drink water in 10 min / standup at 9am / meeting MonWedFri 2pm',
+  'quick_create.placeholder': 'Try: drink water in 10 min / standup at 9am / Mid-Autumn / mom birthday 3/15',
   'quick_create.create': 'Create',
   'quick_create.success': '✅ Created: {{label}}',
 
@@ -553,6 +554,11 @@ export const en = {
   'update.status_latest_text': 'You have the latest version',
   'update.loading': 'Checking for updates...',
   'update.no_update': 'Already up to date',
+  'update.install_now': 'Update Now',
+  'update.downloading': 'Downloading... {{percent}}%',
+  'update.installing': 'Installing...',
+  'update.install_failed': 'Update failed, please download manually',
+  'update.downloading_wait': 'Downloading update, please wait...',
 
   // ---- Stats ----
   'stats.title': 'Flight Stats',
@@ -607,6 +613,7 @@ export const en = {
   'toast.snoozed': '⏰ Snoozed {{label}} for {{minutes}} min',
   'toast.skipped': '⏭ Skipped: {{label}}',
   'toast.repeated': '🔄 Created: {{label}}',
+  'toast.missed_alarms': '⏰ You missed {{count}} reminders: {{labels}}',
 
   // ---- Validation ----
   'validation.select_holiday': 'Please select at least one holiday',
@@ -770,6 +777,8 @@ export const en = {
 
   // ---- Mini Window ----
   'mini.default_label': 'Reminder',
+  'mini.loading': 'Loading',
+  'mini.hint': '🔄 Scroll to switch tasks',
 
   'repeat.monthly_date': 'Monthly on {{day}}th',
   'repeat.monthly_weekday': '{{ordinal}} {{weekday}}',
@@ -780,4 +789,65 @@ export const en = {
   'and': ' and ',
   'or': ' or ',
   'colon': ': ',
+
+  // ---- Pomodoro UI ----
+  'pomodoro.focus_round': 'Round {{round}} Focus',
+  'pomodoro.focusing': 'Focusing',
+  'pomodoro.short_rest': 'Short Break',
+  'pomodoro.long_rest': 'Long Break',
+
+  // ---- Task Labels (snooze/repeat) ----
+  'task.snooze_suffix': ' ({{minutes}} min later)',
+  'task.repeat_suffix': ' (again)',
+
+  // ---- Confirm dialog ----
+  'confirm.title': 'Confirm',
+  'confirm.cancel': 'Cancel',
+  'confirm.ok': 'OK',
+
+  // ---- Video player ----
+  'video.loading': 'Loading video…',
+  'video.buffering': '⏳ Buffering, please wait…',
+  'video.rest_label': '🐱 Take a break',
+  'video.countdown': '<strong>{{seconds}}</strong> sec remaining',
+  'video.load_slow': 'Video is loading slowly, please wait…',
+  'video.load_error': '⚠️ Video failed to load',
+  'video.load_error_network': 'Please check your network connection',
+  'video.load_error_local': '⚠️ Local video file inaccessible',
+  'video.load_error_local_hint': 'File may have been moved or deleted',
+  'video.switching_cache': 'Switching to local cache…',
+  'video.trying_remote': 'Trying remote loading…',
+
+  // ---- Post-flight notify ----
+  'postflight.notify_label': 'Post-flight Action',
+  'postflight.notify_click_cancel': '· Click to cancel',
+
+  // ---- Keyboard Shortcuts ----
+  'shortcut.new_task': 'New Task',
+  'shortcut.settings': 'Settings',
+  'shortcut.toggle_theme': 'Toggle Theme',
+  'shortcut.focus_search': 'Search Tasks',
+  'shortcut.focus_quick_create': 'Quick Create',
+  'shortcut.toggle_mini': 'Mini Window',
+  'shortcut.toggle_stats': 'Flight Stats',
+  'shortcut.emergency': 'Emergency Land',
+  'shortcut.toggle_pomodoro': 'Pomodoro',
+  'shortcut.preview_flight': 'Preview Flight',
+  'shortcut.filter_alarm': 'Filter Alarms',
+  'shortcut.filter_countdown': 'Filter Countdowns',
+  'shortcut.filter_holiday': 'Filter Holidays',
+  'shortcut.filter_anniversary': 'Filter Anniversaries',
+  'shortcut.title': 'Shortcuts',
+  'shortcut.hint': 'Shortcut actions',
+
+  // ---- Quick Create Holiday/Anniversary ----
+  'quick_create.holiday_matched': 'Holiday detected: {{name}}',
+  'quick_create.anniversary_matched': 'Anniversary: {{name}}',
+  'quick_create.date_hint': '({{date}})',
+
+  // ---- Mini Window Actions ----
+  'mini.snooze': 'Snooze',
+  'mini.trigger': 'Take Off',
+  'mini.dismiss': 'Dismiss',
+  'mini.actions_hint': 'Hover for actions',
 };

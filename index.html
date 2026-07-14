@@ -38,7 +38,7 @@
           <span class="next-stats" id="nextStatsWrap">
             <span class="hero-stat" id="todayCount" title="">0 次</span>
             <span class="hero-stat-sep">·</span>
-            <span class="hero-stat hero-stat--muted" id="heroStatus" title="">等待</span>
+            <span class="hero-stat hero-stat--muted" id="heroStatus" title="" data-i18n="hero.status.waiting">等待</span>
           </span>
           <span class="next-msg"></span>
           <button class="hero-stats-toggle" id="statsToggle" data-i18n-title="hero.stats_toggle">📊</button>
@@ -48,9 +48,9 @@
       <div class="quick-create-bar">
         <div class="quick-create-bar__input-wrap">
           <svg class="quick-create-bar__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <input id="quickCreateInput" type="text" class="quick-create-bar__input" data-i18n-placeholder="quick_create.placeholder" placeholder="输入如：10分钟后喝水 / 每天9点站会 / 周一三五14点开会" />
+          <input id="quickCreateInput" type="text" class="quick-create-bar__input" data-i18n-placeholder="quick_create.placeholder" placeholder="输入如：10分钟后喝水 / 每天9点站会 / 中秋节 / 妈妈生日3月15日" />
           <button id="quickCreateClear" class="quick-create-bar__clear" type="button" hidden>✕</button>
-          <button id="pomodoroStartBtn" class="quick-create-bar__pomodoro" type="button" title="开始番茄钟">🍅</button>
+          <button id="pomodoroStartBtn" class="quick-create-bar__pomodoro" type="button" data-i18n-title="pomodoro.started">🍅</button>
           <button id="quickCreateBtn" class="quick-create-bar__btn" type="button" disabled data-i18n="quick_create.create">创建</button>
         </div>
         <div id="quickCreatePreview" class="quick-create-bar__preview hidden"></div>
@@ -85,6 +85,9 @@
           <button id="batchSelectBtn" class="add-task-btn add-task-btn--ghost" type="button" data-i18n-title="nav.batch_select">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
           </button>
+          <button id="compactModeBtn" class="add-task-btn add-task-btn--ghost" type="button" title="紧凑模式">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
           <div id="templateMenu" class="template-menu hidden">
               <button class="template-item" data-template="pomodoro" data-i18n="template.pomodoro">🍅 番茄钟 25 分钟</button>
               <button class="template-item" data-template="drink" data-i18n="template.drink">💧 喝水提醒 · 每小时</button>
@@ -105,10 +108,10 @@
             <button id="pomodoroPauseBtn" class="pomodoro-bar__btn" type="button">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
-            <button id="pomodoroSkipBtn" class="pomodoro-bar__btn" type="button" title="跳过当前阶段">
+            <button id="pomodoroSkipBtn" class="pomodoro-bar__btn" type="button" data-i18n-title="pomodoro.skip">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
             </button>
-            <button id="pomodoroStopBtn" class="pomodoro-bar__btn pomodoro-bar__btn--stop" type="button" title="停止番茄钟">
+            <button id="pomodoroStopBtn" class="pomodoro-bar__btn pomodoro-bar__btn--stop" type="button" data-i18n-title="pomodoro.stopped">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
             </button>
           </div>
@@ -899,15 +902,21 @@
               <span style="font-size:32px">❌</span>
               <p id="updateErrorMsg" data-i18n="update.error_network">检查更新失败，请检查网络后重试</p>
             </div>
+            <div id="updateProgress" class="update-progress hidden">
+              <div class="update-progress-bar"><div id="updateProgressFill" class="update-progress-fill"></div></div>
+              <span id="updateProgressText" class="update-progress-text"></span>
+            </div>
           </div>
           <div class="modal-footer">
             <button id="updateDownloadBtn" class="save-btn hidden" type="button" data-i18n="common.download">前往下载</button>
+            <button id="updateInstallBtn" class="save-btn hidden" type="button" data-i18n="update.install_now">立即更新</button>
             <button id="updateOpenReleaseBtn" class="save-btn hidden" type="button" data-i18n="common.release_page">前往发布页面</button>
             <button id="updateCloseActionBtn" class="del-btn" type="button" data-i18n="common.close">关闭</button>
           </div>
         </div>
       </div>
 
+      <!-- Pomodoro completion report -->
       <!-- Stats modal -->
       <div id="statsModal" class="modal hidden">
         <div class="modal-overlay" id="statsOverlay"></div>

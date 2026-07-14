@@ -1,0 +1,50 @@
+.pomodoro-goal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.pomodoro-goal-label {
+  color: var(--soft-muted);
+  white-space: nowrap;
+}
+
+.pomodoro-goal-options {
+  display: flex;
+  gap: 4px;
+}
+
+.pomodoro-goal-btn {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pomodoro-goal-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pomodoro-goal-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pomodoro-goal-bar:has(.pomodoro-goal-btn.active) {
+  background: rgba(45, 127, 249, 0.06);
+}
+
+[data-active-theme="dark"] .pomodoro-goal-bar {
+  background: rgba(20, 26, 38, 0.4);
+}

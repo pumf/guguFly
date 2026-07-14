@@ -29,11 +29,11 @@ html,body{height:100%;overflow:hidden;background:transparent;user-select:none;-w
 #stall-hint.hidden{opacity:0}
 </style></head><body>
 <video id="v" autoplay muted playsinline></video>
-<div id="loading"><div class="spinner"></div><div>正在加载视频…</div></div>
-<div id="stall-hint" class="hidden">⏳ 视频缓冲中，请稍候…</div>
+<div id="loading"><div class="spinner"></div><div data-i18n="video.loading">正在加载视频…</div></div>
+<div id="stall-hint" class="hidden" data-i18n="video.buffering">⏳ 视频缓冲中，请稍候…</div>
 <div id="overlay">
-  <div id="label">🐱 休息一下</div>
-  <div id="countdown">还剩 <strong id="remaining">0</strong> 秒</div>
+  <div id="label" data-i18n="video.rest_label">🐱 休息一下</div>
+  <div id="countdown" data-i18n="video.countdown">还剩 <strong id="remaining">0</strong> 秒</div>
 </div>
 <div id="clock"></div>
 <script src="video.js"></script>

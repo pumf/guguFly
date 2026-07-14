@@ -91,5 +91,5 @@ export function applyPreset(presetKey) {
     soundMode: preset.soundMode, useSound: ctx.useSoundCheckbox.checked,
     useImage: ctx.useImageCheckbox.checked,
   });
-  ctx.showToast(t('flight.preset_applied', { label: preset.label }));
+  ctx.showToast(t('flight.preset_applied', { label: t(preset.labelKey) }));
 }

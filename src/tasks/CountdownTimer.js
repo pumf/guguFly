@@ -80,7 +80,7 @@ export function startCountdown(task) {
   task._status = 'running';
   task._timer = new AccurateTimer(duration,
     (remaining) => {
-      const secs = Math.ceil(remaining / 1000);
+      const secs = Math.round(remaining / 1000);
       if (secs === task._remaining) return;
       task._remaining = secs;
       updateCountdownTaskUIFn(task, { taskListEl, holidayPresets });

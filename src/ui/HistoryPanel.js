@@ -1,9 +1,7 @@
 import { t, ta } from '../i18n/index.js';
 
-let _weekdayLabels = null;
 function getWeekdayLabels() {
-  if (!_weekdayLabels) _weekdayLabels = ta('calendar.day_labels');
-  return _weekdayLabels;
+  return ta('calendar.day_labels');
 }
 
 let tasks = [];

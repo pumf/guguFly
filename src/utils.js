@@ -2,7 +2,15 @@ export function isTauriRuntime() {
   return typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 }
 
-export function showConfirm(message, title = '确认') {
+let _confirmT = (key) => {
+  const defaults = { 'confirm.title': '确认', 'confirm.cancel': '取消', 'confirm.ok': '确定' };
+  return defaults[key] || key;
+};
+
+export function setConfirmI18n(tFn) { _confirmT = tFn; }
+
+export function showConfirm(message, title) {
+  title = title || _confirmT('confirm.title');
   let cardBg = '#1a1a2e', border = '#333', textColor = '#213047', softMuted = '#94a2b8', accent = '#4fc3f7';
   try {
     const s = getComputedStyle(document.documentElement);
@@ -46,7 +54,7 @@ export function showConfirm(message, title = '确认') {
     btnRow.style.justifyContent = 'flex-end';
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '取消';
+    cancelBtn.textContent = _confirmT('confirm.cancel');
     cancelBtn.style.padding = '6px 18px';
     cancelBtn.style.borderRadius = '6px';
     cancelBtn.style.border = `1px solid ${border}`;
@@ -57,7 +65,7 @@ export function showConfirm(message, title = '确认') {
     cancelBtn.onclick = () => { overlay.remove(); resolve(false); };
 
     const okBtn = document.createElement('button');
-    okBtn.textContent = '确定';
+    okBtn.textContent = _confirmT('confirm.ok');
     okBtn.style.padding = '6px 18px';
     okBtn.style.borderRadius = '6px';
     okBtn.style.border = 'none';

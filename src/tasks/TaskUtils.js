@@ -335,7 +335,7 @@ export function getTaskInfoText(task, holidayPresets) {
 
 export function formatHolidayLabel(preset) {
   if (!preset) return t('task.label.holiday');
-  return preset.label;
+  return preset.labelKey ? t(preset.labelKey) : preset.label;
 }
 
 export function isApproximatePreset(key, holidayPresets) {
