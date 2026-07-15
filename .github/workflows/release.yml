@@ -37,19 +37,31 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Prepare ARM64 updater files
+        run: |
+          cd src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+          mv *.app.tar.gz gugufly-aarch64.app.tar.gz
+          mv *.app.tar.gz.sig gugufly-aarch64.app.tar.gz.sig
+
       - name: Build Tauri x86_64
         run: npm run tauri build -- --target x86_64-apple-darwin
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Prepare Intel updater files
+        run: |
+          cd src-tauri/target/x86_64-apple-darwin/release/bundle/macos
+          mv *.app.tar.gz gugufly-x86_64.app.tar.gz
+          mv *.app.tar.gz.sig gugufly-x86_64.app.tar.gz.sig
+
       - name: Rename and Upload ARM64
         uses: softprops/action-gh-release@v2
         with:
           files: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/gugufly-aarch64.app.tar.gz
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/gugufly-aarch64.app.tar.gz.sig
           tag_name: v${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,8 +71,8 @@ jobs:
         with:
           files: |
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/gugufly-x86_64.app.tar.gz
+            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/gugufly-x86_64.app.tar.gz.sig
           tag_name: v${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,14 +105,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Prepare Linux updater files
+        run: |
+          cd src-tauri/target/release/bundle/appimage
+          mv *.AppImage.tar.gz gugufly-x86_64.AppImage.tar.gz 2>/dev/null || true
+          mv *.AppImage.tar.gz.sig gugufly-x86_64.AppImage.tar.gz.sig 2>/dev/null || true
+
       - name: Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz
-            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz.sig
+            src-tauri/target/release/bundle/appimage/gugufly-x86_64.AppImage.tar.gz
+            src-tauri/target/release/bundle/appimage/gugufly-x86_64.AppImage.tar.gz.sig
           tag_name: v${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -128,13 +146,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Prepare Windows updater files
+        shell: bash
+        run: |
+          cd src-tauri/target/release/bundle/nsis
+          mv *.nsis.zip gugufly-x86_64.nsis.zip 2>/dev/null || true
+          mv *.nsis.zip.sig gugufly-x86_64.nsis.zip.sig 2>/dev/null || true
+
       - name: Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/nsis/*.nsis.zip
-            src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+            src-tauri/target/release/bundle/nsis/gugufly-x86_64.nsis.zip
+            src-tauri/target/release/bundle/nsis/gugufly-x86_64.nsis.zip.sig
           tag_name: v${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,62 +179,59 @@ jobs:
         run: |
           set -e
 
-          # Download all .sig files from the release
+          # Download all updater signatures from the release. The updater
+          # manifest must contain a valid signature for every platform entry.
           gh release download "v${VERSION}" \
             --dir /tmp/sigs \
-            --pattern "*.app.tar.gz.sig" \
-            --pattern "*.AppImage.tar.gz.sig" \
-            --pattern "*.nsis.zip.sig" \
-            --repo pumf/guguFly || true
+            --pattern "*.sig" \
+            --repo pumf/guguFly
 
-          # Find each signature file and read its content
-          ARM64_SIG=""
-          X86_SIG=""
-          LINUX_SIG=""
-          WIN_SIG=""
+          read_sig() {
+            file="/tmp/sigs/$1"
+            if [ ! -s "$file" ]; then
+              echo "::error::Missing updater signature: $1"
+              exit 1
+            fi
+            cat "$file"
+          }
 
-          for f in /tmp/sigs/*.sig; do
-            [ -f "$f" ] || continue
-            content=$(cat "$f")
-            case "$(basename "$f")" in
-              *aarch64*|*arm64*) ARM64_SIG="$content" ;;
-              *x86_64*|*x64*|*intel*) X86_SIG="$content" ;;
-              *AppImage*) LINUX_SIG="$content" ;;
-              *nsis*|*setup*) WIN_SIG="$content" ;;
-            esac
-          done
+          ARM64_SIG="$(read_sig gugufly-aarch64.app.tar.gz.sig)"
+          X86_SIG="$(read_sig gugufly-x86_64.app.tar.gz.sig)"
+          LINUX_SIG="$(read_sig gugufly-x86_64.AppImage.tar.gz.sig)"
+          WIN_SIG="$(read_sig gugufly-x86_64.nsis.zip.sig)"
+
+          # Get actual release body for notes
+          NOTES=$(gh release view "v${VERSION}" --json body --jq '.body' --repo pumf/guguFly || echo "Release v${VERSION}")
 
           # Determine asset filenames (URL-encode Chinese characters)
-          ARM64_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/$(python3 -c "import urllib.parse; print(urllib.parse.quote('咕咕机长.app.tar.gz'))")"
-          X86_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/$(python3 -c "import urllib.parse; print(urllib.parse.quote('咕咕机长.app.tar.gz'))")"
-          LINUX_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/$(python3 -c "import urllib.parse; print(urllib.parse.quote('咕咕机长.AppImage.tar.gz'))")"
-          WIN_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/$(python3 -c "import urllib.parse; print(urllib.parse.quote('咕咕机长-setup.nsis.zip'))")"
+          ARM64_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/gugufly-aarch64.app.tar.gz"
+          X86_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/gugufly-x86_64.app.tar.gz"
+          LINUX_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/gugufly-x86_64.AppImage.tar.gz"
+          WIN_URL="https://github.com/pumf/guguFly/releases/download/v${VERSION}/gugufly-x86_64.nsis.zip"
 
-          cat > latest.json << EOF
-          {
-            "version": "${VERSION}",
-            "notes": "Release v${VERSION}",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "${ARM64_SIG}",
-                "url": "${ARM64_URL}"
-              },
-              "darwin-x86_64": {
-                "signature": "${X86_SIG}",
-                "url": "${X86_URL}"
-              },
-              "linux-x86_64": {
-                "signature": "${LINUX_SIG}",
-                "url": "${LINUX_URL}"
-              },
-              "windows-x86_64": {
-                "signature": "${WIN_SIG}",
-                "url": "${WIN_URL}"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$NOTES" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg arm64_sig "$ARM64_SIG" \
+            --arg arm64_url "$ARM64_URL" \
+            --arg x86_sig "$X86_SIG" \
+            --arg x86_url "$X86_URL" \
+            --arg linux_sig "$LINUX_SIG" \
+            --arg linux_url "$LINUX_URL" \
+            --arg win_sig "$WIN_SIG" \
+            --arg win_url "$WIN_URL" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": { signature: $arm64_sig, url: $arm64_url },
+                "darwin-x86_64": { signature: $x86_sig, url: $x86_url },
+                "linux-x86_64": { signature: $linux_sig, url: $linux_url },
+                "windows-x86_64": { signature: $win_sig, url: $win_url }
               }
-            }
-          }
-          EOF
+            }' > latest.json
 
           cat latest.json
 

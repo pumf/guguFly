@@ -28,6 +28,7 @@
     "notification:default",
     "opener:default",
     "opener:allow-open-url",
+    "process:default",
     "updater:default"
   ]
 }

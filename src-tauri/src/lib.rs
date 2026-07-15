@@ -225,6 +225,135 @@ fn mini_start_dragging(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Result<String, String> {
+    use std::fs;
+
+    let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
+    let downloads_dir = data_dir.join("updates");
+    fs::create_dir_all(&downloads_dir).map_err(|e| format!("mkdir: {}", e))?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client: {}", e))?;
+
+    // Fetch latest.json to get the version number
+    let manifest_url = "https://github.com/pumf/guguFly/releases/latest/download/latest.json";
+    let resp = client.get(manifest_url).send().await.map_err(|e| format!("fetch manifest: {}", e))?;
+    let manifest: serde_json::Value = resp.json().await.map_err(|e| format!("parse manifest: {}", e))?;
+
+    let version = manifest
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("0.8.0");
+
+    // Construct installer download URL based on platform
+    // Release assets use pattern: _{version}_{arch}.{ext}
+    let base = "https://github.com/pumf/guguFly/releases/download";
+    let tag = format!("v{}", version);
+
+    let (installer_name, install_cmd) = {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            let name = format!("_{}_aarch64.dmg", version);
+            let cmd = format!("hdiutil attach '{}' -nobrowse -quiet && cp -R /Volumes/咕咕机长/咕咕机长.app /Applications/ && hdiutil detach '/Volumes/咕咕机长' -quiet", name);
+            (name, Some(cmd))
+        }
+        #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
+        {
+            let name = format!("_{}_x64.dmg", version);
+            let cmd = format!("hdiutil attach '{}' -nobrowse -quiet && cp -R /Volumes/咕咕机长/咕咕机长.app /Applications/ && hdiutil detach '/Volumes/咕咕机长' -quiet", name);
+            (name, Some(cmd))
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let name = format!("_{}_x64-setup.exe", version);
+            (name, None) // EXE is self-installing
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let name = format!("_{}_amd64.AppImage", version);
+            let cmd = format!("chmod +x '{}' && '{}'", name, name);
+            (name, Some(cmd))
+        }
+    };
+
+    let download_url = format!("{}/{}/{}", base, tag, installer_name);
+    let dest = downloads_dir.join(&installer_name);
+
+    // Skip download if already exists and is valid (>1MB)
+    if !dest.exists() || dest.metadata().map(|m| m.len() < 1000).unwrap_or(true) {
+        let dl_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(600))
+            .build()
+            .map_err(|e| format!("HTTP client: {}", e))?;
+
+        let resp = dl_client.get(&download_url).send().await.map_err(|e| format!("download failed: {}", e))?;
+        let bytes = resp.bytes().await.map_err(|e| format!("read body: {}", e))?;
+        fs::write(&dest, &bytes).map_err(|e| format!("write file: {}", e))?;
+    }
+
+    // Open/run the installer
+    #[cfg(target_os = "macos")]
+    {
+        // Spawn hdiutil to mount DMG in background, then copy and detach
+        let dmg_path = dest.to_string_lossy().to_string();
+        let script = format!(
+            "hdiutil attach '{}' -nobrowse -quiet && cp -R '/Volumes/咕咕机长/咕咕机长.app' '/Applications/' && hdiutil detach '/Volumes/咕咕机长' -quiet && open -a '/Applications/咕咕机长.app'",
+            dmg_path
+        );
+        let _ = std::process::Command::new("sh")
+            .args(["-c", &script])
+            .spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        // Run the NSIS installer
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", "", &dest.to_string_lossy()])
+            .spawn()
+            .map_err(|e| format!("run installer failed: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Make executable and run AppImage
+        let _ = std::process::Command::new("chmod")
+            .args(["+x", &dest.to_string_lossy()])
+            .spawn();
+        let _ = std::process::Command::new(&dest)
+            .spawn()
+            .map_err(|e| format!("run AppImage failed: {}", e))?;
+    }
+
+    Ok(dest.to_string_lossy().to_string())
+}
+
+fn open_file(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("open failed: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("open failed: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path.to_string_lossy()])
+            .spawn()
+            .map_err(|e| format!("open failed: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn pick_file() -> Result<Option<String>, String> {
     let dialog = rfd::FileDialog::new()
         .set_title("选择应用程序");
@@ -542,6 +671,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -717,6 +847,11 @@ pub fn run() {
             // Keep tray alive: TrayIcon is Send+Sync, store in managed state
             app.manage(tray);
 
+            // Set window title with version
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(&format!("咕咕机长 v{}", APP_VERSION));
+            }
+
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
@@ -726,7 +861,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, get_platform, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, get_platform, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging, download_and_install_update])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

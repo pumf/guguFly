@@ -559,6 +559,8 @@ export const en = {
   'update.installing': 'Installing...',
   'update.install_failed': 'Update failed, please download manually',
   'update.downloading_wait': 'Downloading update, please wait...',
+  'update.install_success': 'Installation complete! New version installed to Applications, launching...',
+  'update.install_cancelled': 'Update cancelled',
 
   // ---- Stats ----
   'stats.title': 'Flight Stats',

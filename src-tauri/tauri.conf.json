@@ -14,7 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "咕咕机长",
+        "title": "咕咕机长 v0.8.1",
         "label": "main",
         "width": 620,
         "height": 920,

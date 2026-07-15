@@ -559,6 +559,8 @@ export const zhCN = {
   'update.installing': '安装中...',
   'update.install_failed': '更新失败，请前往发布页面手动下载',
   'update.downloading_wait': '正在下载更新，请稍候...',
+  'update.install_success': '安装完成！新版本已安装到 Applications，正在启动...',
+  'update.install_cancelled': '已取消更新',
 
   // ---- Stats ----
   'stats.title': '飞行统计',
