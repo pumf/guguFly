@@ -252,30 +252,15 @@ async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Resu
     let base = "https://github.com/pumf/guguFly/releases/download";
     let tag = format!("v{}", version);
 
-    let (installer_name, install_cmd) = {
+    let installer_name = {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        {
-            let name = format!("_{}_aarch64.dmg", version);
-            let cmd = format!("hdiutil attach '{}' -nobrowse -quiet && cp -R /Volumes/咕咕机长/咕咕机长.app /Applications/ && hdiutil detach '/Volumes/咕咕机长' -quiet", name);
-            (name, Some(cmd))
-        }
+        { format!("_{}_aarch64.dmg", version) }
         #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
-        {
-            let name = format!("_{}_x64.dmg", version);
-            let cmd = format!("hdiutil attach '{}' -nobrowse -quiet && cp -R /Volumes/咕咕机长/咕咕机长.app /Applications/ && hdiutil detach '/Volumes/咕咕机长' -quiet", name);
-            (name, Some(cmd))
-        }
+        { format!("_{}_x64.dmg", version) }
         #[cfg(target_os = "windows")]
-        {
-            let name = format!("_{}_x64-setup.exe", version);
-            (name, None) // EXE is self-installing
-        }
+        { format!("_{}_x64-setup.exe", version) }
         #[cfg(target_os = "linux")]
-        {
-            let name = format!("_{}_amd64.AppImage", version);
-            let cmd = format!("chmod +x '{}' && '{}'", name, name);
-            (name, Some(cmd))
-        }
+        { format!("_{}_amd64.AppImage", version) }
     };
 
     let download_url = format!("{}/{}/{}", base, tag, installer_name);
