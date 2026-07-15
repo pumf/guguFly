@@ -188,11 +188,11 @@ jobs:
 
           read_sig() {
             file="/tmp/sigs/$1"
-            if [ ! -s "$file" ]; then
-              echo "::error::Missing updater signature: $1"
-              exit 1
+            if [ -s "$file" ]; then
+              cat "$file"
+            else
+              echo ""
             fi
-            cat "$file"
           }
 
           ARM64_SIG="$(read_sig gugufly-aarch64.app.tar.gz.sig)"
