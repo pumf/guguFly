@@ -44,20 +44,18 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  },
-  "plugins": {
-    "deep-link": {
-      "desktop": {
-        "schemes": ["gugufly"]
-      }
-    },
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/pumf/guguFly/releases/latest/download/latest.json"
-      ],
+      "icons/icon.ico",
+      "icons/Square30x30Logo.png",
+      "icons/Square44x44Logo.png",
+      "icons/Square71x71Logo.png",
+      "icons/Square89x89Logo.png",
+      "icons/Square107x107Logo.png",
+      "icons/Square142x142Logo.png",
+      "icons/Square150x150Logo.png",
+      "icons/Square284x284Logo.png",
+      "icons/Square310x310Logo.png",
+      "icons/StoreLogo.png"
+    ],
       "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGMDQyM0ZBMTA0MzM4MjUKUldRbE9FTVEraU1FUHlHOHV0QkRPNGd6V0tZOHJzLzRLSHlCb29EUkJoQW1mUVJWcForeVVYTHcK"
     }
