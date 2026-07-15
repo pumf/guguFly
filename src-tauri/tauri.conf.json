@@ -56,8 +56,7 @@
       "icons/Square310x310Logo.png",
       "icons/StoreLogo.png"
     ],
-      "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGMDQyM0ZBMTA0MzM4MjUKUldRbE9FTVEraU1FUHlHOHV0QkRPNGd6V0tZOHJzLzRLSHlCb29EUkJoQW1mUVJWcForeVVYTHcK"
-    }
+    "dialog": false,
+    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGMDQyM0ZBMTA0MzM4MjUKUldRbE9FTVEraU1FUHlHOHV0QkRPNGd6V0tZOHJzLzRLSHlCb29EUkJoQW1mUVJWcForeVVYTHcK"
   }
 }
