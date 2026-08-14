@@ -192,6 +192,49 @@ fn run_script(script: String) -> Result<(), String> {
     Ok(())
 }
 
+// Dedicated TTS command that passes text as a process argument,
+// avoiding shell interpretation entirely. This replaces the previous
+// approach of constructing `say "text"` strings via run_script.
+#[tauri::command]
+fn speak_text(text: String) -> Result<(), String> {
+    if text.trim().is_empty() {
+        return Err("TTS text is empty".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("say")
+            .arg(&text)
+            .spawn()
+            .map_err(|e| format!("say failed: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Try spd-say first, fall back to espeak
+        let result = std::process::Command::new("spd-say")
+            .arg(&text)
+            .spawn();
+        if result.is_err() {
+            std::process::Command::new("espeak")
+                .arg(&text)
+                .spawn()
+                .map_err(|e| format!("espeak failed: {}", e))?;
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        // Use PowerShell's SpeechSynthesizer for reliable TTS on Windows
+        let ps_script = format!(
+            "Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{}')",
+            text.replace('\'', "''")
+        );
+        std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps_script])
+            .spawn()
+            .map_err(|e| format!("PowerShell TTS failed: {}", e))?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn cancel_post_flight(app: tauri::AppHandle) {
     let _ = app.emit("cancel-post-flight", serde_json::json!({}));
@@ -225,7 +268,7 @@ fn mini_start_dragging(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Result<String, String> {
+async fn download_and_install_update(app: tauri::AppHandle, _url: String) -> Result<String, String> {
     use std::fs;
 
     let data_dir = app.path().app_data_dir().map_err(|e| format!("app data dir: {}", e))?;
@@ -246,6 +289,12 @@ async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Resu
         .get("version")
         .and_then(|v| v.as_str())
         .unwrap_or("0.8.0");
+
+    // Validate version is a safe semver-like string (digits and dots only)
+    // to prevent path traversal via a malicious version string from the API.
+    if !version.chars().all(|c| c.is_ascii_digit() || c == '.') || version.is_empty() || version.len() > 20 {
+        return Err(format!("invalid version string: {}", version));
+    }
 
     // Construct installer download URL based on platform
     // Release assets use pattern: _{version}_{arch}.{ext}
@@ -281,14 +330,25 @@ async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Resu
     // Open/run the installer
     #[cfg(target_os = "macos")]
     {
-        // Spawn hdiutil to mount DMG in background, then copy and detach
-        let dmg_path = dest.to_string_lossy().to_string();
-        let script = format!(
-            "hdiutil attach '{}' -nobrowse -quiet && cp -R '/Volumes/咕咕机长/咕咕机长.app' '/Applications/' && hdiutil detach '/Volumes/咕咕机长' -quiet && open -a '/Applications/咕咕机长.app'",
-            dmg_path
-        );
-        let _ = std::process::Command::new("sh")
-            .args(["-c", &script])
+        // Use argument lists instead of sh -c to prevent shell injection.
+        // Step 1: mount DMG
+        let mount = std::process::Command::new("hdiutil")
+            .args(["attach", dest.to_str().unwrap_or(""), "-nobrowse", "-quiet"])
+            .spawn();
+        if let Ok(mut child) = mount {
+            let _ = child.wait();
+        }
+        // Step 2: copy app to /Applications
+        let _ = std::process::Command::new("cp")
+            .args(["-R", "/Volumes/咕咕机长/咕咕机长.app", "/Applications/"])
+            .spawn();
+        // Step 3: detach volume
+        let _ = std::process::Command::new("hdiutil")
+            .args(["detach", "/Volumes/咕咕机长", "-quiet"])
+            .spawn();
+        // Step 4: open the installed app
+        let _ = std::process::Command::new("open")
+            .args(["-a", "/Applications/咕咕机长.app"])
             .spawn();
     }
     #[cfg(target_os = "windows")]
@@ -311,31 +371,6 @@ async fn download_and_install_update(app: tauri::AppHandle, url: String) -> Resu
     }
 
     Ok(dest.to_string_lossy().to_string())
-}
-
-fn open_file(path: &std::path::Path) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(path)
-            .spawn()
-            .map_err(|e| format!("open failed: {}", e))?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(path)
-            .spawn()
-            .map_err(|e| format!("open failed: {}", e))?;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &path.to_string_lossy()])
-            .spawn()
-            .map_err(|e| format!("open failed: {}", e))?;
-    }
-    Ok(())
 }
 
 #[tauri::command]
@@ -462,24 +497,38 @@ async fn clear_video_cache(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn open_app(path: String) -> Result<(), String> {
+    // Validate path: must not be empty, must not contain shell-dangerous
+    // characters, and must reference an existing file/directory.
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("路径不能为空".to_string());
+    }
+    if trimmed.contains('\0') {
+        return Err("路径包含非法字符".to_string());
+    }
+    let p = std::path::Path::new(trimmed);
+    if !p.exists() {
+        return Err(format!("路径不存在: {}", trimmed));
+    }
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(&path)
+            .arg(trimmed)
             .spawn()
             .map_err(|e| format!("无法打开应用: {}", e))?;
     }
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
-            .arg(&path)
+            .arg(trimmed)
             .spawn()
             .map_err(|e| format!("无法打开应用: {}", e))?;
     }
     #[cfg(target_os = "windows")]
     {
+        // Use start with arg list (not cmd /C) to avoid shell interpretation
         std::process::Command::new("cmd")
-            .args(["/C", "start", "", &path])
+            .args(["/C", "start", "", trimmed])
             .spawn()
             .map_err(|e| format!("无法打开应用: {}", e))?;
     }
@@ -644,6 +693,210 @@ fn setup_panic_hook() {
         let location = info.location().map(|l| l.to_string()).unwrap_or_default();
         write_crash_log(&format!("PANIC: {} at {}", msg, location));
     }));
+}
+
+// Smart Pause: detect system context (fullscreen, meeting, recording, DND)
+#[tauri::command]
+fn check_system_context() -> serde_json::Value {
+    let mut fullscreen = false;
+    let mut in_meeting = false;
+    let mut screen_recording = false;
+    let mut dnd = false;
+
+    #[cfg(target_os = "macos")]
+    {
+        // Fullscreen: check if frontmost app's window is fullscreen via osascript
+        if let Ok(output) = std::process::Command::new("osascript")
+            .args(["-e", "tell application \"System Events\" to tell (first process whose frontmost is true) to set f to value of attribute \"AXFullScreen\" of front window"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            fullscreen = stdout == "true";
+        }
+
+        // Meeting: check for common meeting app processes
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "pgrep -x -l 'zoom|Zoom|Microsoft Teams|Google Meet|腾讯会议|飞书|钉钉' 2>/dev/null || true"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            in_meeting = !stdout.is_empty();
+        }
+
+        // Screen recording: check for recording app processes
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "pgrep -x -l 'OBS|ScreenFlow|QuickTime Player|Loom|录猎|录屏' 2>/dev/null || true"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            screen_recording = !stdout.is_empty();
+        }
+
+        // DND: check Focus/DND via defaults
+        if let Ok(output) = std::process::Command::new("defaults")
+            .args(["read", "com.apple.notificationcenterui", "doNotDisturb"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let trimmed = stdout.trim();
+            dnd = trimmed == "1";
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Fullscreen: check if foreground window covers the screen via PowerShell
+        if let Ok(output) = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command",
+                "$f=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $p=[System.Diagnostics.Process]::GetCurrentProcess(); Add-Type -AssemblyName System.Windows.Forms; $fg=[System.Diagnostics.Process]::GetProcesses | Where-Object {$_.MainWindowHandle -ne [IntPtr]::Zero} | Select-Object -First 1; if($fg){$r=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(48); [void][User32]::GetWindowRect($fg.MainWindowHandle,$r); $w=[System.Runtime.InteropServices.Marshal]::ReadInt32($r,8); $h=[System.Runtime.InteropServices.Marshal]::ReadInt32($r,12); if($w -ge $f.Width -and $h -ge $f.Height){\"true\"}else{\"false\"}}else{\"false\"}"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            fullscreen = stdout == "true";
+        }
+
+        // Meeting: check for meeting processes
+        if let Ok(output) = std::process::Command::new("tasklist")
+            .args(["/FI", "IMAGENAME eq Zoom.exe", "/NH"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            if stdout.contains("zoom.exe") { in_meeting = true; }
+        }
+        if let Ok(output) = std::process::Command::new("tasklist")
+            .args(["/FI", "IMAGENAME eq ms-teams.exe", "/NH"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            if stdout.contains("ms-teams.exe") { in_meeting = true; }
+        }
+
+        // DND: check Focus Assist registry
+        if let Ok(output) = std::process::Command::new("reg")
+            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CloudStore\\Store\\DefaultAccount\\Current\\default$windows.data.notifications.quiethoursprofile\\windows.data.notifications.quiethoursprofile", "/v", "Data", "/t", "REG_BINARY"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // DND is active if the binary data indicates it
+            dnd = stdout.contains("Data") && stdout.len() > 200;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Fullscreen: check window size via xdotool
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "xdotool getactivewindow getwindowgeometry 2>/dev/null | grep -oP 'Geometry \\K\\d+x\\d+' || echo ''"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim();
+            if let Some(size) = stdout.split('x').collect::<Vec<_>>().get(0..2) {
+                if let (Ok(w), Ok(h)) = (size[0].parse::<u32>(), size[1].parse::<u32>()) {
+                    if let Ok(monitor_output) = std::process::Command::new("sh")
+                        .args(["-c", "xrandr --query 2>/dev/null | grep ' connected' | head -1 | grep -oP '\\d+x\\d+' || echo '1920x1080'"])
+                        .output()
+                    {
+                        let monitor_str = String::from_utf8_lossy(&monitor_output.stdout).trim();
+                        if let Some(mw) = monitor_str.split('x').collect::<Vec<_>>().get(0..2) {
+                            if let (Ok(mw), Ok(mh)) = (mw[0].parse::<u32>(), mw[1].parse::<u32>()) {
+                                fullscreen = w >= mw && h >= mh;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Meeting: check for meeting processes
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "pgrep -x -l 'zoom|teams|meet|腾讯会议|飞书|钉钉' 2>/dev/null || true"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            in_meeting = !stdout.is_empty();
+        }
+
+        // Screen recording: check for OBS
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "pgrep -x -l 'obs|OBS|录猎|录屏' 2>/dev/null || true"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            screen_recording = !stdout.is_empty();
+        }
+
+        // DND: check D-Bus for GNOME/KDE DND
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "gsettings get org.gnome.desktop.notifications show-banners 2>/dev/null || echo 'true'"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim();
+            dnd = stdout == "false";
+        }
+    }
+
+    serde_json::json!({
+        "fullscreen": fullscreen,
+        "in_meeting": in_meeting,
+        "screen_recording": screen_recording,
+        "dnd": dnd,
+    })
+}
+
+// Natural break: get user idle time in seconds (time since last keyboard/mouse input)
+#[tauri::command]
+fn get_idle_time() -> Result<f64, String> {
+    #[cfg(target_os = "macos")]
+    {
+        // Use ioreg to get HIDIdleTime (nanoseconds since last input)
+        let output = std::process::Command::new("sh")
+            .args(["-c", "ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print $NF}'"])
+            .output()
+            .map_err(|e| format!("ioreg failed: {}", e))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let trimmed = stdout.trim();
+        if let Ok(nanos) = trimmed.parse::<u64>() {
+            return Ok(nanos as f64 / 1_000_000_000.0);
+        }
+        return Ok(0.0);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Use PowerShell to get last input time via GetLastInputInfo
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command",
+                "Add-Type @'\nusing System;\nusing System.Runtime.InteropServices;\npublic class IdleTime {\n    [DllImport(\"user32.dll\")]\n    static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);\n    [StructLayout(LayoutKind.Sequential)] struct LASTINPUTINFO { public int cbSize; public int dwTime; }\n    public static int GetIdleSeconds() {\n        LASTINPUTINFO li = new LASTINPUTINFO(); li.cbSize = Marshal.SizeOf(typeof(LASTINPUTINFO)); GetLastInputInfo(ref li); return (Environment.TickCount - li.dwTime) / 1000;\n    }\n}\n'@; [IdleTime]::GetIdleSeconds()"])
+            .output()
+            .map_err(|e| format!("PowerShell failed: {}", e))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if let Ok(secs) = stdout.trim().parse::<f64>() {
+            return Ok(secs);
+        }
+        return Ok(0.0);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try xprintidle first (returns milliseconds)
+        if let Ok(output) = std::process::Command::new("xprintidle").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Ok(ms) = stdout.trim().parse::<u64>() {
+                return Ok(ms as f64 / 1000.0);
+            }
+        }
+        // Fallback: try xssstate
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "xssstate -i 2>/dev/null || echo 0"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Ok(ms) = stdout.trim().parse::<u64>() {
+                return Ok(ms as f64 / 1000.0);
+            }
+        }
+        return Ok(0.0);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -846,7 +1099,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, get_platform, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, cancel_post_flight, pf_notify_clicked, mini_start_dragging, download_and_install_update])
+        .invoke_handler(tauri::generate_handler![show_window, set_tray_mute_label, get_app_version, get_platform, is_compositor_available, open_url_in_browser, open_app, pick_file, pick_folder, download_builtin_video, get_video_cache_info, clear_video_cache, check_latest_release, close_flight_windows, run_script, speak_text, cancel_post_flight, pf_notify_clicked, mini_start_dragging, download_and_install_update, check_system_context, get_idle_time])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

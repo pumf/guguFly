@@ -1,3 +1,5 @@
+import { setToastFn as setModalToastFn } from '../ui/ModalController.js';
+
 export async function initCoreModules(ctx) {
   const {
     state,
@@ -117,6 +119,7 @@ export async function initCoreModules(ctx) {
   setCustomImageData(state.customImageData);
   setCustomAudioData(state.customAudioData);
   setToastFn(showToast);
+  setModalToastFn(showToast);
 
   initCountdownTimer({
     AccurateTimer,

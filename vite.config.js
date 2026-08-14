@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         flight: resolve(__dirname, 'flight.html'),
+        mini: resolve(__dirname, 'mini.html'),
       },
     },
   },

@@ -1,5 +1,3 @@
-import { getAllUpcomingTasks } from './AlarmChecker.js';
-
 let AccurateTimer;
 let renderTaskViewFn;
 let saveTasksFn;
@@ -10,6 +8,7 @@ let taskListEl;
 let holidayPresets;
 let doTriggerFlightFn;
 let updateMiniWindowFn;
+let getAllUpcomingTasksFn;
 
 export function initCountdownTimer(ctx) {
   AccurateTimer = ctx.AccurateTimer;
@@ -22,6 +21,7 @@ export function initCountdownTimer(ctx) {
   holidayPresets = ctx.holidayPresets;
   doTriggerFlightFn = ctx.doTriggerFlight;
   updateMiniWindowFn = ctx.updateMiniWindow;
+  getAllUpcomingTasksFn = ctx.getAllUpcomingTasks;
 
   // When the app comes back to the foreground, force an immediate tick
   // on all running countdowns. Browsers and Tauri may throttle
@@ -38,8 +38,8 @@ export function initCountdownTimer(ctx) {
         }
       });
       // Push fresh data to the mini window immediately
-      if (updateMiniWindowFn && getAllUpcomingTasks) {
-        try { updateMiniWindowFn(getAllUpcomingTasks()); } catch (miniErr) {
+      if (updateMiniWindowFn && getAllUpcomingTasksFn) {
+        try { updateMiniWindowFn(getAllUpcomingTasksFn()); } catch (miniErr) {
           console.error('mini window refresh failed:', miniErr);
         }
       }

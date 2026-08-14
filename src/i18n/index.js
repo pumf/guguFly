@@ -45,7 +45,7 @@ export function setLanguage(lang, { persist } = {}) {
   if (persist) {
     try {
       localStorage.setItem(STORAGE_KEY, lang);
-    } catch {}
+    } catch { /* localStorage may be unavailable */ }
   }
   translateDOM();
   onChangeCallbacks.forEach(fn => fn(lang));
@@ -90,7 +90,7 @@ export function initI18n({ initialLang } = {}) {
   if (!lang) {
     try {
       lang = localStorage.getItem(STORAGE_KEY);
-    } catch {}
+    } catch { /* localStorage may be unavailable */ }
   }
   if (!lang || !translations[lang]) {
     lang = navigator.language && navigator.language.startsWith('en') ? 'en' : 'zh-CN';

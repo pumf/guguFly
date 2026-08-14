@@ -2,7 +2,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewW
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { AccurateTimer } from './timer.js';
-import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog, setStorageQuotaHandler, setStoreFailureHandler } from './storage.js';
+import { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, setStorageQuotaHandler, setStoreFailureHandler } from './storage.js';
 import { getRandomQuote } from './quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from './sounds.js';
 import { exportTasksAsJson, readBackupFromFile } from './backup.js';
@@ -15,14 +15,19 @@ import { createAlarmTask, createCountdownTask, createHolidayTask, createAnnivers
 import { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from './tasks/TaskUtils.js';
 import { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from './flight/FlightPresets.js';
 import { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb, resetVideoWindowState, resetPfNotifyState, closePostFlightNotify, setEmergencyLandingActive, isEmergencyLandingActive, setIsInQuietHoursFn, setSkipPostFlight, clearPendingPfCancel, releaseFlightQueue, setPfActionHandler } from './flight/FlightOrchestrator.js';
-import { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard, isCompactMode, setCompactMode, copyTask } from './ui/TaskRenderer.js';
+import { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard, copyTask } from './ui/TaskRenderer.js';
 import { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from './tasks/CountdownTimer.js';
-import { initPomodoroTimer, startPomodoro, pausePomodoro, resumePomodoro, stopPomodoro, skipPomodoroPhase, getPomodoroState, isPomodoroActive, setPomodoroTickCallback } from './tasks/PomodoroTimer.js';
-import { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from './tasks/AlarmChecker.js';
+import { initPomodoroTimer, startPomodoro, pausePomodoro, resumePomodoro, stopPomodoro, skipPomodoroPhase, getPomodoroState, isPomodoroActive, setPomodoroTickCallback, setPomodoroBreakStartCallback } from './tasks/PomodoroTimer.js';
+import { initAlarmChecker, getNextUpcomingTask, getAllUpcomingTasks, startAlarmChecker } from './tasks/AlarmChecker.js';
 import { openEditModal, openNewModal, closeModal, saveModal, deleteTask, initHolidayChecklist } from './ui/ModalController.js';
-import { renderStats, setStatsTasks } from './ui/StatsPanel.js';
-import { renderTaskHistory, setHistoryTasks } from './ui/HistoryPanel.js';
+import { setStatsTasks } from './ui/StatsPanel.js';
+import { setHistoryTasks } from './ui/HistoryPanel.js';
 import { initAudioSystem, revokeCustomAudioObjectUrl, stopLoopSoundLocal, updateSoundMeta, previewCustomSound, resetAudioPreview, syncAudioObjectUrlTo } from './ui/AudioSystem.js';
+import { initHeroTerminal, updateHeroTask, startFlipClock, stopFlipClock } from './ui/HeroTerminal.js';
+import { initFlightBoard, renderFlightBoard } from './ui/FlightBoard.js';
+import { setFlightBoardRenderer } from './app/taskActions.js';
+import { snoozeTask } from './flight/Snooze.js';
+import { initCommandPalette, openPalette, closePalette } from './ui/CommandPalette.js';
 import { unlockAudioIfNeeded } from './ui/AudioManager.js';
 import { createMiniWindow, closeMiniWindow, positionMiniWindow, updateMiniWindow, updateMiniPosGridActive, getMiniPositions } from './ui/MiniWindow.js';
 import { applyTheme, syncThemeButtons, initSystemThemeWatcher } from './settings/ThemeManager.js';
@@ -45,10 +50,15 @@ import { initSettingsPanel } from './ui/SettingsPanel.js';
 import { initModalEvents } from './ui/ModalEvents.js';
 import { initWindowEvents } from './ui/WindowEvents.js';
 import { initQuickCreate, setQuickCreateDeps } from './ui/QuickCreateBar.js';
-import { initTaskDetailDrawer, refreshDrawer } from './ui/TaskDetailDrawer.js';
+import { initTaskDetailDrawer, refreshDrawer, openTaskDetailDrawer } from './ui/TaskDetailDrawer.js';
 import { initKeyboardShortcuts } from './ui/KeyboardShortcuts.js';
-import { initBatchOperation, enterSelectionMode, toggleSelectionMode, isSelectionModeActive, toggleTaskSelection, isTaskSelected } from './ui/BatchOperation.js';
+import { initBatchOperation } from './ui/BatchOperation.js';
 import { initOnboarding, checkAndShowOnboarding } from './ui/Onboarding.js';
+import { initPomodoroUI } from './ui/PomodoroUI.js';
+import { initPostFlightHandler } from './app/postFlightHandler.js';
+import { initLanguageHandler } from './app/languageHandler.js';
+import { renderStatsPanel } from './app/statsPanel.js';
+import { initTaskToolbar } from './ui/TaskToolbar.js';
 import { detectTauriRuntime } from './app/runtime.js';
 import { getMainDomRefs } from './app/domRefs.js';
 import { createAppState } from './app/state.js';
@@ -56,7 +66,22 @@ import { createTaskActions } from './app/taskActions.js';
 import { applySettings, runPostInit } from './app/bootstrap.js';
 import { handleDeepLink } from './app/deepLinkActions.js';
 import { initCoreModules } from './app/initModules.js';
-import { t, initI18n, setLanguage, onLanguageChange, translateDOM } from './i18n/index.js';
+import { initSmartPause, setSmartPauseEnabled, getPostponedFlights, clearPostponedFlights } from './smart-pause/SmartPause.js';
+import { initNaturalBreak, setNaturalBreakEnabled, setIdleThreshold } from './smart-pause/NaturalBreak.js';
+import { t, initI18n, setLanguage } from './i18n/index.js';
+
+function buildDemoTasks() {
+  return [
+    { id: 1, type: 'alarm', label: '晨会', msg: '准时上线哦', hour: 9, minute: 0, enabled: true, repeat: { type: 'weekly', days: [1,2,3,4,5] }, _status: 'idle', color: 0 },
+    { id: 2, type: 'alarm', label: '喝水', msg: '记得补水', hour: 15, minute: 0, enabled: true, repeat: { type: 'weekly', days: [1,2,3,4,5] }, _status: 'idle', color: 3 },
+    { id: 3, type: 'countdown', label: '番茄钟', duration: 1500, _remaining: 1500, enabled: true, _status: 'idle', color: 5 },
+    { id: 4, type: 'alarm', label: '站会', msg: '每日站会', hour: 10, minute: 30, enabled: true, repeat: { type: 'weekly', days: [1,2,3,4,5] }, _status: 'idle', color: 1 },
+    { id: 5, type: 'holiday', label: '国庆节', month: 10, day: 1, hour: 9, minute: 0, enabled: true, _status: 'idle', color: 2 },
+    { id: 6, type: 'anniversary', label: '结婚纪念日', msg: '我们的日子', month: 8, day: 15, hour: 10, minute: 0, enabled: true, _status: 'idle', color: 6 },
+    { id: 7, type: 'alarm', label: '健身房', msg: '该动一动了', hour: 18, minute: 30, enabled: false, repeat: { type: 'weekly', days: [1,3,5] }, _status: 'idle', color: 4 },
+    { id: 8, type: 'alarm', label: '下班', msg: '收工！', hour: 18, minute: 0, enabled: true, repeat: { type: 'weekly', days: [1,2,3,4,5] }, _status: 'idle', color: 7 },
+  ];
+}
 
 const isTauriRuntime = detectTauriRuntime();
 
@@ -283,14 +308,6 @@ const {
 // --- Color picker ---
 // extracted to ./ui/ColorPicker.js
 
-// --- Stats ---
-async function renderStatsPanel() {
-  const stats = await computeFlightStats();
-  await renderStats(async () => stats);
-  const flightLog = await loadFlightLog();
-  renderTaskHistory(stats, flightLog);
-}
-
 // --- Preview / Reset flight ---
 // extracted to ./ui/FlightPreview.js
 
@@ -318,7 +335,19 @@ async function init() {
     showToast(t('toast.store_failure'), 8000);
   });
 
-  const saved = await loadTasks();
+  // Demo mode: inject sample tasks when ?demo=1 is in URL and storage is empty
+  const urlParams = new URLSearchParams(window.location.search);
+  const demoMode = urlParams.get('demo') === '1';
+  if (demoMode) {
+    // Skip onboarding flow and force dark theme for the demo screenshot
+    localStorage.setItem('onboarding_completed', 'true');
+    await set('theme', 'dark');
+  }
+  let saved = await loadTasks();
+  if (demoMode && (!saved || saved.length === 0)) {
+    saved = buildDemoTasks();
+    await set('_tasks', saved);
+  }
   const { tasks: hydrated, maxId } = hydrateTasks(saved);
   state.tasks = hydrated;
   setNextId(maxId);
@@ -622,6 +651,139 @@ async function init() {
     renderStatsPanel,
   });
 
+  // Register flight board renderer AFTER runPostInit (which triggers the
+  // first renderTaskView) so the board can take over subsequent renders.
+  // The first render only paints old task cards; data mutations and the
+  // initial render call later will paint the flight board.
+  function refreshBoard() {
+    const boardEl = document.querySelector('.task-list');
+    if (!boardEl) return;
+    const filterState = state.getTaskFilterState ? state.getTaskFilterState() : {};
+    const upcomingList = getAllUpcomingTasks();
+    renderFlightBoard(state.tasks, boardEl, {
+      upcomingList,
+      filterKeyword: filterState.taskSearchKeyword || '',
+      filterType: filterState.taskTypeFilter || 'all',
+      filterGroup: filterState.taskGroupFilter || 'all',
+      boardMode: true,
+    });
+  }
+  setFlightBoardRenderer(() => { refreshBoard(); });
+  // Re-render board immediately to replace the placeholder cards
+  refreshBoard();
+
+  async function refreshFooter() {
+    const weekEl = document.getElementById('statWeekFlights');
+    const streakEl = document.getElementById('statStreak');
+    const barsEl = document.getElementById('statWeekBars');
+    if (!weekEl && !streakEl) return;
+
+    try {
+      const stats = await computeFlightStats();
+      // Compute real Mon-Sun week total (not last7Total which shifts daily)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now); monday.setDate(now.getDate() + mondayOffset); monday.setHours(0,0,0,0);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+
+      let weekTotal = 0;
+      const dailyCounts = Array(7).fill(0);
+      for (const d of (stats.daily || [])) {
+        const dayDate = new Date(d.date);
+        if (dayDate >= monday && dayDate <= sunday) {
+          weekTotal += d.totalCount;
+          const idx = dayDate.getDay(); // 0=Sun, 1=Mon...6=Sat
+          dailyCounts[idx === 0 ? 6 : idx - 1] = d.totalCount;
+        }
+      }
+      if (weekEl) weekEl.textContent = String(weekTotal);
+
+      // Mini bar chart
+      if (barsEl) {
+        const maxCount = Math.max(1, ...dailyCounts);
+        barsEl.innerHTML = dailyCounts.map(c =>
+          `<i style="height:${Math.max(3, Math.round((c/maxCount)*18))}px;${c===0?'opacity:.3':''}"></i>`
+        ).join('');
+      }
+    } catch { /* stats load optional */ }
+    try {
+      const streak = await get('streak');
+      if (streakEl) streakEl.textContent = String(streak || 0);
+    } catch { /* streak load optional */ }
+  }
+  refreshFooter();
+  // Periodic refresh keeps footer in sync with background flights
+  setInterval(() => { refreshFooter(); }, 30000);
+
+  // Row popup menu (⋮ → 编辑 / 复制 / 启用·停用 / 删除)
+  let rowMenuTask = null;
+  function showRowMenu(task, anchorEl) {
+    const menu = document.getElementById('rowMenu');
+    if (!menu) return;
+    rowMenuTask = task;
+    menu.hidden = false;
+    const r = anchorEl.getBoundingClientRect();
+    const menuW = 168;
+    let left = r.right - menuW;
+    let top = r.bottom + 6;
+    if (left < 8) left = r.left;
+    if (top + 180 > window.innerHeight) top = r.top - 180;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    // Toggle button reflects current state
+    const toggleBtn = menu.querySelector('[data-action="toggle"] span:last-child');
+    if (toggleBtn) {
+      toggleBtn.textContent = task.enabled !== false ? t('flight.menu.toggle_off') : t('flight.menu.toggle_on');
+    }
+  }
+  function hideRowMenu() {
+    const menu = document.getElementById('rowMenu');
+    if (menu) menu.hidden = true;
+    rowMenuTask = null;
+  }
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('rowMenu');
+    if (menu && !menu.hidden && !menu.contains(e.target)) hideRowMenu();
+  });
+  document.getElementById('rowMenu')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn || !rowMenuTask) return;
+    const task = rowMenuTask;
+    hideRowMenu();
+    const action = btn.dataset.action;
+    if (action === 'edit') {
+      openEditModal(task, task.id, selectColor, {
+        tasks: state.tasks, saveTasks, getCleanTasks: (v) => getCleanTasks(v),
+        renderTaskView, modal, modalError, editLabel, editMsg, editGroup,
+        editHour, editMinute, editMinutes, editSeconds, editHolidayHour, editHolidayMinute,
+        editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
+        editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
+        editPostFlightAction, editPostFlightAppPath, editPostFlightUrl, editPostFlightFolder,
+        editPostFlightScript, editPostFlightVideoSelect, editPostFlightVideoPath,
+        holidayChecklist: document.getElementById('holidayChecklist'),
+        HOLIDAY_PRESETS, editUseImageCheckbox: document.getElementById('editUseImageCheckbox'),
+        editImageData: state.editImageData, stopCountdownFn: stopCountdown,
+      });
+    } else if (action === 'copy') {
+      copyTask(task, state.tasks, saveTasks, (tasks) => getCleanTasks(tasks), renderTaskView);
+    } else if (action === 'toggle') {
+      task.enabled = !task.enabled;
+      saveTasks(getCleanTasks(state.tasks));
+      refreshBoard();
+    } else if (action === 'delete') {
+      window.showConfirm(t('modal.delete_confirm', { name: task.label || task.msg || t('common.unnamed_task') })).then(ok => {
+        if (!ok) return;
+        const idx = state.tasks.findIndex(t => t.id === task.id);
+        if (idx >= 0) {
+          state.tasks.splice(idx, 1);
+          saveTasks(getCleanTasks(state.tasks));
+          refreshBoard();
+        }
+      }).catch(() => {});
+    }
+  });
+
   setQuickCreateDeps({
     showToast,
     saveTasks,
@@ -681,20 +843,11 @@ async function init() {
     showToast,
   });
 
-  const batchSelectBtn = document.getElementById('batchSelectBtn');
-  batchSelectBtn?.addEventListener('click', () => toggleSelectionMode());
+  initTaskToolbar({ renderTaskView });
 
-  const compactModeBtn = document.getElementById('compactModeBtn');
-  function syncCompactBtn() {
-    if (!compactModeBtn) return;
-    compactModeBtn.classList.toggle('is-active', isCompactMode());
-  }
-  compactModeBtn?.addEventListener('click', () => {
-    setCompactMode(!isCompactMode());
-    syncCompactBtn();
-    renderTaskView();
-  });
-  syncCompactBtn();
+  // Hide batch/compact buttons in flight board mode (not yet supported on board)
+  document.getElementById('batchSelectBtn')?.classList.add('hidden');
+  document.getElementById('compactModeBtn')?.classList.add('hidden');
 
   initOnboarding({
     onComplete: () => {},
@@ -708,60 +861,23 @@ async function init() {
     checkAndShowOnboarding();
   }, 500);
 
-  const pomodoroStartBtn = document.getElementById('pomodoroStartBtn');
-  const pomodoroBar = document.getElementById('pomodoroBar');
-  const pomodoroPhaseEl = document.getElementById('pomodoroPhase');
-  const pomodoroTimerEl = document.getElementById('pomodoroTimer');
-  const pomodoroRoundEl = document.getElementById('pomodoroRound');
-  const pomodoroPauseBtn = document.getElementById('pomodoroPauseBtn');
-  const pomodoroSkipBtn = document.getElementById('pomodoroSkipBtn');
-  const pomodoroStopBtn = document.getElementById('pomodoroStopBtn');
-
-  function updatePomodoroUI() {
-    const pState = getPomodoroState();
-    if (!pState.active) {
-      pomodoroBar?.classList.add('hidden');
-      return;
-    }
-    pomodoroBar?.classList.remove('hidden');
-    if (pomodoroPhaseEl) pomodoroPhaseEl.textContent = pState.phase === 'work' ? (pState.round > 0 ? t('pomodoro.focus_round', { round: pState.round }) : t('pomodoro.focusing')) : pState.phase === 'shortBreak' ? t('pomodoro.short_rest') : t('pomodoro.long_rest');
-    const mins = Math.floor(pState.remaining / 60);
-    const secs = pState.remaining % 60;
-    if (pomodoroTimerEl) pomodoroTimerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-    if (pomodoroRoundEl) pomodoroRoundEl.textContent = t('pomodoro.round', { round: pState.round, total: pState.totalRounds });
-    if (pomodoroPauseBtn) {
-      pomodoroPauseBtn.innerHTML = pState.task?._status === 'paused'
-        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-    }
-  }
-
-  setPomodoroTickCallback(updatePomodoroUI);
-
-  pomodoroStartBtn?.addEventListener('click', () => {
-    if (isPomodoroActive()) return;
-    startPomodoro(25);
-    updatePomodoroUI();
+  const { updatePomodoroUI } = initPomodoroUI({
+    getPomodoroState, startPomodoro, pausePomodoro, resumePomodoro,
+    stopPomodoro, skipPomodoroPhase, setPomodoroTickCallback, isPomodoroActive,
   });
 
-  pomodoroPauseBtn?.addEventListener('click', () => {
-    const pState = getPomodoroState();
-    if (pState.task?._status === 'paused') {
-      resumePomodoro();
-    } else {
-      pausePomodoro();
+  setPomodoroBreakStartCallback(() => {
+    const postponed = getPostponedFlights();
+    if (postponed.length > 0) {
+      const pomodoroPostponed = postponed.filter(f => f.reason === 'pomodoro_focus');
+      if (pomodoroPostponed.length > 0) {
+        showToast(t('pomodoro.focus_resume', { count: pomodoroPostponed.length }));
+        for (const f of pomodoroPostponed) {
+          if (f.task) doTriggerFlight(f.task);
+        }
+      }
+      clearPostponedFlights();
     }
-    updatePomodoroUI();
-  });
-
-  pomodoroSkipBtn?.addEventListener('click', () => {
-    skipPomodoroPhase();
-    updatePomodoroUI();
-  });
-
-  pomodoroStopBtn?.addEventListener('click', () => {
-    stopPomodoro();
-    updatePomodoroUI();
   });
 
   setUpdateTaskFlightCb((taskId, remaining) => {
@@ -772,49 +888,204 @@ async function init() {
     }
   });
 
+  initHeroTerminal({});
+  startFlipClock();
+
+  function refreshHero() {
+    getNextUpcomingTask().then(upcoming => {
+      if (upcoming && upcoming.task) {
+        const task = upcoming.task;
+        const d = new Date(Date.now() + upcoming.seconds * 1000);
+        const departTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        updateHeroTask({
+          seconds: upcoming.seconds,
+          flightNo: `GG${String(task.id).slice(-4).padStart(4, '0')}`,
+          label: task.label || t('common.unnamed'),
+          msg: task.msg ? `「 ${task.msg} 」` : '',
+          departInfo: `${t('flight.expected')} <b>${departTime}</b> · ${t('flight.runway_n', { n: (task.id % 4) + 1 })}`,
+        });
+      } else {
+        updateHeroTask(null);
+      }
+    }).catch(() => updateHeroTask(null));
+  }
+  refreshHero();
+  setInterval(refreshHero, 5000);
+
+  initFlightBoard({
+    onFlightAction: (action, task, buttonEl) => {
+      if (action === 'fly') {
+        doTriggerFlight(task);
+      } else if (action === 'restore') {
+        task.enabled = true;
+        saveTasks(getCleanTasks(state.tasks));
+        refreshBoard();
+        showToast(t('flight.restored', { label: task.label || t('common.unnamed') }));
+      } else if (action === 'toggle') {
+        task.enabled = !task.enabled;
+        saveTasks(getCleanTasks(state.tasks));
+        refreshBoard();
+      } else if (action === 'menu') {
+        showRowMenu(task, buttonEl);
+      } else if (action === 'postpone') {
+        if (task.type === 'countdown') {
+          if (task._status === 'running') {
+            pauseCountdown(task);
+            showToast(t('countdown.paused'));
+          } else {
+            startCountdown(task);
+            showToast(t('countdown.started'));
+          }
+        } else {
+          snoozeTask(task.id, 10);
+          showToast(t('smart_pause.snoozed', { label: task.label || t('common.unnamed'), min: 10 }));
+        }
+        refreshBoard();
+      } else if (action === 'edit') {
+        openEditModal(task, task.id, selectColor, {
+          tasks: state.tasks, saveTasks, getCleanTasks: (v) => getCleanTasks(v),
+          renderTaskView, modal, modalError, editLabel, editMsg, editGroup,
+          editHour, editMinute, editMinutes, editSeconds, editHolidayHour, editHolidayMinute,
+          editAnniMonth, editAnniDay, editAnniHour, editAnniMinute,
+          editFlightMode, editLoopCount, editLoopInterval, editIntervalCount,
+          editPostFlightAction, editPostFlightAppPath, editPostFlightUrl, editPostFlightFolder,
+          editPostFlightScript, editPostFlightVideoSelect, editPostFlightVideoPath,
+          holidayChecklist: document.getElementById('holidayChecklist'),
+          HOLIDAY_PRESETS, editUseImageCheckbox: document.getElementById('editUseImageCheckbox'),
+          editImageData: state.editImageData, stopCountdownFn: stopCountdown,
+        });
+      }
+    },
+  });
+
+  initCommandPalette({
+    onExecute: (action) => {
+      if (action === 'new') {
+        openNewModal();
+      } else if (action === 'fly') {
+        getNextUpcomingTask().then(upcoming => {
+          if (upcoming && upcoming.task) doTriggerFlight(upcoming.task);
+        }).catch(() => {});
+      } else if (action === 'pomodoro') {
+        if (!isPomodoroActive()) startPomodoro(25);
+      } else if (action === 'quiet') {
+        setMuted(!state.isMuted);
+      } else if (action === 'skin') {
+        document.getElementById('configToggle')?.click();
+      } else if (action === 'settings') {
+        document.getElementById('settingsBtn')?.click();
+      } else if (action === 'emergency') {
+        triggerEmergencyLanding();
+      } else if (action === 'stats') {
+        const statsModal = document.getElementById('statsModal');
+        if (statsModal) statsModal.classList.remove('hidden');
+      }
+    },
+  });
+
+  document.getElementById('searchTrigger')?.addEventListener('click', () => openPalette());
+
+  document.getElementById('focusModeBtn')?.addEventListener('click', () => {
+    if (!isPomodoroActive()) startPomodoro(25);
+  });
+
+  const searchTrigger = document.getElementById('searchTrigger');
+
   // Wire quiet-hours check to FlightOrchestrator so post-flight
   // actions (video, effect, app, url, etc.) respect the same setting
   // as the initial flight trigger.
   setIsInQuietHoursFn(() => isInQuietHours(quietHoursToggle, quietStartHour, quietEndHour));
 
-  setPfActionHandler(async (action, { minutes, task }) => {
-    if (!task) return;
-    if (action === 'snooze') {
-      const snoozeTask = createCountdownTask();
-      snoozeTask.label = `${task.label}${t('task.snooze_suffix', { minutes })}`;
-      snoozeTask.msg = task.msg || '';
-      snoozeTask.duration = minutes * 60;
-      snoozeTask._remaining = minutes * 60;
-      state.tasks.push(snoozeTask);
-      saveTasks(getCleanTasks(state.tasks));
-      renderTaskView();
-      startCountdown(snoozeTask);
-      setSkipPostFlight(true);
-      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
-      showToast(t('toast.snoozed', { minutes, label: task.label }));
-    } else if (action === 'skip') {
-      setSkipPostFlight(true);
-      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
-      showToast(t('toast.skipped', { label: task.label }));
-    } else if (action === 'repeat') {
-      setSkipPostFlight(true);
-      invoke('close_flight_windows').catch(err => console.warn('close flight windows failed:', err));
-      if (task.type === 'countdown') {
-        const repeatTask = createCountdownTask();
-        repeatTask.label = `${task.label}${t('task.repeat_suffix')}`;
-        repeatTask.msg = task.msg || '';
-        repeatTask.duration = task.duration;
-        repeatTask._remaining = task.duration;
-        state.tasks.push(repeatTask);
-        saveTasks(getCleanTasks(state.tasks));
-        renderTaskView();
-        startCountdown(repeatTask);
-        showToast(t('toast.repeated', { label: repeatTask.label }));
-      } else {
-        triggerFlightWithMode(task, null, recordFlightTrigger, null, null);
+  const pauseBannerEl = document.getElementById('pauseBanner');
+  const pauseBannerMsg = document.getElementById('pauseBannerMsg');
+  const pauseBannerResumeBtn = document.getElementById('pauseBannerResume');
+
+  function showPauseBanner(reason, count) {
+    if (!pauseBannerEl || !pauseBannerMsg) return;
+    const reasonMap = {
+      dnd: t('smart_pause.reason_dnd'),
+      meeting: t('smart_pause.reason_meeting'),
+      fullscreen: t('smart_pause.reason_fullscreen'),
+      recording: t('smart_pause.reason_recording'),
+    };
+    const reasonText = reasonMap[reason] || reason || t('smart_pause.reason_default');
+    pauseBannerMsg.textContent = t('smart_pause.banner_msg', { count, reason: reasonText });
+    pauseBannerEl.classList.add('show');
+    if (pauseBannerResumeBtn) pauseBannerResumeBtn.textContent = t('smart_pause.resume_now');
+  }
+
+  function hidePauseBanner() {
+    if (pauseBannerEl) pauseBannerEl.classList.remove('show');
+  }
+
+  if (pauseBannerResumeBtn) {
+    pauseBannerResumeBtn.addEventListener('click', () => {
+      const flights = getPostponedFlights();
+      if (flights.length > 0) {
+        for (const f of flights) {
+          if (f.task) doTriggerFlight(f.task);
+        }
+        clearPostponedFlights();
+        showToast(t('smart_pause.resolved', { count: flights.length }));
       }
-    }
+      hidePauseBanner();
+    });
+  }
+
+  initSmartPause({
+    showToast,
+    onContextChange: (ctx) => {
+      const reasonMap = {
+        dnd: t('smart_pause.reason_dnd'),
+        meeting: t('smart_pause.reason_meeting'),
+        fullscreen: t('smart_pause.reason_fullscreen'),
+        recording: t('smart_pause.reason_recording'),
+      };
+      const isPaused = ctx.dnd || ctx.in_meeting || ctx.fullscreen || ctx.screen_recording;
+      if (isPaused) {
+        const reason = Object.entries(ctx).find(([, v]) => v)?.[0];
+        const postponed = getPostponedFlights();
+        if (postponed.length > 0) {
+          showToast(t('smart_pause.postponed', { count: postponed.length, reason: reasonMap[reason] || reason }));
+          showPauseBanner(reason, postponed.length);
+        }
+      } else {
+        hidePauseBanner();
+      }
+    },
+    onPostponeResolved: (flights) => {
+      hidePauseBanner();
+      if (flights.length > 0) {
+        showToast(t('smart_pause.resolved', { count: flights.length }));
+        for (const f of flights) {
+          if (f.task) {
+            doTriggerFlight(f.task);
+          }
+        }
+        clearPostponedFlights();
+      }
+    },
   });
+
+  if (cfg.smartPauseEnabled) {
+    setSmartPauseEnabled(true);
+  }
+
+  initNaturalBreak({
+    showToast,
+  });
+
+  if (cfg.naturalBreakEnabled) {
+    setNaturalBreakEnabled(true);
+    if (cfg.naturalBreakThreshold) {
+      setIdleThreshold(cfg.naturalBreakThreshold);
+    }
+  }
+
+  setPfActionHandler(initPostFlightHandler({
+    state, saveTasks, renderTaskView, startCountdown, showToast,
+    triggerFlightWithMode, recordFlightTrigger, setSkipPostFlight, t,
+  }));
 
   listen('deep-link', (event) => {
     void handleDeepLink({
@@ -846,11 +1117,7 @@ async function init() {
 setUpdateStatusEl(updateStatus);
 init();
 
-onLanguageChange(() => {
-  try { renderTaskView(); } catch (e) { console.error('lang renderTaskView error:', e); }
-  try { renderStatsPanel(); } catch (e) { console.error('lang renderStatsPanel error:', e); }
-  try { updateHeroStatus(); } catch (e) { console.error('lang updateHeroStatus error:', e); }
-  try { refreshDrawer(); } catch (e) { console.error('lang refreshDrawer error:', e); }
-  try { initHolidayChecklist(holidayChecklist, HOLIDAY_PRESETS); } catch (e) { console.error('lang initHolidayChecklist error:', e); }
-  requestAnimationFrame(() => translateDOM());
+initLanguageHandler({
+  renderTaskView, renderStatsPanel, updateHeroStatus,
+  refreshDrawer, initHolidayChecklist, holidayChecklist,
 });

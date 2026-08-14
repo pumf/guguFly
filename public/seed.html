@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Seeding...</title></head><body>
+<script>
+const now = new Date();
+const demoTasks = [
+  { id: 1, type: 'alarm', label: '晨会', msg: '准时上线哦', hour: 9, minute: 0, enabled: true, _repeatDays: [1,2,3,4,5], _status: 'idle', color: 0 },
+  { id: 2, type: 'alarm', label: '喝水', msg: '记得补水', hour: 15, minute: 0, enabled: true, _repeatDays: [1,2,3,4,5], _status: 'idle', color: 3 },
+  { id: 3, type: 'countdown', label: '番茄钟', duration: 1500, _remaining: 1500, enabled: true, _status: 'idle', color: 5 },
+  { id: 4, type: 'alarm', label: '站会', msg: '每日站会', hour: 10, minute: 30, enabled: true, _repeatDays: [1,2,3,4,5], _status: 'idle', color: 1 },
+  { id: 5, type: 'holiday', label: '国庆节', month: 10, day: 1, hour: 9, minute: 0, enabled: true, _status: 'idle', color: 2 },
+  { id: 6, type: 'anniversary', label: '结婚纪念日', msg: '我们的日子', month: 8, day: 15, hour: 10, minute: 0, enabled: true, _status: 'idle', color: 6 },
+  { id: 7, type: 'alarm', label: '健身房', msg: '该动一动了', hour: 18, minute: 30, enabled: false, _repeatDays: [1,3,5], _status: 'idle', color: 4 },
+  { id: 8, type: 'alarm', label: '下班', msg: '收工！', hour: 18, minute: 0, enabled: true, _repeatDays: [1,2,3,4,5], _status: 'idle', color: 7 },
+];
+localStorage.setItem('gugufly:_tasks', JSON.stringify(demoTasks));
+localStorage.setItem('gugufly:theme', JSON.stringify('dark'));
+location.replace('/?demo=1');
+</script></body></html>

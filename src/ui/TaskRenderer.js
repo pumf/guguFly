@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { escapeHtml } from '../utils.js';
 import { TASK_COLOR_VALUES, TASK_TYPE_COLORS } from '../tasks/TaskColors.js';
 import { getTaskTypeMeta } from '../tasks/TaskFactory.js';
 import {
@@ -30,7 +31,7 @@ export function isCompactMode() {
 }
 
 export function setCompactMode(val) {
-  try { localStorage.setItem(COMPACT_STORAGE_KEY, val ? '1' : '0'); } catch {}
+  try { localStorage.setItem(COMPACT_STORAGE_KEY, val ? '1' : '0'); } catch { /* localStorage may be unavailable */ }
 }
 
 function loadCollapsedGroups() {
@@ -38,7 +39,7 @@ function loadCollapsedGroups() {
 }
 
 function saveCollapsedGroups(state) {
-  try { localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch { /* localStorage may be unavailable */ }
 }
 
 export function renderTasks({
@@ -221,8 +222,10 @@ export function renderTasks({
       label.className = 'task-label';
       const labelText = task.label || (task.type === 'alarm' ? t('task.label.alarm') : task.type === 'countdown' ? t('task.label.countdown') : task.type === 'holiday' ? t('task.label.holiday') : t('task.label.anniversary'));
       if (filterKeyword && labelText.toLowerCase().includes(filterKeyword)) {
-        const regex = new RegExp(`(${filterKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        label.innerHTML = labelText.replace(regex, '<mark>$1</mark>');
+        const escaped = escapeHtml(labelText);
+        const safeKeyword = escapeHtml(filterKeyword);
+        const safeRegex = new RegExp(`(${safeKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        label.innerHTML = escaped.replace(safeRegex, '<mark>$1</mark>');
       } else {
         label.textContent = labelText;
       }

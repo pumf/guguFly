@@ -1,3 +1,4 @@
+@import './styles/terminal.css';
 @import './styles/themes/dark-overrides.css';
 @import './styles/components/pomodoro.css';
 @import './styles/components/update.css';
@@ -10,20 +11,8 @@
 }
 
 :root {
-  --bg-sky: linear-gradient(160deg, #f7f4ea 0%, #eef3fb 45%, #e6f1ff 100%);
-  --panel: rgba(255, 255, 255, 0.82);
-  --panel-strong: rgba(255, 255, 255, 0.94);
-  --panel-soft: rgba(255, 255, 255, 0.58);
-  --border: rgba(111, 134, 168, 0.16);
-  --border-strong: rgba(72, 107, 160, 0.24);
-  --shadow: 0 20px 48px rgba(53, 77, 112, 0.14);
-  --text: #213047;
-  --muted: #6d7b90;
-  --soft-muted: #94a2b8;
-  --accent: #2d7ff9;
-  --accent-warm: #ff9560;
-  --accent-green: #62bf82;
-  --danger: #dd6d58;
+  /* Terminal design system variables are defined in terminal.css */
+  /* Legacy aliases are also there */
 }
 
 html, body {
@@ -33,9 +22,9 @@ html, body {
 body {
   font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(255, 214, 156, 0.38), transparent 26%),
-    radial-gradient(circle at top right, rgba(112, 177, 255, 0.22), transparent 22%),
-    var(--bg-sky);
+    radial-gradient(900px 500px at 85% -10%, var(--cyan-soft), transparent 60%),
+    radial-gradient(700px 500px at 10% 110%, var(--amber-soft), transparent 60%),
+    var(--bg-0);
   color: var(--text);
   user-select: none;
   -webkit-user-select: none;
@@ -853,8 +842,8 @@ body {
   overflow-y: auto;
   padding: 6px 6px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.34);
-  border: 1px dashed rgba(135, 151, 184, 0.18);
+  background: transparent;
+  border: none;
   scrollbar-width: thin;
 }
 
@@ -3223,7 +3212,7 @@ select {
   display: none !important;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 560px) {
   #app {
     width: 100%;
     padding: 12px;
@@ -3265,6 +3254,32 @@ select {
 
   .modal-content {
     width: min(92vw, 380px);
+  }
+}
+
+@media (max-width: 720px) {
+  .config-grid--appearance {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card {
+    padding: 4px 10px 2px;
+  }
+
+  .task-section {
+    padding: 4px 10px 6px;
+  }
+}
+
+@media (min-width: 960px) {
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-card {
+    margin: 0;
   }
 }
 
@@ -4053,3 +4068,25 @@ select {
 [data-active-theme="dark"] .hist-bar.is-empty {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* Mini window styles */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:transparent;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;font-family:"PingFang SC","Hiragino Sans GB","Avenir Next",sans-serif;cursor:grab}
+body.dragging{cursor:grabbing}
+#m{display:flex;align-items:center;gap:10px;padding:10px 20px;border-radius:999px;
+background:linear-gradient(135deg,#667eea,#764ba2);
+color:#fff;font-size:14px;white-space:nowrap;box-shadow:0 8px 32px rgba(102,126,234,0.4);
+position:relative;transition:background 0.3s;max-width:100%;overflow:hidden}
+#m.urgent{background:linear-gradient(135deg,#e74c3c,#c0392b);box-shadow:0 8px 32px rgba(231,76,60,0.5)}
+#m.urgent #pulse{display:block}
+#pulse{display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#ff6b6b;border:2px solid #fff;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.7}}
+#i{font-size:18px;flex-shrink:0}
+#t{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#d{opacity:.8;font-size:13px;margin-left:2px;flex-shrink:0}
+#hint{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  padding:4px 10px;border-radius:6px;background:rgba(0,0,0,.75);color:#fff;
+  font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;
+  transition:opacity .2s;font-weight:500}
+#m:hover #hint{opacity:1}

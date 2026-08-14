@@ -2,7 +2,7 @@ import { parseQuickInput, formatPreview } from '../tasks/QuickCreateParser.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask } from '../tasks/TaskFactory.js';
 import { t } from '../i18n/index.js';
 
-let showToastFn = (msg) => console.warn('[QuickCreateBar] showToast called before init:', msg);
+let showToastFn = (msg) => { console.error('[QuickCreateBar] showToast called before init:', msg); };
 let saveTasksFn = null;
 let getCleanTasksFn = null;
 let renderTaskViewFn = null;

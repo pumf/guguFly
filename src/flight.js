@@ -40,6 +40,14 @@ const H = Math.min(parseInt(params.get('h') || localStorage.getItem('_flightH'))
 
 const speedMap = { vslow: 0.1, slow: 0.2, normal: 0.35, fast: 0.6 };
 const heightMap = { top: 0.25, center: 0.5, bottom: 0.75 };
+const validEffects = ['linear', 'steady', 'ceremony', 'swift', 'playful', 'spiral', 'heart', 'figure8'];
+const validPlanes = ['classic', 'rocket', 'butterfly', 'jet', 'paper', 'ufo'];
+const validParticles = ['classic', 'rocket', 'butterfly', 'jet', 'spark', 'cloud'];
+const validBubbles = ['classic', 'rocket', 'butterfly', 'jet', 'glass', 'stamp'];
+const validBubblePos = ['top', 'center', 'bottom'];
+const validDirections = ['ltr', 'rtl'];
+function whitelist(val, list, fallback) { return list.includes(val) ? val : fallback; }
+
 const effectMap = {
   linear: { durationBase: 2500, enterProgress: 0.18, exitProgress: 0.82, floatDivisor: 100, floatAmount: 5, linear: true, travelMid: 0.16, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1, path: 'straight', pathAmplitude: 0 },
   steady: { durationBase: 3400, enterProgress: 0.24, exitProgress: 0.82, floatDivisor: 165, floatAmount: 3, travelMid: 0.12, fadeIn: 0.2, fadeOutStart: 0.9, fadeOutSpan: 0.1, particleBoost: 0.85, path: 'straight', pathAmplitude: 0 },
@@ -51,22 +59,22 @@ const effectMap = {
   figure8: { durationBase: 4000, enterProgress: 0.18, exitProgress: 0.8, floatDivisor: 180, floatAmount: 0.5, travelMid: 0.14, fadeIn: 0.16, fadeOutStart: 0.88, fadeOutSpan: 0.12, particleBoost: 1.15, path: 'figure8', pathAmplitude: 75 },
 };
 
-const speedFactor = speedMap[params.get('speed') || localStorage.getItem('_flightSpeed')] || 0.35;
-const heightPos = heightMap[params.get('height') || localStorage.getItem('_flightHeight')] || 0.5;
-const effectStyle = params.get('effect') || localStorage.getItem('_flightEffect') || 'steady';
+const speedFactor = speedMap[whitelist(params.get('speed') || localStorage.getItem('_flightSpeed'), Object.keys(speedMap), 'normal')] || 0.35;
+const heightPos = heightMap[whitelist(params.get('height') || localStorage.getItem('_flightHeight'), Object.keys(heightMap), 'center')] || 0.5;
+const effectStyle = whitelist(params.get('effect') || localStorage.getItem('_flightEffect'), validEffects, 'steady');
 const effectConfig = effectMap[effectStyle] || effectMap.steady;
 const customMsg = params.get('msg') || localStorage.getItem('_flightMsg') || '';
-const planeStyle = params.get('plane') || localStorage.getItem('_flightPlane') || 'classic';
-const planeSize = parseFloat(params.get('size') || localStorage.getItem('_flightPlaneSize')) || 1;
-const particleStyle = params.get('particle') || localStorage.getItem('_flightParticle') || 'classic';
-const bubbleStyle = params.get('bubble') || localStorage.getItem('_flightBubble') || 'classic';
-const bubblePosition = params.get('bubblePosition') || localStorage.getItem('_flightBubblePos') || 'top';
-const bubbleSize = parseFloat(params.get('bubbleSize') || localStorage.getItem('_flightBubbleSize')) || 1;
+const planeStyle = whitelist(params.get('plane') || localStorage.getItem('_flightPlane'), validPlanes, 'classic');
+const planeSize = Math.max(0.1, Math.min(5, parseFloat(params.get('size') || localStorage.getItem('_flightPlaneSize')) || 1));
+const particleStyle = whitelist(params.get('particle') || localStorage.getItem('_flightParticle'), validParticles, 'classic');
+const bubbleStyle = whitelist(params.get('bubble') || localStorage.getItem('_flightBubble'), validBubbles, 'classic');
+const bubblePosition = whitelist(params.get('bubblePosition') || localStorage.getItem('_flightBubblePos'), validBubblePos, 'top');
+const bubbleSize = Math.max(0.1, Math.min(5, parseFloat(params.get('bubbleSize') || localStorage.getItem('_flightBubbleSize')) || 1));
 const bubbleBgColor = localStorage.getItem('_flightBubbleBgColor') || '';
 const bubbleFontColor = localStorage.getItem('_flightBubbleFontColor') || '';
 const imageData = localStorage.getItem('_flightImage') || '';
 const useImage = localStorage.getItem('_flightUseImage') === '1';
-const direction = params.get('dir') || localStorage.getItem('_flightDir') || 'ltr';
+const direction = whitelist(params.get('dir') || localStorage.getItem('_flightDir'), validDirections, 'ltr');
 const sequenceId = params.get('seq') || localStorage.getItem('_flightSeq') || '';
 
 const isRtl = direction === 'rtl';

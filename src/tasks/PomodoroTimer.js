@@ -9,6 +9,7 @@ let doTriggerFlightFn;
 let showToastFn;
 let updateMiniWindowFn;
 let onTickFn = null;
+let onBreakStartFn = null;
 
 const POMODORO_CONFIG = {
   work: 25 * 60,
@@ -40,6 +41,10 @@ export function initPomodoroTimer(ctx) {
 
 export function setPomodoroTickCallback(fn) {
   onTickFn = fn;
+}
+
+export function setPomodoroBreakStartCallback(fn) {
+  onBreakStartFn = fn;
 }
 
 export function getPomodoroState() {
@@ -105,6 +110,7 @@ function onPomodoroPhaseComplete() {
       pomodoroState.remaining = POMODORO_CONFIG.shortBreak;
       showToastFn(t('pomodoro.short_break', { minutes: POMODORO_CONFIG.shortBreak / 60 }));
     }
+    if (onBreakStartFn) onBreakStartFn();
   } else {
     const wasLongBreak = phase === 'longBreak';
     pomodoroState.phase = 'work';
@@ -176,6 +182,14 @@ export function skipPomodoroPhase() {
 
 export function getPomodoroTask() {
   return pomodoroState.task;
+}
+
+export function isPomodoroInWorkPhase() {
+  return pomodoroState.active && pomodoroState.phase === 'work';
+}
+
+export function getPomodoroPhase() {
+  return pomodoroState.active ? pomodoroState.phase : null;
 }
 
 export { POMODORO_CONFIG };

@@ -2,7 +2,7 @@ import { t } from '../i18n/index.js';
 import { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask } from '../tasks/TaskFactory.js';
 import { getMaxDayForMonth, formatHolidayLabel, normalizeRepeat } from '../tasks/TaskUtils.js';
 
-let showToastFn = (msg) => console.warn('[ModalController] showToast called before init:', msg);
+let showToastFn = (msg) => { console.error('[ModalController] showToast called before init:', msg); };
 
 export function setToastFn(fn) { showToastFn = fn; }
 

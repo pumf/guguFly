@@ -1,4 +1,5 @@
 import { t, ta } from '../i18n/index.js';
+import { escapeHtml } from '../utils.js';
 
 function getWeekdayLabels() {
   return ta('calendar.day_labels');
@@ -24,7 +25,7 @@ export function renderTaskHistory(stats, flightLog) {
 
   container.innerHTML = taskEntries.map(([taskId, total]) => {
     const task = tasks.find(t => String(t.id) === String(taskId));
-    const label = task ? (task.label || t('common.unnamed')) : `#${taskId}`;
+    const label = escapeHtml(task ? (task.label || t('common.unnamed')) : `#${taskId}`);
     const typeIcon = getTypeIcon(task?.type);
     const dailyCounts = dailyMap.get(taskId) || [];
 
@@ -34,7 +35,7 @@ export function renderTaskHistory(stats, flightLog) {
     }).join('');
 
     return `
-      <div class="hist-task-row" data-task-id="${taskId}">
+      <div class="hist-task-row" data-task-id="${escapeHtml(String(taskId))}">
         <div class="hist-task-head">
           <span class="hist-task-icon">${typeIcon}</span>
           <span class="hist-task-label">${label}</span>
@@ -67,12 +68,14 @@ function buildDailyTaskMap(flightLog) {
       }
     }
   }
+  // Build a date→entry index to avoid O(n·m) find() calls
+  const logByDate = new Map();
+  for (const entry of flightLog) {
+    if (entry.date) logByDate.set(entry.date, entry);
+  }
   const map = new Map();
   for (const taskId of taskIds) {
-    map.set(taskId, dayKeys.map(key => {
-      const day = flightLog.find(e => e.date === key);
-      return day?.byTask?.[taskId] || 0;
-    }));
+    map.set(taskId, dayKeys.map(key => logByDate.get(key)?.byTask?.[taskId] || 0));
   }
   return map;
 }

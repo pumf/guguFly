@@ -106,7 +106,14 @@ export function openTaskDetailDrawer(task, ctx) {
   infoItems.forEach(item => {
     const row = document.createElement('div');
     row.className = 'task-drawer-info-item';
-    row.innerHTML = `<span class="task-drawer-info-label">${item.label}</span><span class="task-drawer-info-value">${item.value}</span>`;
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'task-drawer-info-label';
+    labelSpan.textContent = item.label;
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'task-drawer-info-value';
+    valueSpan.textContent = item.value;
+    row.appendChild(labelSpan);
+    row.appendChild(valueSpan);
     infoEl.appendChild(row);
   });
 

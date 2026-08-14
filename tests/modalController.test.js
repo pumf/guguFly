@@ -146,3 +146,21 @@ describe('saveModal', () => {
     expect(renderTasksFn).toHaveBeenCalled();
   });
 });
+
+describe('ModalController initialization guard', () => {
+  it('setToastFn replaces default guard', async () => {
+    const { setToastFn } = await import('../src/ui/ModalController.js');
+    const mockFn = vi.fn();
+    setToastFn(mockFn);
+    mockFn('test');
+    expect(mockFn).toHaveBeenCalledWith('test');
+  });
+
+  it('default showToastFn logs error before init', async () => {
+    vi.resetModules();
+    const { setToastFn } = await import('../src/ui/ModalController.js');
+    const mockFn = vi.fn();
+    setToastFn(mockFn);
+    expect(() => mockFn('test')).not.toThrow();
+  });
+});

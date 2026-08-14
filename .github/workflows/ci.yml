@@ -24,6 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Version consistency check
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          TAURI_VER=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          CARGO_VER=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          if [ "$PKG_VER" != "$TAURI_VER" ] || [ "$PKG_VER" != "$CARGO_VER" ]; then
+            echo "Version mismatch: package.json=$PKG_VER tauri.conf.json=$TAURI_VER Cargo.toml=$CARGO_VER"
+            exit 1
+          fi
+          echo "All versions match: $PKG_VER"
+
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 
@@ -51,6 +65,14 @@ jobs:
 
       - name: Build frontend (required by Tauri)
         run: npm run build
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test
 
       - name: Check (native)
         working-directory: src-tauri

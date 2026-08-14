@@ -12,7 +12,10 @@ export function lunarToSolarDate(lunarYear, lunarMonth, lunarDay) {
 
 export function getNextSolarFromLunar(lunarMonth, lunarDay, afterDate) {
   const now = afterDate || new Date();
-  for (let year = now.getFullYear() - 1; year <= now.getFullYear() + 2; year++) {
+  // Normalize to midnight to ensure date-only comparison is consistent
+  // regardless of whether afterDate includes a time component.
+  const afterMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let year = afterMidnight.getFullYear() - 1; year <= afterMidnight.getFullYear() + 2; year++) {
     try {
       const lunar = Lunar.fromYmd(year, lunarMonth, lunarDay);
       const solar = lunar.getSolar();
@@ -20,7 +23,7 @@ export function getNextSolarFromLunar(lunarMonth, lunarDay, afterDate) {
       const sMonth = solar.getMonth();
       const sDay = solar.getDay();
       const candidate = new Date(sYear, sMonth - 1, sDay);
-      if (candidate >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      if (candidate >= afterMidnight) {
         return { year: sYear, solarMonth: sMonth, solarDay: sDay };
       }
     } catch {

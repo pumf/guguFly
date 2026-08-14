@@ -28,6 +28,11 @@ export async function loadSettings() {
     miniWindowPosition: await get('miniWindowPosition'),
     theme: await get('theme'),
     language: await get('language'),
+    smartPauseEnabled: await get('smartPauseEnabled'),
+    naturalBreakEnabled: await get('naturalBreakEnabled'),
+    naturalBreakThreshold: await get('naturalBreakThreshold'),
+    workScheduleEnabled: await get('workScheduleEnabled'),
+    workSchedule: await get('workSchedule'),
   };
 }
 
@@ -61,4 +66,59 @@ export function isInQuietHours(quietHoursToggle, quietStartHour, quietEndHour) {
     return h >= start && h < end;
   }
   return h >= start || h < end;
+}
+
+const DEFAULT_WORK_SCHEDULE = {
+  0: { enabled: false, start: 9, end: 18 },
+  1: { enabled: true, start: 9, end: 18 },
+  2: { enabled: true, start: 9, end: 18 },
+  3: { enabled: true, start: 9, end: 18 },
+  4: { enabled: true, start: 9, end: 18 },
+  5: { enabled: true, start: 9, end: 18 },
+  6: { enabled: false, start: 9, end: 18 },
+};
+
+export function isWithinWorkSchedule(schedule) {
+  if (!schedule) return true;
+  const now = new Date();
+  const day = now.getDay();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const currentMinutes = h * 60 + m;
+
+  const dayConfig = schedule[day];
+  if (!dayConfig || !dayConfig.enabled) return false;
+
+  const startMinutes = (dayConfig.start || 0) * 60;
+  const endMinutes = (dayConfig.end || 24) * 60;
+
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+}
+
+export function getDefaultWorkSchedule() {
+  return { ...DEFAULT_WORK_SCHEDULE };
+}
+
+export function getNextWorkWindow(schedule) {
+  if (!schedule) return null;
+  const now = new Date();
+  const day = now.getDay();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const currentMinutes = h * 60 + m;
+
+  for (let i = 0; i < 7; i++) {
+    const checkDay = (day + i) % 7;
+    const dayConfig = schedule[checkDay];
+    if (!dayConfig || !dayConfig.enabled) continue;
+
+    const startMinutes = (dayConfig.start || 0) * 60;
+    if (i === 0 && currentMinutes < startMinutes) {
+      return { day: checkDay, hour: dayConfig.start, minutes: startMinutes - currentMinutes };
+    }
+    if (i > 0) {
+      return { day: checkDay, hour: dayConfig.start, minutes: startMinutes - currentMinutes + i * 24 * 60 };
+    }
+  }
+  return null;
 }

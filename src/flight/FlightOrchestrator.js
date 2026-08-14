@@ -1,21 +1,18 @@
 import { t } from '../i18n/index.js';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { availableMonitors, currentMonitor } from '@tauri-apps/api/window';
-import { listen, emit } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getRandomQuote } from '../quotes.js';
 import { SOUND_PRESETS, playPreset as playPresetSound } from '../sounds.js';
 import { dataUrlToArrayBuffer, isTauriRuntime } from '../utils.js';
 import { getAudioContext, unlockAudioIfNeeded } from '../ui/AudioManager.js';
 import { setMuted as setAudioSystemMuted, setCustomAudioObjectUrl as setAudioSystemObjectUrl, revokeCustomAudioObjectUrl as revokeAudioSystemObjectUrl } from '../ui/AudioSystem.js';
+import { initPostFlightNotify, showPostFlightNotify, closePostFlightNotify, resetPfNotifyState as resetPfNotify, setPendingPfCancel, getPendingPfCancel, clearPendingPfCancel, getPostFlightState, setPostFlightCancelled, setPostFlightTimeout, setPendingPostFlightJob } from './PostFlightNotify.js';
 
 let activeFlightJob = null;
 const flightQueue = [];
 const flightSequences = new Map();
-let pfNotifyWin = null;
-let pendingPfCancel = null;
-let pfAutoClosing = false;
-let pfUnlistenClick = null;
 
 // Set to true while an emergency landing is in progress. Used by the
 // flight-ended listener to suppress post-flight actions that would
@@ -245,11 +242,11 @@ async function waitForVideoMutex(timeoutMs = 1000) {
 
 // Reset post-flight notify window state. Same rationale as above.
 export function resetPfNotifyState() {
-  pfNotifyWin = null;
-  pfAutoClosing = false;
-  if (pfUnlistenClick) {
-    try { pfUnlistenClick(); } catch (pfErr) { console.error('pfUnlistenClick failed:', pfErr); }
-  }
+  resetPfNotify();
+  setPostFlightCancelled(false);
+  const state = getPostFlightState();
+  if (state.postFlightTimeout) { clearTimeout(state.postFlightTimeout); setPostFlightTimeout(null); }
+  setPendingPostFlightJob(null);
 }
 
 export function isMutedFn() { return isMuted; }
@@ -392,135 +389,15 @@ async function playOscillator(sound, playPresetSound) {
   }
 }
 
-let showToast = (msg) => { console.warn('[FlightOrchestrator] showToast called before init:', msg); };
+let showToast = (msg) => { console.error('[FlightOrchestrator] showToast called before init:', msg); };
 export function setToastFn(fn) { showToast = fn; }
 
-// Single canonical cleanup for the post-flight notify window. Closes
-// the window, detaches the click listener, and clears the references.
-// Callers should never duplicate this logic inline.
-async function cleanupPostFlightNotify() {
-  if (pfUnlistenClick) {
-    try { pfUnlistenClick(); } catch (error) {
-      console.error('post-flight unlisten failed:', error);
-    }
-    pfUnlistenClick = null;
-  }
-  if (pfNotifyWin) {
-    pfAutoClosing = true;
-    try { await pfNotifyWin.close(); } catch (error) {
-      console.error('post-flight close failed:', error);
-    }
-    pfNotifyWin = null;
-  }
-  pfAutoClosing = false;
+export { closePostFlightNotify, setPendingPfCancel, getPendingPfCancel, clearPendingPfCancel };
+
+export function setPfActionHandler(handler) {
+  // Pass to PostFlightNotify module
+  import('./PostFlightNotify.js').then(m => { m.initPostFlightNotify({ getActiveFlightJob: () => activeFlightJob, pfActionHandler: handler, showToast }); });
 }
-
-async function showPostFlightNotify(action) {
-  if (!isTauriRuntime()) return;
-  try {
-    // Always clean up any prior notify window before creating a new one.
-    await cleanupPostFlightNotify();
-
-    const sw = screen.availWidth || 1440;
-    const sh = screen.availHeight || 900;
-    pfNotifyWin = new WebviewWindow('gugufly-pfnotify', {
-      url: '/postflight-notify.html',
-      width: 380, height: 80,
-      x: Math.round((sw - 380) / 2), y: Math.round(sh * 0.65),
-      transparent: true, decorations: false,
-      alwaysOnTop: true, skipTaskbar: true,
-      resizable: false, focus: false, visible: true,
-    });
-
-    const pfVideoFile = activeFlightJob?.postFlight?.videoFile || 'cat.mov';
-    const pfEffectType = activeFlightJob?.postFlight?.effectType || 'fireworks';
-    const builtinLabels = { 'cat.mov': t('postflight.video.cat'), 'dog.mov': t('postflight.video.dog') };
-    const videoLabel = (action === 'video') ? (builtinLabels[pfVideoFile] || t('postflight.video.cat')) : '';
-    const effectLabels = { fireworks: t('postflight.effect.fireworks'), firecrackers: t('postflight.effect.firecrackers'), emojis: t('postflight.effect.emojis'), rainbow: t('postflight.effect.rainbow'), bubbles: t('postflight.effect.bubbles') };
-    const effectLabel = (action === 'effect') ? (effectLabels[pfEffectType] || t('postflight.effect.fireworks')) : '';
-    const labels = { app: t('postflight.app'), url: t('postflight.url'), lock: t('postflight.lock'), folder: t('postflight.folder'), tts: t('postflight.tts'), script: t('postflight.script'), video: videoLabel, effect: effectLabel };
-    const label = labels[action] || action;
-    const fullText = t('postflight.label', { label });
-
-    pfNotifyWin.once('tauri://created', async () => {
-      try {
-        await new Promise(r => setTimeout(r, 150));
-        await emit('pf-notify-set-label', { label: fullText });
-      } catch (error) {
-        console.error('post-flight notify label failed:', error);
-      }
-    });
-
-    pfNotifyWin.onCloseRequested(() => {
-      if (!pfAutoClosing && pendingPfCancel) {
-        pendingPfCancel();
-        pendingPfCancel = null;
-      }
-    });
-    pfNotifyWin.once('tauri://error', (error) => console.error('post-flight notify window error:', error));
-
-    // Defensive: if any stale unlisten remains, clean it before registering new one.
-    if (pfUnlistenClick) {
-      try { pfUnlistenClick(); } catch (error) {
-        console.error('post-flight stale unlisten failed:', error);
-      }
-      pfUnlistenClick = null;
-    }
-    const unlisten = await listen('pf-notify-clicked', async () => {
-      // Mark as cancelled - don't clear pendingPostFlightJob yet
-      // The flight-ended handler will check this flag and skip execution
-      postFlightCancelled = true;
-      if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
-      
-      // Close the popup
-      await cleanupPostFlightNotify();
-      
-      // Show toast
-      if (showToast) showToast(t('toast.cancelled_postflight'));
-    });
-    pfUnlistenClick = unlisten;
-
-    const unlistenAction = await listen('pf-action', async (event) => {
-      const { action, minutes } = event.payload || {};
-      if (action === 'skip') {
-        if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
-        pendingPostFlightJob = null;
-        postFlightCancelled = true;
-      }
-      if (pfActionHandler) {
-        await pfActionHandler(action, { minutes, task: activeFlightJob?.task });
-      }
-      await cleanupPostFlightNotify();
-    });
-    if (pfUnlistenClick) {
-      const prevUnlisten = pfUnlistenClick;
-      pfUnlistenClick = () => {
-        try { prevUnlisten(); } catch (_) { /* cleanup */ }
-        try { unlistenAction(); } catch (_) { /* cleanup */ }
-      };
-    }
-  } catch (e) { console.error('showPostFlightNotify failed:', e); }
-}
-
-export async function closePostFlightNotify() {
-  await cleanupPostFlightNotify();
-}
-
-export function setPendingPfCancel(fn) { pendingPfCancel = fn; }
-export function getPendingPfCancel() { return pendingPfCancel; }
-// Clear the pendingPfCancel without invoking it. Used by emergency
-// landing to ensure stale closures don't reference a no-longer-active
-// flight job.
-export function clearPendingPfCancel() {
-  pendingPfCancel = null;
-}
-
-let pfActionHandler = null;
-let pendingPostFlightJob = null;
-let postFlightTimeout = null;
-let postFlightCancelled = false;
-
-export function setPfActionHandler(handler) { pfActionHandler = handler; }
 
 async function processFlightQueue() {
   if (activeFlightJob || !flightQueue.length) return;
@@ -538,12 +415,13 @@ async function processFlightQueue() {
       return;
     }
     if (nextJob.postFlight && nextJob.postFlight.action !== 'none') {
-      pendingPostFlightJob = nextJob;
-      postFlightCancelled = false;
-      pendingPfCancel = () => { 
-        if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
-        postFlightCancelled = true;
-      };
+      setPendingPostFlightJob(nextJob);
+      setPostFlightCancelled(false);
+      setPendingPfCancel(() => {
+        const state = getPostFlightState();
+        if (state.postFlightTimeout) { clearTimeout(state.postFlightTimeout); setPostFlightTimeout(null); }
+        setPostFlightCancelled(true);
+      });
       showPostFlightNotify(nextJob.postFlight.action);
     }
   } catch (e) {
@@ -723,16 +601,8 @@ export async function executePostFlightAction(postFlight) {
     } else if (postFlight.action === 'tts' && (postFlight.taskMsg || postFlight.script)) {
       const confirmed = await window.showConfirm(t('validation.tts_confirm'));
       if (!confirmed) return;
-      const ttsText = (postFlight.script || postFlight.taskMsg || '').replace(/"/g, '\\"');
-      const platform2 = isTauriRuntime() ? await invoke('get_platform').catch(() => '') : '';
-      const isWin2 = platform2 === 'windows';
-      const isLinux2 = platform2 === 'linux';
-      const ttsScript = isWin2
-        ? `mshta vbscript:Execute("CreateObject(""SAPI.SpVoice"").Speak(""${ttsText}"" ) :close")`
-        : isLinux2
-        ? `spd-say "${ttsText}"`
-        : `say "${ttsText}"`;
-      await invoke('run_script', { script: ttsScript });
+      const ttsText = postFlight.script || postFlight.taskMsg || '';
+      await invoke('speak_text', { text: ttsText });
     } else if (postFlight.action === 'script' && postFlight.script) {
       const confirmed = await window.showConfirm(t('validation.script_confirm'));
       if (!confirmed) return;
@@ -1035,29 +905,31 @@ export async function initFlightListeners() {
     }
 
     // Check if there's a pending post-flight job from processFlightQueue
-    if (pendingPostFlightJob) {
-      const job = pendingPostFlightJob;
-      pendingPostFlightJob = null;
-      if (postFlightTimeout) { clearTimeout(postFlightTimeout); postFlightTimeout = null; }
+    const pfState = getPostFlightState();
+    if (pfState.pendingPostFlightJob) {
+      const job = pfState.pendingPostFlightJob;
+      setPendingPostFlightJob(null);
+      if (pfState.postFlightTimeout) { clearTimeout(pfState.postFlightTimeout); setPostFlightTimeout(null); }
       
       // Execute the post-flight action after a short delay
       // This gives the user time to click cancel on the popup
-      postFlightTimeout = setTimeout(async () => {
-        postFlightTimeout = null;
+      setPostFlightTimeout(setTimeout(async () => {
+        setPostFlightTimeout(null);
         // Check if the user cancelled while we were waiting
-        if (postFlightCancelled) {
-          postFlightCancelled = false;
-          pendingPostFlightJob = null;
+        const currentState = getPostFlightState();
+        if (currentState.postFlightCancelled) {
+          setPostFlightCancelled(false);
+          setPendingPostFlightJob(null);
           return;
         }
-        pendingPostFlightJob = null;
+        setPendingPostFlightJob(null);
         await closePostFlightNotify();
         if (inLoop && loopState) {
           await executePostFlightAction(loopState.postFlight);
         } else {
           await executePostFlightAction(job.postFlight);
         }
-      }, 200);
+      }, 200));
       return;
     }
 

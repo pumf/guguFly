@@ -4,12 +4,12 @@ function loadFilterState() {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY));
     if (saved && typeof saved === 'object') return saved;
-  } catch {}
+  } catch { /* localStorage may be unavailable */ }
   return {};
 }
 
 function saveFilterState(state) {
-  try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(state)); } catch { /* localStorage may be unavailable */ }
 }
 
 export function initTaskFilter(ctx) {

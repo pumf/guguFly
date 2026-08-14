@@ -66,7 +66,13 @@ function renderMarkdown(md) {
   return out
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => {
+      const trimmed = href.trim();
+      if (/^https?:\/\//i.test(trimmed)) {
+        return `<a href="${trimmed}">${text}</a>`;
+      }
+      return text;
+    });
 }
 
 function setReleaseNotes(container, notes) {
@@ -181,6 +187,7 @@ async function checkUpdaterPlugin() {
 }
 
 let isDownloading = false;
+let pluginDownloadFn = null;
 
 export async function installUpdate() {
   if (isDownloading) return; // Prevent double-click
@@ -192,6 +199,7 @@ export async function installUpdate() {
   const updateDownloadBtn = document.getElementById('updateDownloadBtn');
   const updateCancelBtn = document.getElementById('updateCancelBtn');
 
+  let progressInterval = null;
   isDownloading = true;
   if (updateInstallBtn) updateInstallBtn.disabled = true;
   if (updateDownloadBtn) updateDownloadBtn.disabled = true;
@@ -206,7 +214,7 @@ export async function installUpdate() {
     const onCancel = () => {
       cancelled = true;
       isDownloading = false;
-      if (updateProgressText) updateProgressText.textContent = t('update.install_cancelled') || '已取消更新';
+      if (updateProgressText) updateProgressText.textContent = t('update.install_cancelled');
       if (updateProgressFill) updateProgressFill.style.width = '0%';
       if (updateInstallBtn) updateInstallBtn.disabled = false;
       if (updateCancelBtn) {
@@ -221,35 +229,48 @@ export async function installUpdate() {
   }
 
   if (isTauriRuntime()) {
-    const downloadUrl = updateAvailable?.url || 'https://github.com/pumf/guguFly/releases/latest';
     try {
-      if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: 0 });
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        if (cancelled) { clearInterval(progressInterval); return; }
-        if (progress < 90) {
-          progress += Math.random() * 15;
-          if (progress > 90) progress = 90;
-          if (updateProgressFill) updateProgressFill.style.width = `${Math.round(progress)}%`;
-          if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: Math.round(progress) });
-        }
-      }, 500);
+      // Prefer the updater plugin's downloadAndInstall when available
+      // (real progress tracking). Fall back to custom download only
+      // when the update was detected via cache or GitHub API.
+      if (pluginDownloadFn) {
+        if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: 0 });
+        await pluginDownloadFn((percent) => {
+          if (cancelled) return;
+          if (updateProgressFill) updateProgressFill.style.width = `${percent}%`;
+          if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent });
+        });
+      } else {
+        const downloadUrl = updateAvailable?.url || 'https://github.com/pumf/guguFly/releases/latest';
+        if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: 0 });
+        let progress = 0;
+        progressInterval = setInterval(() => {
+          if (cancelled) { clearInterval(progressInterval); return; }
+          if (progress < 90) {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            if (updateProgressFill) updateProgressFill.style.width = `${Math.round(progress)}%`;
+            if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: Math.round(progress) });
+          }
+        }, 500);
+        await invoke('download_and_install_update', { url: downloadUrl });
+      }
 
-      await invoke('download_and_install_update', { url: downloadUrl });
-
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       if (cancelled) return;
 
       isDownloading = false;
+      pluginDownloadFn = null;
       if (updateProgressFill) updateProgressFill.style.width = '100%';
-      if (updateProgressText) updateProgressText.textContent = t('update.install_success') || '安装完成！新版本已安装到 Applications，正在启动...';
+      if (updateProgressText) updateProgressText.textContent = t('update.install_success');
       if (updateCancelBtn) updateCancelBtn.classList.add('hidden');
       setTimeout(() => {
         if (updateInstallBtn) updateInstallBtn.disabled = false;
       }, 3000);
     } catch (error) {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       isDownloading = false;
+      pluginDownloadFn = null;
       console.error('download update failed:', error);
       if (!cancelled) {
         if (updateProgressText) updateProgressText.textContent = t('update.install_failed');
@@ -273,11 +294,16 @@ export async function autoCheckForUpdate() {
   const updaterResult = await checkUpdaterPlugin();
   if (updaterResult && updaterResult.available) {
     updateAvailable = updaterResult;
+    pluginDownloadFn = updaterResult.downloadAndInstall || null;
     if (updateStatus) updateStatus.textContent = t('update.status_found', { version: updaterResult.version });
     showUpdateIndicator(true);
     showUpdatePopup(currentVer, updaterResult);
     return;
   }
+
+  // Plugin not available — clear plugin download function so installUpdate
+  // falls back to custom download path.
+  pluginDownloadFn = null;
 
   const cached = getCachedUpdate();
 
@@ -388,6 +414,7 @@ export async function checkForUpdate() {
   const updaterResult = await checkUpdaterPlugin();
   if (updaterResult && updaterResult.available) {
     updateAvailable = updaterResult;
+    pluginDownloadFn = updaterResult.downloadAndInstall || null;
     if (updateLoading) updateLoading.classList.add('hidden');
     if (updateInfo) updateInfo.classList.remove('hidden');
     if (updateModalTitle) updateModalTitle.textContent = t('update.title');
@@ -404,6 +431,8 @@ export async function checkForUpdate() {
     showUpdateIndicator(false);
     return;
   }
+
+  pluginDownloadFn = null;
 
   const cached = getCachedUpdate();
 
@@ -450,6 +479,9 @@ export async function checkForUpdate() {
       if (updateInstallBtn) {
         updateInstallBtn.classList.remove('hidden');
         updateInstallBtn.onclick = () => installUpdate();
+      }
+      if (updateDownloadBtn) {
+        updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
       }
       updateAvailable = { url: cached.url || GITHUB_DOWNLOAD_URL, notes: cached.notes };
       if (updateStatus) updateStatus.textContent = t('update.status_found', { version: cached.version });

@@ -18,7 +18,7 @@ const SHORTCUT_HINTS = [
   { key: 'N', label: '⌘N', desc: 'shortcut.new_task' },
   { key: ',', label: '⌘,', desc: 'shortcut.settings' },
   { key: 'D', label: '⌘D', desc: 'shortcut.toggle_theme' },
-  { key: 'K', label: '⌘K', desc: 'shortcut.focus_search' },
+  { key: 'K', label: '⌘K', desc: 'shortcut.command_palette' },
   { key: 'J', label: '⌘J', desc: 'shortcut.focus_quick_create' },
   { key: 'B', label: '⌘B', desc: 'shortcut.toggle_mini' },
   { key: 'I', label: '⌘I', desc: 'shortcut.toggle_stats' },
@@ -103,10 +103,7 @@ function handleKeydown(e) {
       }
       break;
     case 'k':
-      if (!hasShift && !isInput) {
-        e.preventDefault();
-        if (focusSearchFn) focusSearchFn();
-      }
+      // Handled globally by CommandPalette — no-op here
       break;
     case 'j':
       if (!hasShift && !isInput) {

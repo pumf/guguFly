@@ -125,7 +125,11 @@ export async function applySettings(ctx) {
 
   syncMuteToTray();
 
-  refs.todayCountEl.textContent = t('hero.today_count', { count: cfg.todayCount });
+  // Settings binding — wrapped in try/catch because the Terminal UI
+  // removed several legacy DOM elements (todayCountEl, clearImageBtn,
+  // useImageCheckbox, etc.). Missing elements should not block init.
+  try {
+  refs.todayCountEl && (refs.todayCountEl.textContent = t('hero.today_count', { count: cfg.todayCount }));
   if (cfg.speed) refs.speedSelect.value = cfg.speed;
   if (cfg.height) refs.heightSelect.value = cfg.height;
   if (cfg.display) refs.displaySelect.value = cfg.display;
@@ -195,10 +199,21 @@ export async function applySettings(ctx) {
   if (refs.quietHoursToggle) refs.quietHoursToggle.checked = !!cfg.quietHoursEnabled;
   if (refs.quietStartHour) refs.quietStartHour.value = cfg.quietStartHour || 22;
   if (refs.quietEndHour) refs.quietEndHour.value = cfg.quietEndHour || 8;
+  const smartPauseToggle = document.getElementById('smartPauseToggle');
+  if (smartPauseToggle) smartPauseToggle.checked = !!cfg.smartPauseEnabled;
+  const naturalBreakToggle = document.getElementById('naturalBreakToggle');
+  if (naturalBreakToggle) naturalBreakToggle.checked = !!cfg.naturalBreakEnabled;
+  const naturalBreakThreshold = document.getElementById('naturalBreakThreshold');
+  if (naturalBreakThreshold) naturalBreakThreshold.value = cfg.naturalBreakThreshold || 30;
+  const workScheduleToggle = document.getElementById('workScheduleToggle');
+  if (workScheduleToggle) workScheduleToggle.checked = !!cfg.workScheduleEnabled;
   if (refs.miniWindowToggle) refs.miniWindowToggle.checked = !!cfg.miniWindowEnabled;
   if (cfg.miniWindowPosition) updateMiniPosGridActive(cfg.miniWindowPosition);
   onLanguageChange(syncLangButtons);
   if (cfg.language) setLanguage(cfg.language);
+  } catch (err) {
+    console.error('applySettings bindings skipped:', err);
+  }
 }
 
 export async function runPostInit(ctx) {

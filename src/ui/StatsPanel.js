@@ -91,7 +91,7 @@ export async function renderStats(computeFlightStatsFn) {
     const [topId, topCount] = topEntries[0];
     const topTask = tasks.find(t => String(t.id) === String(topId));
     if (statsTopTaskEl) statsTopTaskEl.textContent = topTask ? (topTask.label || t('stats.unnamed')) : `#${topId}`;
-    if (statsTopCountEl) statsTopCountEl.textContent = t('stats.total_suffix').replace('{{count}}', topCount);
+    if (statsTopCountEl) statsTopCountEl.textContent = t('stats.total_suffix', { count: topCount });
   } else {
     if (statsTopTaskEl) statsTopTaskEl.textContent = '—';
     if (statsTopCountEl) statsTopCountEl.textContent = t('stats.top_count');

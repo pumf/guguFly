@@ -1,5 +1,11 @@
 import { t } from '../i18n/index.js';
 
+let flightBoardRenderFn = null;
+
+export function setFlightBoardRenderer(fn) {
+  flightBoardRenderFn = fn;
+}
+
 export function createTaskActions(ctx) {
   const {
     state,
@@ -48,6 +54,9 @@ export function createTaskActions(ctx) {
     });
     setStatsTasks(state.tasks);
     setHistoryTasks(state.tasks);
+    if (flightBoardRenderFn) {
+      flightBoardRenderFn(state.tasks);
+    }
   }
 
   function toggleTaskExpandedFn(taskId) {

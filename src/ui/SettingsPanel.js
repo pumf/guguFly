@@ -1,4 +1,8 @@
 import { t, setLanguage } from '../i18n/index.js';
+import { escapeHtml } from '../utils.js';
+import { setSmartPauseEnabled } from '../smart-pause/SmartPause.js';
+import { setNaturalBreakEnabled, setIdleThreshold } from '../smart-pause/NaturalBreak.js';
+import { getDefaultWorkSchedule, isWithinWorkSchedule } from '../settings/SettingsManager.js';
 
 export function initSettingsPanel(ctx) {
   const {
@@ -107,6 +111,76 @@ export function initSettingsPanel(ctx) {
   quietStartHour?.addEventListener('change', () => persistSetting('quietStartHour', parseInt(quietStartHour.value) || 22));
   quietEndHour?.addEventListener('change', () => persistSetting('quietEndHour', parseInt(quietEndHour.value) || 8));
 
+  const smartPauseToggle = document.getElementById('smartPauseToggle');
+  smartPauseToggle?.addEventListener('change', () => {
+    persistSetting('smartPauseEnabled', smartPauseToggle.checked);
+    setSmartPauseEnabled(smartPauseToggle.checked);
+  });
+
+  const naturalBreakToggle = document.getElementById('naturalBreakToggle');
+  const naturalBreakThreshold = document.getElementById('naturalBreakThreshold');
+  naturalBreakToggle?.addEventListener('change', () => {
+    persistSetting('naturalBreakEnabled', naturalBreakToggle.checked);
+    setNaturalBreakEnabled(naturalBreakToggle.checked);
+  });
+  naturalBreakThreshold?.addEventListener('change', () => {
+    const val = parseInt(naturalBreakThreshold.value) || 30;
+    persistSetting('naturalBreakThreshold', val);
+    setIdleThreshold(val);
+  });
+
+  const workScheduleToggle = document.getElementById('workScheduleToggle');
+  const workScheduleGrid = document.getElementById('workScheduleGrid');
+  const dayLabels = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+  function renderWorkScheduleGrid(schedule) {
+    if (!workScheduleGrid) return;
+    workScheduleGrid.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const dayConfig = schedule[i] || { enabled: false, start: 9, end: 18 };
+      const col = document.createElement('div');
+      col.style.cssText = 'display:flex;flex-direction:column;gap:2px;align-items:center';
+      col.innerHTML = `
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer">
+          <input type="checkbox" class="ws-day-toggle" data-day="${i}" ${dayConfig.enabled ? 'checked' : ''} />
+          <span style="font-weight:600">${t('settings.work_schedule_' + dayLabels[i])}</span>
+        </label>
+        <div class="ws-time-row" style="display:flex;gap:2px;align-items:center;opacity:${dayConfig.enabled ? 1 : 0.4}">
+          <input type="number" class="ws-start" data-day="${i}" min="0" max="23" value="${dayConfig.start}" style="width:32px;font-size:10px;padding:1px;text-align:center" />
+          <span style="font-size:9px">-</span>
+          <input type="number" class="ws-end" data-day="${i}" min="0" max="23" value="${dayConfig.end}" style="width:32px;font-size:10px;padding:1px;text-align:center" />
+        </div>
+      `;
+      workScheduleGrid.appendChild(col);
+    }
+
+    workScheduleGrid.querySelectorAll('.ws-day-toggle').forEach(toggle => {
+      toggle.addEventListener('change', () => {
+        const day = parseInt(toggle.dataset.day);
+        const currentSchedule = { ...workSchedule };
+        currentSchedule[day] = { ...currentSchedule[day], enabled: toggle.checked };
+        persistSetting('workSchedule', currentSchedule);
+        renderWorkScheduleGrid(currentSchedule);
+      });
+    });
+
+    workScheduleGrid.querySelectorAll('.ws-start, .ws-end').forEach(input => {
+      input.addEventListener('change', () => {
+        const day = parseInt(input.dataset.day);
+        const field = input.classList.contains('ws-start') ? 'start' : 'end';
+        const val = parseInt(input.value) || (field === 'start' ? 9 : 18);
+        const currentSchedule = { ...workSchedule };
+        currentSchedule[day] = { ...currentSchedule[day], [field]: val };
+        persistSetting('workSchedule', currentSchedule);
+      });
+    });
+  }
+
+  let workSchedule = getDefaultWorkSchedule();
+  workScheduleToggle?.addEventListener('change', () => {
+    persistSetting('workScheduleEnabled', workScheduleToggle.checked);
+  });
+
   miniWindowToggle?.addEventListener('change', () => {
     persistSetting('miniWindowEnabled', miniWindowToggle.checked);
     if (miniWindowToggle.checked) void createMiniWindow();
@@ -210,8 +284,8 @@ export function initSettingsPanel(ctx) {
                    `${task.month}/${task.day}`;
       return `<div class="import-preview-task">
         <span class="import-preview-task-type">${icon}</span>
-        <span class="import-preview-task-label">${task.label || t('common.unnamed_task')}</span>
-        <span class="import-preview-task-time">${time}</span>
+        <span class="import-preview-task-label">${escapeHtml(task.label || t('common.unnamed_task'))}</span>
+        <span class="import-preview-task-time">${escapeHtml(time)}</span>
       </div>`;
     }).join('') + (tasks.length > 20 ? `<div class="import-preview-task" style="justify-content:center;color:var(--muted)">${t('import.more_tasks', { count: tasks.length - 20 })}</div>` : '');
 

@@ -1,6 +1,7 @@
 import { t } from '../i18n/index.js';
 import { computeNextAlarmDate, isWithinMinutes } from './TaskUtils.js';
 import { getNextSolarFromLunar } from './LunarUtils.js';
+import { isSnoozed } from '../flight/Snooze.js';
 
 let alarmInterval = null;
 const previewedTasks = new Set();
@@ -179,6 +180,7 @@ function runAlarmCheck() {
   getTasksFn().forEach(task => {
     if (!task.enabled) return;
     if (task._lastTriggeredDate === today) return;
+    if (isSnoozed(task.id)) return;
     if (task.type === 'alarm') {
       if (isAlarmDueTodayFn(task, now)) {
         task._lastTriggeredDate = today;
@@ -218,12 +220,15 @@ function runSleepRecovery(fromTime, toTime) {
   getTasksFn().forEach(task => {
     if (!task.enabled) return;
     if (task._lastTriggeredDate === today) return;
-    if ((task.type === 'holiday' || task.type === 'anniversary') && task._lastTriggeredDate) return;
-    if (task.type === 'alarm' || task.type === 'holiday' || task.type === 'anniversary') {
-      const next = computeNextAlarmDate(task, new Date(fromTime));
-      if (next && next.getTime() >= fromTime && next.getTime() <= toTime) {
-        missed.push(task);
-      }
+    // Only recover alarm-type tasks. Holidays and anniversaries are
+    // annual/one-shot events that should only trigger through the
+    // normal runAlarmCheck path (exact hour:minute match on the
+    // correct date). Including them here risks false triggers when
+    // the recovery window spans across a date boundary.
+    if (task.type !== 'alarm') return;
+    const next = computeNextAlarmDate(task, new Date(fromTime));
+    if (next && next.getTime() >= fromTime && next.getTime() <= toTime) {
+      missed.push(task);
     }
   });
   if (missed.length === 1) {

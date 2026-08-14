@@ -1,0 +1,58 @@
+// Centralized dependency imports for initCoreModules.
+// Each module imports what it needs directly instead of receiving
+// 80+ deps via context forwarding from main.js.
+
+export { AccurateTimer } from '../timer.js';
+export { get, set, loadTasks, saveTasks, incrementTodayCount, resetStreak, recordFlightTrigger, computeFlightStats, loadFlightLog, setStorageQuotaHandler, setStoreFailureHandler } from '../storage.js';
+export { getRandomQuote } from '../quotes.js';
+export { SOUND_PRESETS, playPreset as playPresetSound } from '../sounds.js';
+export { exportTasksAsJson, readBackupFromFile } from '../backup.js';
+export { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
+export { showConfirm, setConfirmI18n } from '../utils.js';
+export { HOLIDAY_PRESETS } from '../tasks/HolidayPresets.js';
+export { createAlarmTask, createCountdownTask, createHolidayTask, createAnniversaryTask, setNextId } from '../tasks/TaskFactory.js';
+export { getDateKey, dayDiff, getCleanTasks, hydrateTasks, formatHolidayLabel, isAlarmDueToday, normalizeRepeat } from '../tasks/TaskUtils.js';
+export { DEFAULT_FLIGHT_SETTINGS, FLIGHT_PRESETS } from '../flight/FlightPresets.js';
+export { initFlightOrchestrator, queueFlight, clearFlightQueue, clearAllSequences, stopLoopSound, stopPreviewAudio, validateCustomAudioPreview, setCustomImageData, setCustomAudioData, setCustomAudioObjectUrl, setMuted, triggerFlightWithMode, initFlightListeners, setToastFn, buildCustomAudioObjectUrl, setUpdateTaskFlightCb, resetVideoWindowState, resetPfNotifyState, closePostFlightNotify, setEmergencyLandingActive, isEmergencyLandingActive, setIsInQuietHoursFn, setSkipPostFlight, clearPendingPfCancel, releaseFlightQueue, setPfActionHandler } from '../flight/FlightOrchestrator.js';
+export { renderTasks, updateCountdownTaskUI, toggleTaskExpandedCard, isCompactMode, setCompactMode, copyTask } from '../ui/TaskRenderer.js';
+export { initCountdownTimer, startCountdown, pauseCountdown, stopCountdown, stopAllCountdowns } from '../tasks/CountdownTimer.js';
+export { initPomodoroTimer, startPomodoro, pausePomodoro, resumePomodoro, stopPomodoro, skipPomodoroPhase, getPomodoroState, isPomodoroActive, setPomodoroTickCallback } from '../tasks/PomodoroTimer.js';
+export { initAlarmChecker, getNextUpcomingTask, startAlarmChecker } from '../tasks/AlarmChecker.js';
+export { openEditModal, openNewModal, closeModal, saveModal, deleteTask, initHolidayChecklist } from '../ui/ModalController.js';
+export { renderStats, setStatsTasks } from '../ui/StatsPanel.js';
+export { renderTaskHistory, setHistoryTasks } from '../ui/HistoryPanel.js';
+export { initAudioSystem, revokeCustomAudioObjectUrl, stopLoopSoundLocal, updateSoundMeta, previewCustomSound, resetAudioPreview, syncAudioObjectUrlTo } from '../ui/AudioSystem.js';
+export { unlockAudioIfNeeded } from '../ui/AudioManager.js';
+export { createMiniWindow, closeMiniWindow, positionMiniWindow, updateMiniWindow, updateMiniPosGridActive, getMiniPositions } from '../ui/MiniWindow.js';
+export { applyTheme, syncThemeButtons, initSystemThemeWatcher } from '../settings/ThemeManager.js';
+export { loadSettings, persistSetting, persistFlightSettings, isInQuietHours } from '../settings/SettingsManager.js';
+export { getCurrentVersion, autoCheckForUpdate, checkForUpdate, openReleasePage, openFeedbackPage, setUpdateStatusEl } from '../settings/UpdateManager.js';
+export { initNotificationPermission, notifyFlightTriggered } from '../ui/NotificationManager.js';
+export { parseDeepLinkUrl, buildTaskFromDeepLink } from '../flight/DeepLink.js';
+export { initEmergency, triggerEmergencyLanding } from '../flight/Emergency.js';
+export { initFlightSync, syncEffectPicker, syncPresetButtons } from '../settings/FlightSync.js';
+export { initColorPicker as initColorPickerModule, getSelectedEditColor, selectColor } from '../ui/ColorPicker.js';
+export { initHeroSection, updateHeroStatus, updateNextUpcoming } from '../ui/HeroSection.js';
+export { initFlightTrigger, clearFlightStreak, doTriggerFlight } from '../flight/FlightTrigger.js';
+export { initFlightPreview, previewFlight, resetFlightSettings } from '../ui/FlightPreview.js';
+export { initLogo, updateTitleLogo, syncMuteToTray, closeSettingsModal } from '../ui/Logo.js';
+export { initTauriListeners } from '../flight/TauriListeners.js';
+export { initToast, showToast } from '../ui/Toast.js';
+export { initMediaUpload } from '../ui/MediaUpload.js';
+export { initTaskFilter } from '../ui/TaskFilter.js';
+export { initSettingsPanel } from '../ui/SettingsPanel.js';
+export { initModalEvents } from '../ui/ModalEvents.js';
+export { initWindowEvents } from '../ui/WindowEvents.js';
+export { initQuickCreate, setQuickCreateDeps } from '../ui/QuickCreateBar.js';
+export { initTaskDetailDrawer, refreshDrawer } from '../ui/TaskDetailDrawer.js';
+export { initKeyboardShortcuts } from '../ui/KeyboardShortcuts.js';
+export { initBatchOperation, enterSelectionMode, toggleSelectionMode, isSelectionModeActive, toggleTaskSelection, isTaskSelected } from '../ui/BatchOperation.js';
+export { initOnboarding, checkAndShowOnboarding } from '../ui/Onboarding.js';
+export { detectTauriRuntime } from './runtime.js';
+export { getMainDomRefs } from './domRefs.js';
+export { createAppState } from './state.js';
+export { createTaskActions } from './taskActions.js';
+export { applySettings, runPostInit } from './bootstrap.js';
+export { handleDeepLink } from './deepLinkActions.js';
+export { initCoreModules } from './initModules.js';
+export { t, initI18n, setLanguage, onLanguageChange, translateDOM } from '../i18n/index.js';

@@ -1,3 +1,10 @@
+const escapeHtmlMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+export function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, c => escapeHtmlMap[c]);
+}
+
 export function isTauriRuntime() {
   return typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 }

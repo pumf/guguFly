@@ -59,6 +59,8 @@ describe('UpdateManager', () => {
   });
 
   it('shows cached newer release info when network fails', async () => {
+    // Force the network fetch to reject so the catch (cached) branch runs
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'));
     globalThis.localStorage.setItem('_updateCache', JSON.stringify({
       version: '0.7.0',
       url: 'https://example.com/release',
@@ -72,6 +74,8 @@ describe('UpdateManager', () => {
     expect(document.getElementById('updateLatestVersion').textContent).toBe('v0.7.0');
     expect(document.getElementById('updateDownloadBtn').dataset.url).toBe('https://example.com/release');
     expect(document.getElementById('updateInfo').classList.remove).toHaveBeenCalledWith('hidden');
+
+    fetchSpy.mockRestore();
   });
 
   it('shows already-latest when cached version equals current version', async () => {
