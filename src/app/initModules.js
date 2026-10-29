@@ -35,6 +35,7 @@ export async function initCoreModules(ctx) {
     queueFlight,
     createMiniWindow,
     initTauriListeners,
+    resumeFlightSequences,
     listen,
     stopLoopSoundLocal,
     stopLoopSound,
@@ -226,6 +227,7 @@ export async function initCoreModules(ctx) {
   });
 
   await initFlightListeners();
+  await resumeFlightSequences(() => state.tasks);
 
   initTauriListeners({
     listen,

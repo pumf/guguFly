@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { get as storageGet, set as storageSet } from '../storage.js';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { availableMonitors, currentMonitor } from '@tauri-apps/api/window';
 import { listen, emit } from '@tauri-apps/api/event';
@@ -182,6 +183,7 @@ export function clearSequence(sequenceId) {
   if (state.intervalId) clearTimeout(state.intervalId);
   if (state.timeoutId) clearTimeout(state.timeoutId);
   flightSequences.delete(sequenceId);
+  persistFlightSequencesSnapshot();
 }
 
 export function clearAllSequences() {
@@ -190,6 +192,7 @@ export function clearAllSequences() {
     if (state.timeoutId) clearTimeout(state.timeoutId);
     flightSequences.delete(sequenceId);
   }
+  persistFlightSequencesSnapshot();
 }
 
 export function clearFlightQueue() {
@@ -199,6 +202,30 @@ export function clearFlightQueue() {
 
 export function hasActiveSequences() {
   return flightSequences.size > 0;
+}
+
+// Loop sequences survive app restarts: their progress is written to
+// storage on every state change and restored on startup by
+// resumeFlightSequences() (issue #2 — restart no longer interrupts
+// multi-flight tasks).
+const FLIGHT_SEQ_KEY = '_flightSequences';
+
+function serializeSequences() {
+  return [...flightSequences.values()]
+    .filter((s) => s.active && (s.mode === 'loop_times' || s.mode === 'loop_interval'))
+    .map((s) => ({
+      taskId: s.taskId,
+      mode: s.mode,
+      remaining: s.remaining,
+      intervalMs: s.intervalMs,
+      lastStart: s.lastStart,
+    }));
+}
+
+function persistFlightSequencesSnapshot() {
+  storageSet(FLIGHT_SEQ_KEY, serializeSequences()).catch((e) => {
+    console.error('persist flight sequences failed:', e);
+  });
 }
 
 // Reset video/effect window state after emergency landing.
@@ -876,12 +903,8 @@ export async function executePostFlightAction(postFlight) {
   }
 }
 
-export async function triggerFlightWithMode(task, registerFn, recordFlightTriggerFn, notifyFn, renderStatsFn) {
-  if (!task.enabled) return;
-  const msg = task.msg || getRandomQuote();
-  const taskImage = task.imageData || null;
-  const taskUseImage = task.imageData ? !!task.useImage : null;
-  const postFlight = {
+function buildPostFlight(task, msg) {
+  return {
     action: task.postFlightAction || 'none',
     appPath: task.postFlightAppPath || '',
     url: task.postFlightUrl || '',
@@ -895,6 +918,14 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
     effectDuration: task.postFlightEffectDuration || 15,
     taskMsg: msg,
   };
+}
+
+export async function triggerFlightWithMode(task, registerFn, recordFlightTriggerFn, notifyFn, renderStatsFn) {
+  if (!task.enabled) return;
+  const msg = task.msg || getRandomQuote();
+  const taskImage = task.imageData || null;
+  const taskUseImage = task.imageData ? !!task.useImage : null;
+  const postFlight = buildPostFlight(task, msg);
 
   if (registerFn) await registerFn();
   if (recordFlightTriggerFn) await recordFlightTriggerFn(task);
@@ -930,6 +961,7 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
       }, totalLoopMs),
     });
     queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
+    persistFlightSequencesSnapshot();
     return;
   }
 
@@ -950,8 +982,82 @@ export async function triggerFlightWithMode(task, registerFn, recordFlightTrigge
       }, totalIntervalMs),
     });
     queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
+    persistFlightSequencesSnapshot();
     return;
   }
+}
+
+// Restore loop sequences persisted by a previous app session. Called
+// once at startup after tasks are loaded. Flights already counted in
+// stats before the restart are NOT re-counted; msg/post-flight config
+// is rebuilt from the current task so edits made while the app was
+// closed are honored. Returns the number of resumed sequences.
+export async function resumeFlightSequences(getTasks) {
+  const saved = await storageGet(FLIGHT_SEQ_KEY);
+  await storageSet(FLIGHT_SEQ_KEY, []);
+  if (!Array.isArray(saved) || saved.length === 0) return 0;
+  const tasks = typeof getTasks === 'function' ? getTasks() || [] : [];
+  let resumed = 0;
+
+  for (const entry of saved) {
+    if (!entry || entry.taskId == null) continue;
+    const task = tasks.find((t) => String(t.id) === String(entry.taskId));
+    if (!task || task.enabled === false) continue;
+
+    const msg = task.msg || getRandomQuote();
+    const taskImage = task.imageData || null;
+    const taskUseImage = task.imageData ? !!task.useImage : null;
+    const postFlight = buildPostFlight(task, msg);
+    const sequenceId = createSequenceId(task.id);
+
+    if (entry.mode === 'loop_times') {
+      const remaining = Math.max(1, entry.remaining || 0);
+      task._flightRemaining = remaining;
+      updateTaskFlightCb?.(task.id, remaining);
+      flightSequences.set(sequenceId, {
+        active: true, sequenceId, taskId: task.id, taskMsg: msg,
+        taskImage, taskUseImage, postFlight,
+        remaining, direction: 'ltr', mode: 'loop_times', intervalId: null,
+        timeoutId: setTimeout(() => {
+          const state = getSequence(sequenceId);
+          if (state) { state.active = false; clearSequence(sequenceId); if (!hasActiveSequences()) stopLoopSound(); }
+        }, remaining * 60000 + 60000),
+      });
+      queueFlight({ msg, direction: 'ltr', sequenceId, playSound: true, imageData: taskImage, useImage: taskUseImage, postFlight });
+      resumed++;
+    } else if (entry.mode === 'loop_interval') {
+      const remaining = Math.max(1, entry.remaining || 0);
+      task._flightRemaining = remaining;
+      updateTaskFlightCb?.(task.id, remaining);
+      const intervalMs = entry.intervalMs || (task.loopInterval || 5) * 60 * 1000;
+      // The next flight was scheduled at lastStart + intervalMs. If the
+      // app was closed past that point, fire as soon as possible.
+      const waitMs = entry.lastStart
+        ? Math.max(0, entry.lastStart + intervalMs - Date.now())
+        : 0;
+      flightSequences.set(sequenceId, {
+        active: true, sequenceId, taskId: task.id, taskMsg: msg,
+        taskImage, taskUseImage, postFlight,
+        remaining, mode: 'loop_interval', intervalMs,
+        lastStart: entry.lastStart || Date.now(),
+        intervalId: setTimeout(() => {
+          const state = getSequence(sequenceId);
+          if (state && state.active) {
+            state.lastStart = Date.now();
+            queueFlight({ msg: state.taskMsg, direction: 'ltr', sequenceId, playSound: true, imageData: state.taskImage, useImage: state.taskUseImage });
+          }
+        }, waitMs),
+        timeoutId: setTimeout(() => {
+          const state = getSequence(sequenceId);
+          if (state) { state.active = false; clearSequence(sequenceId); if (!hasActiveSequences()) stopLoopSound(); }
+        }, waitMs + remaining * intervalMs + 60000),
+      });
+      resumed++;
+    }
+  }
+
+  if (resumed > 0) persistFlightSequencesSnapshot();
+  return resumed;
 }
 
 // Hold the unlisten function for the flight-ended listener so that
@@ -1022,6 +1128,7 @@ export async function initFlightListeners() {
         if (!hasActiveSequences()) stopLoopSound();
       }
     }
+    if (inLoop) persistFlightSequencesSnapshot();
 
     releaseFlightQueue();
     if (continued) return;
