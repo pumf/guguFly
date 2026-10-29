@@ -64,6 +64,7 @@ let useImageCheckboxEl = null;
 
 let loopAudio = null;
 let loopOscInterval = null;
+let loopSoundWatchdog = null;
 let customAudioProbe = null;
 let previewAudioHandle = null;
 
@@ -339,6 +340,23 @@ export function stopLoopSound() {
     clearInterval(loopOscInterval);
     loopOscInterval = null;
   }
+  if (loopSoundWatchdog) {
+    clearTimeout(loopSoundWatchdog);
+    loopSoundWatchdog = null;
+  }
+}
+
+// The loop sound only lasts for one flight animation (~46s worst case),
+// but its stop depends on the flight-ended event. If that event is lost
+// (e.g. the screen was locked and webview timers were suspended), the
+// sound would keep playing forever. The watchdog is re-armed on every
+// playSound and force-stops the loop after 2 minutes without an event.
+function armLoopSoundWatchdog() {
+  if (loopSoundWatchdog) clearTimeout(loopSoundWatchdog);
+  loopSoundWatchdog = setTimeout(() => {
+    loopSoundWatchdog = null;
+    stopLoopSound();
+  }, 120000);
 }
 
 export function stopPreviewAudio() {
@@ -400,12 +418,14 @@ async function playSound() {
         loopOscInterval = setInterval(() => { void playOscillator(sound, playPresetSound); }, 800);
       }
     });
+    if (loopMode) armLoopSoundWatchdog();
     return;
   }
 
   void playOscillator(sound, playPresetSound);
   if (loopMode) {
     loopOscInterval = setInterval(() => { void playOscillator(sound, playPresetSound); }, 800);
+    armLoopSoundWatchdog();
   }
 }
 
@@ -575,6 +595,10 @@ async function processFlightQueue() {
     }
   } catch (e) {
     console.error('flight job failed:', e);
+    // playSound may have started a loop sound before the window
+    // creation failed — without this the loop would play forever
+    // since no flight-ended event will ever arrive.
+    stopLoopSound();
     releaseFlightQueue();
   }
 }
@@ -1176,4 +1200,26 @@ export async function initFlightListeners() {
     }
   });
   flightEndedUnlisten = p;
+
+  // Reconcile audio state when the webview becomes visible again after
+  // being suspended (screen lock). A flight-ended event emitted while
+  // suspended is lost, which would otherwise leave the loop sound
+  // playing forever after unlock.
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!activeFlightJob && !hasActiveSequences()) {
+      stopLoopSound();
+      return;
+    }
+    // A flight looks in progress but its windows vanished while
+    // suspended — the flight-ended event is gone, clean up.
+    if (activeFlightJob && !hasActiveSequences()) {
+      const hasFlightWin = WebviewWindow.getAll().some((w) => String(w.label).startsWith('flight-'));
+      if (!hasFlightWin) {
+        activeFlightJob = null;
+        stopLoopSound();
+        invoke('close_flight_windows').catch(() => {});
+      }
+    }
+  });
 }
