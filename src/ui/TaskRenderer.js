@@ -30,7 +30,7 @@ export function isCompactMode() {
 }
 
 export function setCompactMode(val) {
-  try { localStorage.setItem(COMPACT_STORAGE_KEY, val ? '1' : '0'); } catch {}
+  try { localStorage.setItem(COMPACT_STORAGE_KEY, val ? '1' : '0'); } catch { /* storage unavailable */ }
 }
 
 function loadCollapsedGroups() {
@@ -38,7 +38,7 @@ function loadCollapsedGroups() {
 }
 
 function saveCollapsedGroups(state) {
-  try { localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch { /* storage unavailable */ }
 }
 
 export function renderTasks({

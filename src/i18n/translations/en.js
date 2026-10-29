@@ -172,8 +172,6 @@ export const en = {
   'duration.remaining': '{{time}} left',
   'duration.paused_at': 'Paused at {{time}}',
   'duration.default': '{{time}}',
-  'modal.edit_task': 'Edit Task',
-  'modal.new_task': 'New Task',
   'flight.loop_times': ' 🔁Loop {{count}}x',
   'flight.loop_interval': ' ⏰Every {{interval}}min × {{count}}',
   'flight.remaining': ' 🛩{{count}} left',

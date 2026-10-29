@@ -4,8 +4,8 @@ import { en } from './translations/en.js';
 const STORAGE_KEY = 'appLanguage';
 
 let currentLang = 'zh-CN';
-let translations = { 'zh-CN': zhCN, 'en': en };
-let fallbackLang = 'zh-CN';
+const translations = { 'zh-CN': zhCN, 'en': en };
+const fallbackLang = 'zh-CN';
 let onChangeCallbacks = [];
 
 function resolveKey(lang, key) {
@@ -45,7 +45,9 @@ export function setLanguage(lang, { persist } = {}) {
   if (persist) {
     try {
       localStorage.setItem(STORAGE_KEY, lang);
-    } catch {}
+    } catch {
+      // localStorage unavailable (private browsing) — language won't persist.
+    }
   }
   translateDOM();
   onChangeCallbacks.forEach(fn => fn(lang));
@@ -90,7 +92,9 @@ export function initI18n({ initialLang } = {}) {
   if (!lang) {
     try {
       lang = localStorage.getItem(STORAGE_KEY);
-    } catch {}
+    } catch {
+      // localStorage unavailable — fall back to navigator language below.
+    }
   }
   if (!lang || !translations[lang]) {
     lang = navigator.language && navigator.language.startsWith('en') ? 'en' : 'zh-CN';

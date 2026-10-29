@@ -222,10 +222,11 @@ export async function installUpdate() {
 
   if (isTauriRuntime()) {
     const downloadUrl = updateAvailable?.url || 'https://github.com/pumf/guguFly/releases/latest';
+    let progressInterval = null;
     try {
       if (updateProgressText) updateProgressText.textContent = t('update.downloading', { percent: 0 });
       let progress = 0;
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         if (cancelled) { clearInterval(progressInterval); return; }
         if (progress < 90) {
           progress += Math.random() * 15;
@@ -451,6 +452,7 @@ export async function checkForUpdate() {
         updateInstallBtn.classList.remove('hidden');
         updateInstallBtn.onclick = () => installUpdate();
       }
+      if (updateDownloadBtn) updateDownloadBtn.dataset.url = cached.url || GITHUB_DOWNLOAD_URL;
       updateAvailable = { url: cached.url || GITHUB_DOWNLOAD_URL, notes: cached.notes };
       if (updateStatus) updateStatus.textContent = t('update.status_found', { version: cached.version });
       showUpdateIndicator(false);

@@ -172,8 +172,6 @@ export const zhCN = {
   'duration.remaining': '剩余 {{time}}',
   'duration.paused_at': '暂停于 {{time}}',
   'duration.default': '时长 {{time}}',
-  'modal.edit_task': '编辑任务',
-  'modal.new_task': '新建任务',
   'flight.loop_times': ' 🔁连续{{count}}次',
   'flight.loop_interval': ' ⏰每{{interval}}min×{{count}}次',
   'flight.remaining': ' 🛩剩余{{count}}次',

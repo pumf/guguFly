@@ -22,11 +22,16 @@ describe('UpdateManager', () => {
   let originalWindow;
   let originalDocument;
   let originalLocalStorage;
+  let originalFetch;
 
   beforeEach(() => {
     originalWindow = globalThis.window;
     originalDocument = globalThis.document;
     originalLocalStorage = globalThis.localStorage;
+    originalFetch = globalThis.fetch;
+    // Force the "network unavailable" path — a real fetch would succeed
+    // and bypass the cache-fallback behavior under test.
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error('network offline')));
 
     const elements = new Map();
     [
@@ -56,6 +61,7 @@ describe('UpdateManager', () => {
     globalThis.window = originalWindow;
     globalThis.document = originalDocument;
     globalThis.localStorage = originalLocalStorage;
+    globalThis.fetch = originalFetch;
   });
 
   it('shows cached newer release info when network fails', async () => {
