@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "咕咕机长",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "identifier": "com.gugufly.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -14,7 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "咕咕机长 v0.8.1",
+        "title": "咕咕机长 v0.8.2",
         "label": "main",
         "width": 620,
         "height": 920,
