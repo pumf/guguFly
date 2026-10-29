@@ -1732,7 +1732,7 @@ dependencies = [
 
 [[package]]
 name = "gugufly"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "log",
  "pkg-config",
